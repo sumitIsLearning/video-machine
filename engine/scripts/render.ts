@@ -61,7 +61,7 @@ async function openPage(url: string) {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL ?? 'chrome',
     headless: !flag('headed'),
-    args: [process.platform === 'win32' ? '--use-angle=d3d11' : '--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
+    args: [process.platform === 'win32' ? '--use-angle=d3d11' : '--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', ...(process.env.EXTRA_CHROME_ARGS?.split(' ').filter(Boolean) ?? [])],
   });
   const page = await browser.newPage({ viewport: { width: LW, height: LH }, deviceScaleFactor: 1 });
   const logs: string[] = [];
@@ -181,6 +181,12 @@ try {
     const from = +opt('from', '0')!, to = +opt('to', '10')!, n = +opt('n', '12')!;
     let times = Array.from({ length: n }, (_, i) => from + ((to - from) * i) / Math.max(1, n - 1));
     if (opt('times')) times = opt('times')!.split(',').map(Number);
+    if (opt('per-plate')) {
+      // N frames per timeline entry, evenly spread inside it
+      const k = +opt('per-plate')!;
+      const tl: { start: number; end: number }[] = await page.evaluate(() => (window as any).__pdoom.timeline);
+      times = tl.flatMap((e) => Array.from({ length: k }, (_, i) => e.start + ((e.end - e.start) * (i + 0.5)) / k));
+    }
     if (flag('cuts')) {
       // 4 frames around every timeline boundary: 2 frames before, 2 after
       const tl: { id: string; start: number }[] = await page.evaluate(() => (window as any).__pdoom.timeline);

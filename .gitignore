@@ -14,3 +14,6 @@ __pycache__/
 
 # alignment model (95 MB, copied by hand from video-testing/analysis/models)
 *.onnx
+
+# test outputs
+tests/fixture/out/

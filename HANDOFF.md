@@ -1,0 +1,38 @@
+# Handoff
+
+## Where things are (end of Phase 0, 2026-10-05)
+
+- `engine/`: copy of video-testing/app (engine, render script, fonts) + `analysis/*.py` + ONNX model (gitignored, copied by hand).
+  - The only engine edit: `src/engine/gl.ts` W/H come from `?w=&h=` (default 1920x1080).
+  - Harness edits: `vite.config.ts` (serves a run folder from `VM_RUN`, maps plates' `../engine/*` imports, dedupes three),
+    `src/main.ts` (`@run/timeline`, canvas CSS size from W/H), `scripts/render.ts` (`--w/--h`, `--strict`,
+    `sheet --per-plate N`, private server unless `--url`, kills vite's process tree on Windows, `EXTRA_CHROME_ARGS`).
+- `.claude/skills/video-machine/`
+  - `contracts/types.ts`: Zod schemas for every §3 file + `Timing`, adapter interfaces, `readJson`/`writeJson` (validate both ways).
+  - `adapters/render/pdoom/`: `still`, `contactSheet`, `render` (draft/final), `supports`. `scaffold`/`plateApi`/`lint` throw "Phase 1/2".
+  - `adapters/align/ctc-onnx/`: `align(audio, lines, spokenWords)` → `<run>/data/timing.json` + `audio.json`. Drives align_vo.py and audio_vo.py without editing them.
+- `tests/baseline/`: the 5 stills rendered from video-testing. `tests/fixture/`: the 9 plates, timeline, audio, data, `spoken.json`.
+- `tests/phase0.ts`: the Phase 0 acceptance test. `tests/phase0/video-testing.before.txt`: listing taken before anything ran.
+
+## How to run
+
+- Always use the pinned bun: `node_modules/.bin/bun` (root `package.json`, bun 1.4.2). Install: `node_modules/.bin/bun install` in root, then
+  `../node_modules/.bin/bun install --frozen-lockfile` in `engine/` (this reproduces video-testing's exact three/vite versions).
+- Python: `uv run --project <workspace> python ...` (root `pyproject.toml`, onnxruntime + numpy). `python -m uv` is broken on this machine; plain `uv` works.
+- Test: `node_modules/.bin/bun tests/phase0.ts`.
+
+## What broke, and what was learned
+
+- Global bun 1.3.5 cannot launch Chrome through Playwright on Windows (pipe timeout), and ignores the engine's lockfile v2. Bun 1.4.2 fixes both.
+- `render.ts` in video-testing orphans vite on Windows (`proc.kill()` on `bunx` leaves node running). Fixed in the copy with `taskkill /T`.
+- Python prints `→` through a cp1252 pipe and crashes: the align adapter sets `PYTHONUTF8=1`.
+- **Chrome's GPU-accelerated Canvas2D is not deterministic.** Hairline text (the ghost word "After" at t=5) rasterizes one of two ways
+  depending on GPU-process cache state, which depends on what else was drawn first (other plates initialise in parallel; other pages
+  in the same browser). Measured over 4 fresh renders: t=5 gave the baseline image 2/4 times; the other 4 baseline times 4/4.
+  With `--disable-accelerated-2d-canvas` every frame is identical across runs, but differs from the baseline (PSNR 45-65 dB; glyph
+  antialiasing only, not visible at 1:1). This matters for non-negotiable #1 and for `render.deterministic` in Phase 3.
+
+## Next
+
+- Decide the canvas mode (see the open question in the Phase 0 report); then make `tests/phase0.ts` match the decision.
+- Phase 1: intake, research, script, plan; extract `looks/plotter` and `core/`; frame object in `plateApi()`.
