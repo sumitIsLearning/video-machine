@@ -1,7 +1,8 @@
 // Entry: preview player (default) or export mode (?export=1, driven by scripts/render.ts).
 import { Engine, type AdaptiveSampling } from './engine/engine';
-import { PW, PH, SCALE } from './engine/gl';
-import { makeTimeline } from './timeline';
+import { W, H, PW, PH, SCALE } from './engine/gl';
+// the run folder (VM_RUN, see vite.config.ts) supplies the timeline, plates, audio and data
+import { makeTimeline } from '@run/timeline';
 
 const params = new URLSearchParams(location.search);
 const EXPORT = params.has('export');
@@ -9,9 +10,10 @@ const ONLY = params.get('only'); // comma-separated scene ids to load (faster st
 const FROM = params.get('t') ? parseFloat(params.get('t')!) : null;
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
-// physical size: 1920x1080 times ?scale= (the page CSS keeps showing it at 1920x1080)
+// physical size: W x H (?w=&h=, default 1920x1080) times ?scale=; the page CSS shows it at W x H
 canvas.width = PW;
 canvas.height = PH;
+canvas.style.aspectRatio = `${W} / ${H}`;
 
 const engine = new Engine(canvas, makeTimeline);
 
@@ -32,11 +34,13 @@ async function boot() {
 // ------------------------------------------------------------------ export API
 function setupExport() {
   document.body.classList.add('export');
+  canvas.style.width = `${W}px`;
+  canvas.style.height = `${H}px`;
   window.__pdoom = {
     engine,
     duration: engine.duration,
     errors: engine.errors,
-    /** Output size in px (1920x1080 times scale); stream() sends frames of width*height*4 bytes. */
+    /** Output size in px (W x H times scale); stream() sends frames of width*height*4 bytes. */
     scale: SCALE,
     width: PW,
     height: PH,

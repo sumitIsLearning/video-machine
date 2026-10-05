@@ -7,9 +7,12 @@
 //   video:   bun scripts/render.ts video [--from 0] [--to 156.65] [--fps 60] [--crf 16] [--x264 aq-mode=3] [--samples 1] [--shutter 0.5] [--out ../out/pdoom.mp4] [--noaudio]
 //            --samples N averages N sub-frames per frame over shutter×(1/fps): motion blur + temporal AA;
 //            --samples auto picks the count per frame (4, 12, 36, 108 or 324, see Engine.render)
-//   --scale N (all modes): render at N× the 1920x1080 layout (--scale 2 = true 3840x2160); stills are then saved
+//   --w W --h H (all modes): frame size in logical px (default 1920x1080), passed to the app as ?w=&h=.
+//   --scale N (all modes): render at N× the W x H layout (--scale 2 = true 3840x2160); stills are then saved
 //            full-res from the pixel buffer, videos are encoded at the physical size.
-// Uses the Vite dev server at --url (default http://localhost:5173); starts a private one if unreachable.
+//   --strict (all modes): plate errors and page errors fail the run instead of rendering a blank plate.
+// VM_RUN (env, required): the run folder (timeline.ts, plates, audio/, data/), see vite.config.ts.
+// Starts a private Vite dev server for VM_RUN, unless --url points at one that is already running.
 import { chromium, type Page } from 'playwright-core';
 import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -23,27 +26,35 @@ const opt = (k: string, d?: string) => { const i = argv.indexOf(`--${k}`); retur
 const flag = (k: string) => argv.includes(`--${k}`);
 const APP = path.resolve(import.meta.dir, '..');
 const SCALE = Math.max(1, Math.round(+opt('scale', '1')!));
-const OW = 1920 * SCALE, OH = 1080 * SCALE; // output size
+const LW = Math.round(+opt('w', '1920')!), LH = Math.round(+opt('h', '1080')!); // logical frame size
+const OW = LW * SCALE, OH = LH * SCALE; // output size
 // --samples N (fixed) or --samples auto [--min-samples 4] [--max-samples 324] [--tol 3] (adaptive, see Engine.render)
 const SAMPLES = opt('samples', '1') === 'auto'
   ? { min: +opt('min-samples', '4')!, max: +opt('max-samples', '324')!, tol: +opt('tol', '3')! }
   : +opt('samples', '1')!;
 const hist = (h: Record<string, number>) => Object.entries(h).sort((a, b) => +a[0] - +b[0]).map(([k, v]) => `${k}:${v}`).join(' ');
-const ROOT = path.resolve(APP, '..');
+if (!process.env.VM_RUN) throw new Error('VM_RUN is not set: point it at a run folder');
+const ROOT = path.resolve(process.env.VM_RUN);
 
 async function reachable(url: string) {
   try { const r = await fetch(url, { signal: AbortSignal.timeout(1500) }); return r.ok; } catch { return false; }
 }
 
 async function ensureServer(): Promise<{ url: string; stop: () => void }> {
-  const url = opt('url', 'http://localhost:5173')!;
-  if (await reachable(url)) return { url, stop: () => {} };
+  // only reuse a server when asked: one already on :5173 may be serving a different run
+  const url = opt('url');
+  if (url) {
+    if (await reachable(url)) return { url, stop: () => {} };
+    throw new Error(`no dev server at --url ${url}`);
+  }
   const port = 5300 + Math.floor(Math.random() * 500);
   // no live reload: a file saved mid-render must not reload the page
-  const proc = Bun.spawn(['bunx', 'vite', '--port', String(port), '--strictPort'], { cwd: APP, stdout: 'ignore', stderr: 'ignore', env: { ...process.env, PDOOM_NO_HMR: '1' } });
+  const proc = Bun.spawn([process.execPath, 'x', 'vite', '--port', String(port), '--strictPort'], { cwd: APP, stdout: 'ignore', stderr: 'ignore', env: { ...process.env, PDOOM_NO_HMR: '1' } });
   const u = `http://localhost:${port}`;
   for (let i = 0; i < 100 && !(await reachable(u)); i++) await Bun.sleep(100);
-  return { url: u, stop: () => proc.kill() };
+  // on Windows, killing `bun x` leaves vite's node process running: kill the whole tree
+  const stop = () => { if (process.platform === 'win32') Bun.spawnSync(['taskkill', '/PID', String(proc.pid), '/T', '/F'], { stdout: 'ignore', stderr: 'ignore' }); else proc.kill(); };
+  return { url: u, stop };
 }
 
 async function openPage(url: string) {
@@ -52,12 +63,12 @@ async function openPage(url: string) {
     headless: !flag('headed'),
     args: [process.platform === 'win32' ? '--use-angle=d3d11' : '--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
   });
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: LW, height: LH }, deviceScaleFactor: 1 });
   const logs: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') logs.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
   const only = opt('only');
-  await page.goto(`${url}/?export=1${only ? `&only=${only}` : ''}${SCALE !== 1 ? `&scale=${SCALE}` : ''}`);
+  await page.goto(`${url}/?export=1&w=${LW}&h=${LH}${only ? `&only=${only}` : ''}${SCALE !== 1 ? `&scale=${SCALE}` : ''}`);
   await page.waitForFunction(() => (window as any).__pdoom?.ready || (window as any).__pdoom?.error, null, { timeout: 120000 });
   const err = await page.evaluate(() => (window as any).__pdoom.error);
   if (err) throw new Error(`app failed to boot:\n${err}\n${logs.join('\n')}`);
@@ -65,6 +76,8 @@ async function openPage(url: string) {
   if (size[0] !== OW || size[1] !== OH) throw new Error(`app renders ${size[0]}x${size[1]}, expected ${OW}x${OH} (--scale ${SCALE})`);
   const sceneErrors: string[] = await page.evaluate(() => (window as any).__pdoom.errors);
   if (sceneErrors.length) console.error('SCENE ERRORS:\n' + sceneErrors.join('\n'));
+  const pageErrors = logs.filter((l) => l.startsWith('[pageerror]'));
+  if (flag('strict') && (sceneErrors.length || pageErrors.length)) throw new Error(`--strict: ${sceneErrors.length} plate error(s), ${pageErrors.length} page error(s)\n${[...sceneErrors, ...pageErrors].join('\n')}`);
   return { browser, page, logs };
 }
 
@@ -77,16 +90,16 @@ async function stills(page: Page, times: number[], outDir: string) {
     if (typeof SAMPLES !== 'number') console.log(`t=${t}: ${k} sub-frames`);
     // at scale > 1 the canvas is shown downscaled on the page: save the full-res pixel buffer instead
     if (SCALE !== 1) await Bun.write(f, Buffer.from(await page.evaluate(() => (window as any).__pdoom.png()), 'base64'));
-    else await page.screenshot({ path: f, clip: { x: 0, y: 0, width: 1920, height: 1080 } });
+    else await page.screenshot({ path: f, clip: { x: 0, y: 0, width: LW, height: LH } });
     files.push(f);
   }
   return files;
 }
 
 async function sheet(page: Page, times: number[], cols: number, out: string) {
-  const dataUrl: string = await page.evaluate(async ({ times, cols }) => {
+  const dataUrl: string = await page.evaluate(async ({ times, cols, lw, lh }) => {
     const P = (window as any).__pdoom;
-    const cw = 480, ch = 270, pad = 4, lab = 18;
+    const k = 480 / Math.max(lw, lh), cw = Math.round(lw * k), ch = Math.round(lh * k), pad = 4, lab = 18; // 480 px on the long side
     const rows = Math.ceil(times.length / cols);
     const cv = document.createElement('canvas');
     cv.width = cols * (cw + pad) + pad; cv.height = rows * (ch + lab + pad) + pad;
@@ -100,7 +113,7 @@ async function sheet(page: Page, times: number[], cols: number, out: string) {
       c.fillStyle = '#ddd'; c.font = '13px monospace'; c.fillText(`${t.toFixed(2)}s`, x + 2, y + 13);
     });
     return cv.toDataURL('image/png');
-  }, { times, cols });
+  }, { times, cols, lw: LW, lh: LH });
   ensureDir(path.dirname(out));
   await Bun.write(out, Buffer.from(dataUrl.split(',')[1]!, 'base64'));
 }
@@ -149,8 +162,11 @@ async function video(page: Page, from: number, to: number, fps: number, out: str
 }
 
 const { url, stop } = await ensureServer();
-const { browser, page, logs } = await openPage(url);
+let browser: Awaited<ReturnType<typeof openPage>>['browser'] | undefined;
 try {
+  const opened = await openPage(url);
+  browser = opened.browser;
+  const { page, logs } = opened;
   if (mode === 'gpu') {
     console.log(await page.evaluate(() => {
       const gl = document.createElement('canvas').getContext('webgl2')!;
@@ -186,7 +202,7 @@ try {
       const t = overrides[figs[i]!] ?? (e.start + e.end) / 2;
       await page.evaluate((t) => (window as any).__pdoom.still(t, 4, 0.2), t);
       const f = path.join(dir, `fig${String(i + 1).padStart(2, '0')}.jpg`);
-      await page.screenshot({ path: f, type: 'jpeg', quality: 90, clip: { x: 0, y: 0, width: 1920, height: 1080 } });
+      await page.screenshot({ path: f, type: 'jpeg', quality: 90, clip: { x: 0, y: 0, width: LW, height: LH } });
       console.log(f, t.toFixed(2));
     }
   } else if (mode === 'perf') {
@@ -214,6 +230,6 @@ try {
   }
   if (logs.length) console.error('BROWSER LOG:\n' + logs.slice(0, 40).join('\n'));
 } finally {
-  await browser.close();
+  await browser?.close();
   stop();
 }

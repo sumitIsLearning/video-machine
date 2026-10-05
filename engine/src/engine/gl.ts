@@ -5,9 +5,15 @@ import { GLSL_COMMON } from './glsl/common';
 import { SCALE } from './scale';
 
 export { SCALE };
+/** Frame size from the page URL (`?w=1080&h=1920`), default 1920x1080; set per format by the render adapter. */
+function readSize(k: 'w' | 'h', d: number) {
+  if (typeof location === 'undefined') return d;
+  const v = Math.round(Number(new URLSearchParams(location.search).get(k) ?? d));
+  return Number.isFinite(v) && v >= 16 && v <= 8192 ? v : d;
+}
 /** Logical canvas: scenes lay out in these px at every output scale. */
-export const W = 1920;
-export const H = 1080;
+export const W = readSize('w', 1920);
+export const H = readSize('h', 1080);
 /** Physical (output) size: the logical canvas times SCALE (`?scale=2` → 3840x2160). */
 export const PW = W * SCALE;
 export const PH = H * SCALE;
