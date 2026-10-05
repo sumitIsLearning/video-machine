@@ -1,0 +1,1353 @@
+{
+ "source": "align_vo.py (wav2vec2-base-960h CTC)",
+ "lines": [
+  {
+   "text": "What if I told you… you can create motion graphics like this without even opening After Effects?",
+   "start": 0.09,
+   "end": 6.0,
+   "words": [
+    {
+     "w": "What",
+     "start": 0.09,
+     "end": 0.36
+    },
+    {
+     "w": "if",
+     "start": 0.36,
+     "end": 0.54
+    },
+    {
+     "w": "I",
+     "start": 0.54,
+     "end": 0.67
+    },
+    {
+     "w": "told",
+     "start": 0.67,
+     "end": 1.08
+    },
+    {
+     "w": "you…",
+     "start": 1.08,
+     "end": 1.52
+    },
+    {
+     "w": "you",
+     "start": 1.84,
+     "end": 1.97
+    },
+    {
+     "w": "can",
+     "start": 1.97,
+     "end": 2.16
+    },
+    {
+     "w": "create",
+     "start": 2.16,
+     "end": 2.56
+    },
+    {
+     "w": "motion",
+     "start": 2.56,
+     "end": 2.92
+    },
+    {
+     "w": "graphics",
+     "start": 2.92,
+     "end": 3.32
+    },
+    {
+     "w": "like",
+     "start": 3.32,
+     "end": 3.52
+    },
+    {
+     "w": "this",
+     "start": 3.52,
+     "end": 3.95
+    },
+    {
+     "w": "without",
+     "start": 3.95,
+     "end": 4.36
+    },
+    {
+     "w": "even",
+     "start": 4.36,
+     "end": 4.57
+    },
+    {
+     "w": "opening",
+     "start": 4.68,
+     "end": 5.13
+    },
+    {
+     "w": "After",
+     "start": 5.13,
+     "end": 5.48
+    },
+    {
+     "w": "Effects?",
+     "start": 5.48,
+     "end": 6.0
+    }
+   ]
+  },
+  {
+   "text": "And no — I’m not talking about an After Effects MCP.",
+   "start": 6.5,
+   "end": 9.68,
+   "words": [
+    {
+     "w": "And",
+     "start": 6.5,
+     "end": 6.72
+    },
+    {
+     "w": "no",
+     "start": 6.72,
+     "end": 7.01
+    },
+    {
+     "w": "—",
+     "start": 7.01,
+     "end": 7.14
+    },
+    {
+     "w": "I’m",
+     "start": 7.14,
+     "end": 7.48
+    },
+    {
+     "w": "not",
+     "start": 7.48,
+     "end": 7.71
+    },
+    {
+     "w": "talking",
+     "start": 7.71,
+     "end": 8.1
+    },
+    {
+     "w": "about",
+     "start": 8.1,
+     "end": 8.36
+    },
+    {
+     "w": "an",
+     "start": 8.36,
+     "end": 8.52
+    },
+    {
+     "w": "After",
+     "start": 8.52,
+     "end": 8.76
+    },
+    {
+     "w": "Effects",
+     "start": 8.76,
+     "end": 9.12
+    },
+    {
+     "w": "MCP.",
+     "start": 9.12,
+     "end": 9.68,
+     "syl": [
+      [
+       9.12,
+       9.26
+      ],
+      [
+       9.26,
+       9.44
+      ],
+      [
+       9.44,
+       9.68
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "text": "This is Claude Opus 5.5.",
+   "start": 10.1,
+   "end": 12.59,
+   "words": [
+    {
+     "w": "This",
+     "start": 10.1,
+     "end": 10.61
+    },
+    {
+     "w": "is",
+     "start": 10.61,
+     "end": 10.84
+    },
+    {
+     "w": "Claude",
+     "start": 10.84,
+     "end": 11.22
+    },
+    {
+     "w": "Opus",
+     "start": 11.22,
+     "end": 11.68
+    },
+    {
+     "w": "5.5.",
+     "start": 11.68,
+     "end": 12.59,
+     "syl": [
+      [
+       11.68,
+       11.96
+      ],
+      [
+       11.96,
+       12.24
+      ],
+      [
+       12.24,
+       12.59
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "text": "Instead of controlling After Effects, you basically tell Claude what you want the animation to look like.",
+   "start": 13.11,
+   "end": 18.19,
+   "words": [
+    {
+     "w": "Instead",
+     "start": 13.11,
+     "end": 13.48
+    },
+    {
+     "w": "of",
+     "start": 13.48,
+     "end": 13.6
+    },
+    {
+     "w": "controlling",
+     "start": 13.6,
+     "end": 14.09
+    },
+    {
+     "w": "After",
+     "start": 14.09,
+     "end": 14.48
+    },
+    {
+     "w": "Effects,",
+     "start": 14.48,
+     "end": 14.96
+    },
+    {
+     "w": "you",
+     "start": 15.1,
+     "end": 15.32
+    },
+    {
+     "w": "basically",
+     "start": 15.32,
+     "end": 15.87
+    },
+    {
+     "w": "tell",
+     "start": 15.87,
+     "end": 16.21
+    },
+    {
+     "w": "Claude",
+     "start": 16.21,
+     "end": 16.6
+    },
+    {
+     "w": "what",
+     "start": 16.6,
+     "end": 16.74
+    },
+    {
+     "w": "you",
+     "start": 16.74,
+     "end": 16.9
+    },
+    {
+     "w": "want",
+     "start": 16.9,
+     "end": 17.08
+    },
+    {
+     "w": "the",
+     "start": 17.08,
+     "end": 17.26
+    },
+    {
+     "w": "animation",
+     "start": 17.26,
+     "end": 17.7
+    },
+    {
+     "w": "to",
+     "start": 17.7,
+     "end": 17.84
+    },
+    {
+     "w": "look",
+     "start": 17.84,
+     "end": 18.01
+    },
+    {
+     "w": "like.",
+     "start": 18.01,
+     "end": 18.19
+    }
+   ]
+  },
+  {
+   "text": "For example:",
+   "start": 19.36,
+   "end": 19.92,
+   "words": [
+    {
+     "w": "For",
+     "start": 19.36,
+     "end": 19.52
+    },
+    {
+     "w": "example:",
+     "start": 19.52,
+     "end": 19.92
+    }
+   ]
+  },
+  {
+   "text": "“Create a 15-second cinematic motion graphics sequence with kinetic typography, smooth shape transitions, 3D elements and seamless camera movement.”",
+   "start": 20.31,
+   "end": 29.38,
+   "words": [
+    {
+     "w": "“Create",
+     "start": 20.31,
+     "end": 20.72
+    },
+    {
+     "w": "a",
+     "start": 20.72,
+     "end": 20.9
+    },
+    {
+     "w": "15-second",
+     "start": 20.9,
+     "end": 21.86,
+     "syl": [
+      [
+       20.9,
+       21.38
+      ],
+      [
+       21.38,
+       21.86
+      ]
+     ]
+    },
+    {
+     "w": "cinematic",
+     "start": 21.86,
+     "end": 22.4
+    },
+    {
+     "w": "motion",
+     "start": 22.4,
+     "end": 22.78
+    },
+    {
+     "w": "graphics",
+     "start": 22.78,
+     "end": 23.18
+    },
+    {
+     "w": "sequence",
+     "start": 23.18,
+     "end": 23.72
+    },
+    {
+     "w": "with",
+     "start": 23.72,
+     "end": 23.87
+    },
+    {
+     "w": "kinetic",
+     "start": 23.87,
+     "end": 24.31
+    },
+    {
+     "w": "typography,",
+     "start": 24.31,
+     "end": 25.06
+    },
+    {
+     "w": "smooth",
+     "start": 25.31,
+     "end": 25.78
+    },
+    {
+     "w": "shape",
+     "start": 25.78,
+     "end": 26.0
+    },
+    {
+     "w": "transitions,",
+     "start": 26.0,
+     "end": 26.75
+    },
+    {
+     "w": "3D",
+     "start": 26.97,
+     "end": 27.4,
+     "syl": [
+      [
+       26.97,
+       27.2
+      ],
+      [
+       27.2,
+       27.4
+      ]
+     ]
+    },
+    {
+     "w": "elements",
+     "start": 27.4,
+     "end": 27.87
+    },
+    {
+     "w": "and",
+     "start": 27.97,
+     "end": 28.24
+    },
+    {
+     "w": "seamless",
+     "start": 28.24,
+     "end": 28.7
+    },
+    {
+     "w": "camera",
+     "start": 28.7,
+     "end": 29.06
+    },
+    {
+     "w": "movement.”",
+     "start": 29.06,
+     "end": 29.38
+    }
+   ]
+  },
+  {
+   "text": "And this is where it gets crazy.",
+   "start": 29.91,
+   "end": 32.04,
+   "words": [
+    {
+     "w": "And",
+     "start": 29.91,
+     "end": 30.22
+    },
+    {
+     "w": "this",
+     "start": 30.22,
+     "end": 30.65
+    },
+    {
+     "w": "is",
+     "start": 30.65,
+     "end": 30.82
+    },
+    {
+     "w": "where",
+     "start": 30.82,
+     "end": 31.04
+    },
+    {
+     "w": "it",
+     "start": 31.04,
+     "end": 31.13
+    },
+    {
+     "w": "gets",
+     "start": 31.13,
+     "end": 31.4
+    },
+    {
+     "w": "crazy.",
+     "start": 31.4,
+     "end": 32.04
+    }
+   ]
+  },
+  {
+   "text": "Claude doesn’t actually generate an MP4 directly.",
+   "start": 32.44,
+   "end": 35.2,
+   "words": [
+    {
+     "w": "Claude",
+     "start": 32.44,
+     "end": 32.72
+    },
+    {
+     "w": "doesn’t",
+     "start": 32.72,
+     "end": 33.04
+    },
+    {
+     "w": "actually",
+     "start": 33.04,
+     "end": 33.58
+    },
+    {
+     "w": "generate",
+     "start": 33.58,
+     "end": 34.04
+    },
+    {
+     "w": "an",
+     "start": 34.04,
+     "end": 34.2
+    },
+    {
+     "w": "MP4",
+     "start": 34.2,
+     "end": 34.7,
+     "syl": [
+      [
+       34.2,
+       34.28
+      ],
+      [
+       34.28,
+       34.46
+      ],
+      [
+       34.46,
+       34.7
+      ]
+     ]
+    },
+    {
+     "w": "directly.",
+     "start": 34.7,
+     "end": 35.2
+    }
+   ]
+  },
+  {
+   "text": "It writes the animation itself as code.",
+   "start": 35.62,
+   "end": 38.24,
+   "words": [
+    {
+     "w": "It",
+     "start": 35.62,
+     "end": 35.77
+    },
+    {
+     "w": "writes",
+     "start": 35.77,
+     "end": 36.17
+    },
+    {
+     "w": "the",
+     "start": 36.17,
+     "end": 36.32
+    },
+    {
+     "w": "animation",
+     "start": 36.32,
+     "end": 36.88
+    },
+    {
+     "w": "itself",
+     "start": 36.88,
+     "end": 37.57
+    },
+    {
+     "w": "as",
+     "start": 37.57,
+     "end": 37.83
+    },
+    {
+     "w": "code.",
+     "start": 37.83,
+     "end": 38.24
+    }
+   ]
+  },
+  {
+   "text": "The text, shapes, positions, easing, transitions, particles — basically every visual element is defined mathematically over time.",
+   "start": 38.79,
+   "end": 47.76,
+   "words": [
+    {
+     "w": "The",
+     "start": 38.79,
+     "end": 38.92
+    },
+    {
+     "w": "text,",
+     "start": 38.92,
+     "end": 39.34
+    },
+    {
+     "w": "shapes,",
+     "start": 39.66,
+     "end": 40.24
+    },
+    {
+     "w": "positions,",
+     "start": 40.24,
+     "end": 40.98
+    },
+    {
+     "w": "easing,",
+     "start": 41.14,
+     "end": 41.71
+    },
+    {
+     "w": "transitions,",
+     "start": 41.71,
+     "end": 42.54
+    },
+    {
+     "w": "particles",
+     "start": 42.66,
+     "end": 43.3
+    },
+    {
+     "w": "—",
+     "start": 43.3,
+     "end": 43.78
+    },
+    {
+     "w": "basically",
+     "start": 43.78,
+     "end": 44.24
+    },
+    {
+     "w": "every",
+     "start": 44.37,
+     "end": 44.76
+    },
+    {
+     "w": "visual",
+     "start": 44.76,
+     "end": 45.16
+    },
+    {
+     "w": "element",
+     "start": 45.16,
+     "end": 45.63
+    },
+    {
+     "w": "is",
+     "start": 45.63,
+     "end": 45.78
+    },
+    {
+     "w": "defined",
+     "start": 45.78,
+     "end": 46.24
+    },
+    {
+     "w": "mathematically",
+     "start": 46.24,
+     "end": 47.16
+    },
+    {
+     "w": "over",
+     "start": 47.16,
+     "end": 47.36
+    },
+    {
+     "w": "time.",
+     "start": 47.36,
+     "end": 47.76
+    }
+   ]
+  },
+  {
+   "text": "Then that code is rendered frame by frame and turned into a video.",
+   "start": 48.16,
+   "end": 51.87,
+   "words": [
+    {
+     "w": "Then",
+     "start": 48.16,
+     "end": 48.65
+    },
+    {
+     "w": "that",
+     "start": 48.65,
+     "end": 48.96
+    },
+    {
+     "w": "code",
+     "start": 48.96,
+     "end": 49.22
+    },
+    {
+     "w": "is",
+     "start": 49.22,
+     "end": 49.36
+    },
+    {
+     "w": "rendered",
+     "start": 49.36,
+     "end": 49.82
+    },
+    {
+     "w": "frame",
+     "start": 49.82,
+     "end": 50.1
+    },
+    {
+     "w": "by",
+     "start": 50.1,
+     "end": 50.32
+    },
+    {
+     "w": "frame",
+     "start": 50.32,
+     "end": 50.76
+    },
+    {
+     "w": "and",
+     "start": 50.76,
+     "end": 50.9
+    },
+    {
+     "w": "turned",
+     "start": 50.9,
+     "end": 51.2
+    },
+    {
+     "w": "into",
+     "start": 51.2,
+     "end": 51.44
+    },
+    {
+     "w": "a",
+     "start": 51.44,
+     "end": 51.5
+    },
+    {
+     "w": "video.",
+     "start": 51.5,
+     "end": 51.87
+    }
+   ]
+  },
+  {
+   "text": "So instead of: After Effects → layers → keyframes → graph editor → render",
+   "start": 52.29,
+   "end": 57.87,
+   "words": [
+    {
+     "w": "So",
+     "start": 52.29,
+     "end": 52.76
+    },
+    {
+     "w": "instead",
+     "start": 52.76,
+     "end": 53.18
+    },
+    {
+     "w": "of:",
+     "start": 53.18,
+     "end": 53.44
+    },
+    {
+     "w": "After",
+     "start": 53.63,
+     "end": 54.02
+    },
+    {
+     "w": "Effects",
+     "start": 54.02,
+     "end": 54.54
+    },
+    {
+     "w": "→",
+     "start": 54.54,
+     "end": 54.74
+    },
+    {
+     "w": "layers",
+     "start": 54.74,
+     "end": 55.36
+    },
+    {
+     "w": "→",
+     "start": 55.36,
+     "end": 55.51
+    },
+    {
+     "w": "keyframes",
+     "start": 55.51,
+     "end": 56.3
+    },
+    {
+     "w": "→",
+     "start": 56.3,
+     "end": 56.46
+    },
+    {
+     "w": "graph",
+     "start": 56.46,
+     "end": 56.82
+    },
+    {
+     "w": "editor",
+     "start": 56.82,
+     "end": 57.23
+    },
+    {
+     "w": "→",
+     "start": 57.23,
+     "end": 57.42
+    },
+    {
+     "w": "render",
+     "start": 57.42,
+     "end": 57.87
+    }
+   ]
+  },
+  {
+   "text": "you’re essentially doing: Prompt → code → render → video.",
+   "start": 58.24,
+   "end": 62.34,
+   "words": [
+    {
+     "w": "you’re",
+     "start": 58.24,
+     "end": 58.42
+    },
+    {
+     "w": "essentially",
+     "start": 58.42,
+     "end": 58.96
+    },
+    {
+     "w": "doing:",
+     "start": 58.96,
+     "end": 59.39
+    },
+    {
+     "w": "Prompt",
+     "start": 59.67,
+     "end": 60.0
+    },
+    {
+     "w": "→",
+     "start": 60.3,
+     "end": 60.47
+    },
+    {
+     "w": "code",
+     "start": 60.47,
+     "end": 60.91
+    },
+    {
+     "w": "→",
+     "start": 61.1,
+     "end": 61.3
+    },
+    {
+     "w": "render",
+     "start": 61.3,
+     "end": 61.71
+    },
+    {
+     "w": "→",
+     "start": 61.84,
+     "end": 61.98
+    },
+    {
+     "w": "video.",
+     "start": 61.98,
+     "end": 62.34
+    }
+   ]
+  },
+  {
+   "text": "And because the animation is procedural, you can literally tell Claude:",
+   "start": 62.76,
+   "end": 66.63,
+   "words": [
+    {
+     "w": "And",
+     "start": 62.76,
+     "end": 62.9
+    },
+    {
+     "w": "because",
+     "start": 62.9,
+     "end": 63.32
+    },
+    {
+     "w": "the",
+     "start": 63.32,
+     "end": 63.52
+    },
+    {
+     "w": "animation",
+     "start": 63.52,
+     "end": 63.98
+    },
+    {
+     "w": "is",
+     "start": 63.98,
+     "end": 64.12
+    },
+    {
+     "w": "procedural,",
+     "start": 64.12,
+     "end": 64.83
+    },
+    {
+     "w": "you",
+     "start": 65.06,
+     "end": 65.17
+    },
+    {
+     "w": "can",
+     "start": 65.17,
+     "end": 65.46
+    },
+    {
+     "w": "literally",
+     "start": 65.46,
+     "end": 65.93
+    },
+    {
+     "w": "tell",
+     "start": 65.93,
+     "end": 66.22
+    },
+    {
+     "w": "Claude:",
+     "start": 66.22,
+     "end": 66.63
+    }
+   ]
+  },
+  {
+   "text": "“Make this transition smoother.”",
+   "start": 66.93,
+   "end": 68.37,
+   "words": [
+    {
+     "w": "“Make",
+     "start": 66.93,
+     "end": 67.18
+    },
+    {
+     "w": "this",
+     "start": 67.18,
+     "end": 67.35
+    },
+    {
+     "w": "transition",
+     "start": 67.35,
+     "end": 67.96
+    },
+    {
+     "w": "smoother.”",
+     "start": 67.96,
+     "end": 68.37
+    }
+   ]
+  },
+  {
+   "text": "“Change the colour.”",
+   "start": 68.79,
+   "end": 69.61,
+   "words": [
+    {
+     "w": "“Change",
+     "start": 68.79,
+     "end": 69.1
+    },
+    {
+     "w": "the",
+     "start": 69.1,
+     "end": 69.19
+    },
+    {
+     "w": "colour.”",
+     "start": 69.19,
+     "end": 69.61
+    }
+   ]
+  },
+  {
+   "text": "“Slow this section down.”",
+   "start": 69.93,
+   "end": 71.24,
+   "words": [
+    {
+     "w": "“Slow",
+     "start": 69.93,
+     "end": 70.36
+    },
+    {
+     "w": "this",
+     "start": 70.36,
+     "end": 70.56
+    },
+    {
+     "w": "section",
+     "start": 70.56,
+     "end": 70.96
+    },
+    {
+     "w": "down.”",
+     "start": 70.96,
+     "end": 71.24
+    }
+   ]
+  },
+  {
+   "text": "“Make the ending seamlessly loop into the beginning.”",
+   "start": 71.71,
+   "end": 74.14,
+   "words": [
+    {
+     "w": "“Make",
+     "start": 71.71,
+     "end": 71.94
+    },
+    {
+     "w": "the",
+     "start": 71.94,
+     "end": 72.14
+    },
+    {
+     "w": "ending",
+     "start": 72.14,
+     "end": 72.54
+    },
+    {
+     "w": "seamlessly",
+     "start": 72.54,
+     "end": 73.2
+    },
+    {
+     "w": "loop",
+     "start": 73.2,
+     "end": 73.42
+    },
+    {
+     "w": "into",
+     "start": 73.42,
+     "end": 73.7
+    },
+    {
+     "w": "the",
+     "start": 73.7,
+     "end": 73.8
+    },
+    {
+     "w": "beginning.”",
+     "start": 73.8,
+     "end": 74.14
+    }
+   ]
+  },
+  {
+   "text": "And it can modify the underlying animation instead of you manually moving hundreds of keyframes.",
+   "start": 74.76,
+   "end": 80.21,
+   "words": [
+    {
+     "w": "And",
+     "start": 74.76,
+     "end": 75.0
+    },
+    {
+     "w": "it",
+     "start": 75.0,
+     "end": 75.11
+    },
+    {
+     "w": "can",
+     "start": 75.11,
+     "end": 75.32
+    },
+    {
+     "w": "modify",
+     "start": 75.32,
+     "end": 75.78
+    },
+    {
+     "w": "the",
+     "start": 75.78,
+     "end": 75.97
+    },
+    {
+     "w": "underlying",
+     "start": 75.97,
+     "end": 76.6
+    },
+    {
+     "w": "animation",
+     "start": 76.6,
+     "end": 77.3
+    },
+    {
+     "w": "instead",
+     "start": 77.3,
+     "end": 77.66
+    },
+    {
+     "w": "of",
+     "start": 77.66,
+     "end": 77.82
+    },
+    {
+     "w": "you",
+     "start": 77.82,
+     "end": 78.18
+    },
+    {
+     "w": "manually",
+     "start": 78.18,
+     "end": 78.72
+    },
+    {
+     "w": "moving",
+     "start": 78.72,
+     "end": 79.18
+    },
+    {
+     "w": "hundreds",
+     "start": 79.18,
+     "end": 79.6
+    },
+    {
+     "w": "of",
+     "start": 79.6,
+     "end": 79.7
+    },
+    {
+     "w": "keyframes.",
+     "start": 79.7,
+     "end": 80.21
+    }
+   ]
+  },
+  {
+   "text": "Does this replace After Effects?",
+   "start": 80.76,
+   "end": 82.65,
+   "words": [
+    {
+     "w": "Does",
+     "start": 80.76,
+     "end": 80.98
+    },
+    {
+     "w": "this",
+     "start": 80.98,
+     "end": 81.24
+    },
+    {
+     "w": "replace",
+     "start": 81.24,
+     "end": 81.86
+    },
+    {
+     "w": "After",
+     "start": 81.86,
+     "end": 82.16
+    },
+    {
+     "w": "Effects?",
+     "start": 82.16,
+     "end": 82.65
+    }
+   ]
+  },
+  {
+   "text": "Not really.",
+   "start": 83.2,
+   "end": 83.88,
+   "words": [
+    {
+     "w": "Not",
+     "start": 83.2,
+     "end": 83.44
+    },
+    {
+     "w": "really.",
+     "start": 83.44,
+     "end": 83.88
+    }
+   ]
+  },
+  {
+   "text": "But for certain types of motion graphics…",
+   "start": 84.16,
+   "end": 86.12,
+   "words": [
+    {
+     "w": "But",
+     "start": 84.16,
+     "end": 84.32
+    },
+    {
+     "w": "for",
+     "start": 84.32,
+     "end": 84.56
+    },
+    {
+     "w": "certain",
+     "start": 84.56,
+     "end": 84.9
+    },
+    {
+     "w": "types",
+     "start": 84.9,
+     "end": 85.18
+    },
+    {
+     "w": "of",
+     "start": 85.18,
+     "end": 85.28
+    },
+    {
+     "w": "motion",
+     "start": 85.28,
+     "end": 85.58
+    },
+    {
+     "w": "graphics…",
+     "start": 85.58,
+     "end": 86.12
+    }
+   ]
+  },
+  {
+   "text": "the fact that you can go from an idea to a working animation without touching a timeline is pretty insane.",
+   "start": 86.33,
+   "end": 92.53,
+   "words": [
+    {
+     "w": "the",
+     "start": 86.33,
+     "end": 86.48
+    },
+    {
+     "w": "fact",
+     "start": 86.48,
+     "end": 86.7
+    },
+    {
+     "w": "that",
+     "start": 86.7,
+     "end": 86.84
+    },
+    {
+     "w": "you",
+     "start": 86.84,
+     "end": 86.97
+    },
+    {
+     "w": "can",
+     "start": 86.97,
+     "end": 87.16
+    },
+    {
+     "w": "go",
+     "start": 87.16,
+     "end": 87.36
+    },
+    {
+     "w": "from",
+     "start": 87.36,
+     "end": 87.56
+    },
+    {
+     "w": "an",
+     "start": 87.56,
+     "end": 87.66
+    },
+    {
+     "w": "idea",
+     "start": 87.66,
+     "end": 88.21
+    },
+    {
+     "w": "to",
+     "start": 88.21,
+     "end": 88.4
+    },
+    {
+     "w": "a",
+     "start": 88.4,
+     "end": 88.54
+    },
+    {
+     "w": "working",
+     "start": 88.54,
+     "end": 89.0
+    },
+    {
+     "w": "animation",
+     "start": 89.0,
+     "end": 89.6
+    },
+    {
+     "w": "without",
+     "start": 89.6,
+     "end": 90.04
+    },
+    {
+     "w": "touching",
+     "start": 90.04,
+     "end": 90.44
+    },
+    {
+     "w": "a",
+     "start": 90.44,
+     "end": 90.5
+    },
+    {
+     "w": "timeline",
+     "start": 90.5,
+     "end": 91.1
+    },
+    {
+     "w": "is",
+     "start": 91.32,
+     "end": 91.39
+    },
+    {
+     "w": "pretty",
+     "start": 91.51,
+     "end": 91.88
+    },
+    {
+     "w": "insane.",
+     "start": 91.88,
+     "end": 92.53
+    }
+   ]
+  }
+ ]
+}
