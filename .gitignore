@@ -1,0 +1,16 @@
+# renders and audio (large, regenerable)
+runs/*/out/
+runs/*/audio/
+engine/out/
+tests/out/
+
+# dependencies
+node_modules/
+.vite/
+
+# Python (uv)
+.venv/
+__pycache__/
+
+# alignment model (95 MB, copied by hand from video-testing/analysis/models)
+*.onnx
