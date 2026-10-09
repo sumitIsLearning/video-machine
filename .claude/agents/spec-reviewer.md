@@ -14,7 +14,7 @@ You will be given: the plan file and task ID, the builder's report, and the git 
 ## Steps
 1. Read the task section in the plan, and `docs/AGENT_PROMPT.md`.
 2. Look at the change: `git diff <base> --stat`, then `git diff <base> -- <files>`. Include untracked files: `git status --short`.
-3. Run `node_modules/.bin/bun test tests/unit` and `node_modules/.bin/bun x tsc --noEmit && node_modules/.bin/bun x biome check .` (check only, never `--write`).
+3. Run `node_modules/.bin/bun test` and `node_modules/.bin/bun run lint` (check only; never run `format` or anything with `--write`).
 4. Compare against the plan, item by item:
    - Every required file, function, signature and test exists.
    - Signatures, names and return types match the plan **exactly**.

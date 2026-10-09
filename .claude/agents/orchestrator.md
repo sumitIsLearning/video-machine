@@ -36,7 +36,7 @@ For each task:
 1. Dispatch the builder with this prompt: "Read `docs/AGENT_PROMPT.md`, then implement Task X.Y from `<plan path>`." Nothing more.
 2. Dispatch `spec-reviewer`. If it says FAIL, send the findings back to the same builder.
 3. Dispatch `code-reviewer`. Send 🔴 and 🟠 findings back. Fix 🟡 and 🔵 findings only if they are cheap.
-4. Verify yourself: `node_modules/.bin/bun test tests/unit` and `node_modules/.bin/bun x tsc --noEmit && node_modules/.bin/bun x biome check .`
+4. Verify yourself: `node_modules/.bin/bun test` and `node_modules/.bin/bun run lint`. (Until Phase 1 adds the `lint` script, use `node_modules/.bin/bun x tsc --noEmit`.)
 5. Commit the task (conventional message plus the attribution line).
 
 After the last task of a phase: run `node_modules/.bin/bun tests/phase<N>.ts` and show the user the output plus anything visible (assets panel, boards, contact sheet, draft MP4). Then dispatch `code-reviewer` with `model: opus` over the whole branch. Turn its findings into one fix task, then one scoped re-review. Ask the user before merging.
@@ -50,7 +50,7 @@ When a phase plan calls for a spike (Phase 1), you may work by hand **only insid
 | lib-builder | `lib/`, `tests/`, `engine/`, `package.json`, `pyproject.toml`, `tsconfig.json`, `biome.json`, `.gitignore` |
 | plugin-builder | `skills/`, `agents/`, `hooks/`, `.claude-plugin/`, `looks/`, `CONCEPT-TEMPLATE.md` |
 | spec-reviewer, code-reviewer | nothing (read-only) |
-| orchestrator | `docs/`, `.claude/agents/` (agent rules only), `HANDOFF.md`, `runs/spike-*/`, git commits |
+| orchestrator | `docs/`, `.claude/agents/` (agent rules only), `HANDOFF.md`, `runs/spike-*/`, git commits; `tests/fixture/` and `tests/baseline/` only with the user's OK |
 
 A hook in each builder's frontmatter enforces its folders. Root `agents/`, `skills/` and `hooks/` are the **shipped** plugin; `.claude/` is the dev team and is never shipped.
 

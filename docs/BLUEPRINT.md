@@ -3,7 +3,10 @@
 > **Status:** Spec v1. **Last updated:** 2026-10-09
 > **Companion docs:** [AGENT_PROMPT.md](AGENT_PROMPT.md) (coding standard)
 > **Visual version:** https://claude.ai/artifact/CWKbFBDQDDUtzTjLy7j8nS (flowchart, per-part pseudocode, TTS and renderer comparisons)
-> **History:** supersedes `C:\Work-data\video-testing\VIDEO-MACHINE-PROMPT.md` (Phase 0 spec). Phase 0 is done; see `HANDOFF.md`.
+> **History:** supersedes the pdoom-era blueprint of 2026-10-06 (commit `2f13bff`, which restructured
+> `C:\Work-data\video-testing\VIDEO-MACHINE-PROMPT.md`). Its non-negotiables, still-valid rulings, check table and
+> thresholds are carried over below; its detailed §2.4 data models and pdoom engine notes remain in that commit.
+> Phase 0 is done; see `HANDOFF.md`.
 
 Part ids `M0`–`M18` are used everywhere: in plans, tests, commit messages and the visual blueprint.
 
@@ -23,6 +26,34 @@ and you can't edit what they make.
 ## 1.3 Solution
 One conversation with Claude. Everything is plain files in a run folder, the video is code (HTML scenes), timing comes from
 word-level alignment, and every step can be re-run on its own. No server, database or web UI: the plugin *is* the product.
+
+### Every video must look like its concept, not like the last video
+The main design goal. A machine that turns every concept into the same look is a template engine with extra steps.
+- **The look is decided per concept**, in the art-direction step (M7), from the research, and written down as
+  `look.json` + `LOOK.md` for that run.
+- **Style packs are a library, not a default.** A look may reuse a pack, blend two, or start from nothing. Approved new
+  looks can be saved back as packs. HyperFrames catalog blocks and presets count as packs: a starting point only.
+- **The creator always sees two different directions** as real rendered frames before the video is made, and picks.
+- **No template library and no layout menu.** Each scene is composed for its own content and look.
+- **Shared code is limited to mechanics**: timing lookup, text fit, safe area, captions, easing. Motifs, palettes and
+  type belong to a look, not to the machine.
+
+### Non-negotiables
+1. **Every frame is a deterministic function of time.** Same plan + same `t` gives the same pixels. No unseeded
+   randomness, no wall clock, no state that survives a seek. (HyperFrames enforces part of this: one paused timeline per
+   scene; breaking it freezes frames silently, so the checks catch it.)
+2. **Timing comes from a timing source, found by content.** With a voiceover, scenes refer to words by text
+   (`wordOf(line, "create")`), never by hard-coded seconds. A new read re-times the whole video for free.
+3. **`plan.json` is the source of truth.** Feedback edits the plan first, then regenerates the affected scenes. Hand
+   edits to scene code survive only through the plan's `overrides` field.
+4. **One scene, every aspect ratio.** A scene is written once and lays itself out for the frame it is given (per-format
+   CSS variables). It is never cropped from another aspect ratio.
+5. **No vendor lock-in.** Renderer, voice, aligner, avatar, capture and exporters sit behind the adapter contracts
+   (§2.5). The procedure skills never name a specific engine.
+6. **Gates.** Claude stops for the creator at four points (script, storyboard, draft, delivery) and before anything that
+   spends money. Stills and draft renders need no approval.
+7. **Smallest thing that works.** Files over services. One schema file over a class hierarchy. Add an adapter only when
+   a second implementation actually exists.
 
 ## 1.4 Users
 Creators who use Claude Code (or are willing to install it). They don't need to be developers: they say "set it up for me"
@@ -53,6 +84,12 @@ and Claude installs everything. The first user is the project owner, making reel
 | Formats v1 | `reel` only. 16:9 later from the same scenes (layout via per-format CSS variables). |
 | After Effects | Handoff only (layers or flattened scenes + `build_comp.jsx` with word markers). No editable keyframes. |
 | Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(Default; user to confirm.)* |
+| Resolution | 1080p formats. 4K only as an opt-in, never the default. |
+| Source projects | `video-testing` and `kinomat` are read-only. The only command ever run in `video-testing` was the Phase 0 baseline render. |
+| pdoom engine (kept from 2026-10-05/06 rulings) | Applies only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
+| Tooling (ruling 2026-10-06, kept) | `bun test`, `tsc --noEmit`, Biome (lint + format), ruff via uv. `engine/` and `tests/fixture/` are excluded from lint and format. |
+| Build team (ruling 2026-10-09, replaces 2026-10-06) | Orchestrator + `lib-builder`, `plugin-builder` + `spec-reviewer` + `code-reviewer`. A `visual-reviewer` joins in Phase 4. The old `skill-builder` / `look-builder` / `engine-builder` split assumed pdoom plates. |
+| Phase numbering (2026-10-09) | Phases 1–9 in Part 5 replace the old spec phases 1–5. The old "Phase 0 finish" items (canvas default, tooling) move into Phase 1. |
 | Out of scope | Web UI, server, database, accounts, template catalog, auto-posting, 4K by default, vlog/raw-footage editing (future). |
 
 ## 1.7 Success metrics
@@ -167,6 +204,10 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | Young dependency drifting | HyperFrames pinned to an exact version; plans cite versions |
 | Privacy | Telemetry off; no `hyperframes feedback`; no secrets in logs |
 | Licence | Confirm `@hyperframes/producer` and the SDK licences before publishing |
+| Source projects | Each acceptance script re-checks the `video-testing` listing against `tests/phase0/video-testing.before.txt` |
+| Toolchain drift (pdoom) | Engine dependencies installed with `--frozen-lockfile` only (a non-frozen install re-resolved three to 0.186.1) |
+| Fixtures | `tests/baseline/` and `tests/fixture/` are owned by no builder; the orchestrator changes them only with the user's OK |
+| Secrets | API keys only in the workspace `.env`; `.claude/settings.json` denies agents Read/Edit on it. Never paste keys into chat |
 
 ## 2.7 Settings
 | Name | Type | Default |
@@ -179,11 +220,49 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | `brief.voice` | adapter + voice id | `hf-tts`, `af_heart` |
 | `brief.duration_target_s` | [min, max] | `[15, 30]` |
 | HyperFrames version | pinned constant | `0.8.143` |
+| text-only reading speed | words/s, min s per line | `3`, `1.2` |
+| script pacing estimate | words/s | `2.5` |
+| auto-fix rounds | number | `3` |
+| motion dead span | seconds | `1.5` |
+| beat tolerance | frames | `±2` |
+| min text size | % of frame height | vertical `3.5`, landscape `2.5` |
+| loudness | LUFS / dBTP | `−14 ±1` / `≤ −1` |
+
+## 2.8 Checks
+Each check is one file in `lib/checks/`, reads the run folder, and appends to `test_results.json`. "HF" marks checks that
+`hyperframes lint` / `check` already cover; the adapter maps their output instead of us reimplementing it.
+
+| id | blocking | how |
+|---|---|---|
+| `contracts.valid` | yes | every JSON file parses against its schema |
+| `plan.coverage` | yes | every script line in exactly one scene; scenes contiguous, in script order |
+| `look.directions_differ` | yes (G1→G2) | directions A and B differ in at least two of palette, type, motion, motifs (motion and motifs when `brand` fixes palette or type) |
+| `brief.applied` | yes | brand colours/fonts unchanged in `look.json`; logo and pinned assets used; `cta` on the last scene; `must_avoid` absent |
+| `render.lint` | yes | HF: `hyperframes lint` + `check` return no errors |
+| `render.deterministic` | yes | render 5 random `t` twice, fresh page each time; pixel hashes match |
+| `render.seek_safe` | yes | still at `t` after playing from 0 == still at `t` after seeking straight to it |
+| `motion.no_dead_spans` | yes | frame difference over the draft; no span > 1.5 s below threshold unless the beat has `hold` |
+| `timing.beats_on_cues` | yes | each beat's visual change within ±2 frames of its word |
+| `timing.duration` | yes | final duration inside `duration_target_s` |
+| `layout.safe_area` | yes | every text box inside the format's safe area (Instagram UI zones on the reel) |
+| `layout.min_text_size` | yes on reel | text height ≥ 3.5 % of frame height on vertical, 2.5 % on landscape |
+| `layout.no_overflow` | yes | HF: no text box leaves the frame or overlaps another |
+| `assets.no_reference_only` | yes | no `reference_only` path (e.g. the navigation video) in any scene or render input |
+| `assets.licensed` | yes | every used asset and font has a non-empty `license` |
+| `audio.loudness` | yes on final | integrated −14 LUFS ±1, true peak ≤ −1 dBTP (ffmpeg `ebur128`) |
+| `captions.match` | yes if burned | caption text equals the script; each word visible during its spoken time |
+| `deliver.files` | yes on final | every deliverable exists, plays (ffprobe), right size, fps and duration |
+| `intent.judge` | no | a vision model scores the contact sheet against each scene's `intent` and `beats`; ≤ 3 becomes an annotation |
+| `look.judge` | no | same, against `LOOK.md` |
+
+Model-judged checks are never blocking. They feed annotations; the creator decides.
 
 # Part 3 — Coding standard (summary; full rules in AGENT_PROMPT.md)
-TypeScript on the pinned bun; TDD; functions over classes; Zod for every file boundary; env read only in
-`lib/core/config.ts`; one error base class; every subprocess through `lib/core/sh.ts`; adapters never import each other;
-skills call adapters only through CLIs; ponytail (shortest code that works, `ponytail:` comments on deliberate limits).
+TypeScript on the pinned bun; Python only where a model wrapper needs it, run by `uv`. TDD with unit tests beside the code
+(`*.test.ts`, external tools faked); acceptance scripts `tests/phase<N>.ts` use the real tools and are run by the
+orchestrator. Functions over classes; Zod for every file boundary; env read only in `lib/core/config.ts`; one error base
+class; every subprocess through `lib/core/sh.ts`; adapters never import each other; skills call adapters only through
+CLIs; scenes deterministic in time; ponytail (`ponytail:` comments on deliberate limits).
 
 # Part 4 — Folder structure
 Target layout. Phase 1 moves today's `.claude/skills/video-machine/{contracts,adapters}` into `lib/`.
@@ -217,9 +296,8 @@ video-machine/                      # repo = the plugin and its own marketplace
     checks/                         # one file per check HyperFrames doesn't already do
   looks/                            # style library, a starting point only
   engine/                           # pdoom copy (used only by render/pdoom)
-  tests/
-    unit/                           # bun test, mirrors lib/
-    fixture/  baseline/             # Phase 0 fixtures
+  tests/                            # unit tests live beside the code as *.test.ts
+    fixture/  baseline/             # Phase 0 fixtures (orchestrator-owned)
     phase0.ts  phase<N>.ts          # acceptance tests, one per phase
   docs/
     BLUEPRINT.md  AGENT_PROMPT.md
@@ -236,7 +314,8 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 ### Phase 1 — Foundation and spike (Step 0)
 - Move contracts and adapters to `lib/`; fix imports and the align adapter's workspace path; Phase 0 test still passes.
 - Plugin manifest + marketplace; `claude --plugin-dir .` loads a placeholder `make-reel` skill.
-- Tooling: `tsconfig.json`, Biome, `bun test` with one unit test; `.gitignore` for `.impeccable/`.
+- Tooling (old "Phase 0 finish"): `tsconfig.json`, Biome, ruff, `bun run lint` / `bun run format` scripts, `bun test` with one unit test.
+- pdoom canvas default (old "Phase 0 finish"): software Canvas2D by default in `render/pdoom`; make `tests/phase0.ts` match.
 - `lib/core`: `config.ts` (only env reader), `errors.ts` (`VideoMachineError` + subclasses), `sh.ts` (timeout + Windows tree kill).
 - Contract changes from 2.4 (`delivery`, `ScenePlan` rename, `product_url`, `Steps`, `CaptureLog`, `Doctor`).
 - Probe HyperFrames 0.8.143: confirm every command in 2.3, plus transparent-background rendering. Results go into 2.3.

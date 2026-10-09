@@ -5,78 +5,132 @@ You are implementing **one task** from a plan in `docs/superpowers/plans/`. Read
 2. Your task section in the plan.
 3. The files the task lists under **Read first**.
 
-Do **not** scan the whole repo, read the other plans, or re-open design decisions. If the task looks wrong or unclear, stop and report the problem. Do not guess.
+Do **not** scan the whole repo, read the other plans, or re-open design decisions. If the task looks wrong or unclear,
+stop and report the problem. Do not guess.
 
-Project facts you need: `docs/BLUEPRINT.md` (read only the section your task points to). Part ids (`M0`–`M18`) mean the same thing everywhere.
+Project facts you need: `docs/BLUEPRINT.md` (read only the section your task points to). Part ids (`M0`–`M18`) mean the
+same thing everywhere.
 
 ## 1. Tooling
-- **TypeScript on bun 1.4.2**, pinned in `package.json`. Always call `node_modules/.bin/bun`, never a global `bun` (global 1.3.5 can't launch Chrome on Windows).
-  - Unit tests: `node_modules/.bin/bun test tests/unit`
-  - Acceptance test for a phase: `node_modules/.bin/bun tests/phase<N>.ts` (slow; real tools; run it only when your task says so)
-  - Lint and format: `node_modules/.bin/bun x tsc --noEmit && node_modules/.bin/bun x biome check --write .`
-- **Python 3.13 via uv** (aligner and other model wrappers only): `uv run --project . python <file>`. Never `python -m uv` (broken on this machine). Set `PYTHONUTF8=1` for every Python subprocess.
-- **HyperFrames** is pinned: use the `HYPERFRAMES_VERSION` constant from `lib/core/config.ts`, never a bare `npx hyperframes`.
-- Add dependencies only with `node_modules/.bin/bun add <pkg>` / `bun add -d <pkg>` or `uv add <pkg>`. Pin exact versions for HyperFrames and Playwright. Never edit a lockfile by hand.
-- A task is done only when the tests pass and lint is clean.
+- TypeScript, run by **bun 1.4.2, pinned in the workspace**. Always call it as `node_modules/.bin/bun` from the
+  workspace root (`../node_modules/.bin/bun` from `engine/`). The global `bun` is 1.3.5 and breaks Chrome launch and the
+  engine lockfile.
+- Python (model wrappers only, e.g. the aligner), run by `uv` directly: `uv run --project . python ...`. Never
+  `python -m uv`. Every Python subprocess gets `PYTHONUTF8=1`.
+- HyperFrames is pinned: use the `HYPERFRAMES_VERSION` constant from `lib/core/config.ts`, never a bare `npx hyperframes`.
+- Commands, from the workspace root (the scripts are added in Phase 1):
+  - Unit tests: `node_modules/.bin/bun test`
+  - Lint and types: `node_modules/.bin/bun run lint` (`tsc --noEmit`, `biome check`, `uv run ruff check`)
+  - Format: `node_modules/.bin/bun run format` (`biome format --write`, `uv run ruff format`)
+- Add dependencies only with `node_modules/.bin/bun add [-d] <pkg>` (root) or `uv add [--dev] <pkg>`. Pin exact
+  versions for HyperFrames and Playwright. In `engine/`, install only with `../node_modules/.bin/bun install
+  --frozen-lockfile`. Never edit a lockfile by hand.
+- Keep the formatter's output. If the plan's code and the formatter disagree on layout, the formatter wins.
+- A task is done only when unit tests pass and lint is clean.
+- Acceptance scripts (`tests/phase<N>.ts`) drive real HyperFrames, Chrome, ffmpeg, Playwright and the aligner and take
+  minutes. Run one only if your task says so. The orchestrator runs them at the end of each phase.
 
 ## 2. TDD (mandatory)
 1. **Red:** write the test first and run it. It must fail for the right reason.
 2. **Green:** write the minimum code that makes it pass.
 3. **Refactor:** clean up, then run the tests again.
 
-Unit tests never run real external tools (HyperFrames, ffmpeg, Playwright, Python, the network). Inject the subprocess runner (`sh` from `lib/core/sh.ts`) and pass a fake in tests. One behavior per test, named after the behavior. Real tools run only in `tests/phase<N>.ts`.
+- Unit tests are `*.test.ts` files **next to the code they test**, using `bun:test`
+  (`import { test, expect, mock } from 'bun:test'`).
+- Fake every external process and service: HyperFrames, Chrome/Playwright, ffmpeg, `uv`/Python, TTS, avatar services,
+  the network. Inject the `sh` runner from `lib/core/sh.ts` and pass a fake. Unit tests never spawn a renderer, never
+  touch the network, never read `.env`.
+- Use small inline JSON or `tests/fixture/` data as read-only input. Write scratch files only under the OS temp dir
+  (`mkdtempSync(path.join(tmpdir(), 'vm-'))`), never inside the repo.
+- One behavior per test, named after the behavior: `test('plan.coverage fails when a line is in two scenes', ...)`.
 
 ## 3. Naming
 | Thing | Rule | Example |
 |---|---|---|
-| Files and folders | kebab-case | `lib/adapters/voice/hf-tts/index.ts` |
-| Adapter CLI entry | `cli.ts` beside `index.ts` | `lib/adapters/capture/playwright/cli.ts` |
-| Types | PascalCase | `ScenePlan`, `CaptureLog` |
+| Folders, files | lowercase, dashes | `lib/core/text-fit.ts`, `lib/adapters/voice/hf-tts/index.ts` |
+| Adapters | `lib/adapters/<kind>/<name>/index.ts` (named camelCase export + default) and `cli.ts` beside it | `export const hfTts: VoiceAdapter` |
+| Check files | check id with `.` → `-` | `lib/checks/render-deterministic.ts` for `render.deterministic` |
+| Types | PascalCase, blueprint names exactly | `Brief`, `ScenePlan`, `CaptureLog` |
 | Zod schemas | `<Type>Schema` | `StepsSchema` |
-| Functions | camelCase verbs | `readNavVideo`, `splitByLog` |
-| Constants | UPPER_SNAKE | `HYPERFRAMES_VERSION`, `FORMATS` |
-| Private helpers | not exported; no underscore prefix | `toSeconds` |
-| Unit tests | `tests/unit/<mirror of lib path>.test.ts` | `tests/unit/core/sh.test.ts` |
-| Fixtures | `tests/fixture/<part>/...` | `tests/fixture/capture/steps.json` |
-| Run-folder JSON keys | snake_case (matches the contracts) | `scene_id`, `input_hash` |
+| Functions, variables | camelCase; verbs for functions, auxiliary verbs for booleans | `readNavVideo`, `isInsideSafeArea` |
+| Constants | UPPER_SNAKE | `FORMATS`, `HYPERFRAMES_VERSION` |
+| Python | snake_case functions, UPPER_SNAKE constants | `align.py: main()` |
+| Tests | `<file>.test.ts` beside `<file>.ts` | `lib/core/sh.test.ts` |
+| Run-folder JSON keys | snake_case, as in the contracts | `scene_id`, `input_hash` |
 
-Use the blueprint's domain words exactly: run, brief, scene, beat, board, look, direction, asset, capture, gate.
+Use the blueprint's domain words exactly: run, brief, scene, beat, board, look, pack, motif, direction, asset, capture,
+format, frame, gate, deliverable.
 
 ## 4. Module layout
-- Import direction: `lib/checks` and `lib/adapters/*` → `lib/core` → `lib/contracts`. Never the other way. **Adapters never import each other.**
-- Each adapter folder: `index.ts` exports the functions of its interface in `contracts/types.ts`; `cli.ts` parses argv, calls `index.ts`, and prints **one JSON line** to stdout. Skills call adapters only through `cli.ts`.
-- External tools are reached only through `lib/core/sh.ts` (timeout, kills the whole process tree on Windows, returns `{code, stdout, stderr}`). No direct `Bun.spawn` elsewhere.
-- Dependencies (runner, paths, settings) are passed in as arguments. No module-level clients or hidden globals.
-- **Who writes what:** only adapters write run-folder files, always through `writeJson` (validated) or as media files; checks only write `test_results.json` and `report.md`. Nothing writes under the plugin root at runtime, and nothing ever writes to `C:\Work-data\video-testing`.
+- Library code is plain functions and objects. No classes (the pdoom `engine/` keeps its own).
+- Import direction: `lib/checks/` and `lib/adapters/` → `lib/core/` → `lib/contracts/`. `contracts/` imports nothing
+  from `lib/`. **Adapters never import each other** or `looks/`.
+- Each adapter's `cli.ts` parses argv, calls `index.ts`, and prints **one JSON line** to stdout. Shipped skills call
+  adapters only through `cli.ts`.
+- External tools are reached only through `lib/core/sh.ts` (timeout, kills the whole process tree on Windows, returns
+  `{code, stdout, stderr}`). No direct `Bun.spawn` elsewhere.
+- Shared mechanics (timing lookup, text fit, frame/safe area, captions) go in `lib/core/`. Anything that gives a video a
+  look (palette, type, motifs) goes in `looks/`.
+- Dependencies (paths, runner, settings) are passed in as arguments, so tests can replace them.
+- **Who writes what at run time:** only adapters write run-folder media and JSON (JSON only through `writeJson`); only
+  checks write `test_results.json` and `report.md`. Nothing writes under the plugin root at runtime, and nothing ever
+  writes to `C:\Work-data\video-testing` or `C:\Work-data\kinomat`.
 
 ## 5. Functions
-- Full type annotations; `strict` TypeScript. Prefer `type` + Zod-inferred types over interfaces, except the adapter interfaces.
-- JSDoc on exported functions: summary, then params, returns and throws.
-- Options object past three parameters. Early returns over nesting. Functions over classes.
+- Full type annotations; `strict` TypeScript. Modern syntax (`const`, arrow functions for small helpers, `??`, `?.`).
+- A JSDoc comment on every exported function: one-line summary, then what it returns and what it throws.
+- An options object past three parameters. Early returns over nesting.
 
 ## 6. Config
-All settings come from `lib/core/config.ts`. **No other file reads `process.env` or `Bun.env`.** Read settings once in each `cli.ts` and pass them down. API keys (HeyGen, ElevenLabs) are read there only and never printed: wrap them in a `Secret` type whose `toString()` returns `"***"`.
+- All settings come from `lib/core/config.ts`. **No other file reads `process.env` or `Bun.env`.** Each `cli.ts` reads
+  settings once and passes them down. Per-run settings come from `brief.json`; fixed tables (formats, thresholds) live
+  in `contracts/types.ts` as constants.
+- Adapters set the environment of the processes they spawn explicitly (`PYTHONUTF8`, `HYPERFRAMES_NO_TELEMETRY`),
+  starting from the env that `config.ts` hands them.
+- API keys (HeyGen, ElevenLabs) live only in the workspace `.env` and are read only in `config.ts`, wrapped in a `Secret`
+  type whose `toString()` returns `"***"`. Never log or print them, never put them in a run folder.
 
 ## 7. Errors
-- Custom errors live in `lib/core/errors.ts` under `VideoMachineError` (`ContractError`, `ToolError`, `CostGateError`, `CaptureError`, ...).
-- Never `catch (e) {}` everything. Catch specific failures and wrap them at the module edge with `{ cause }`.
+- Custom errors live in `lib/core/errors.ts` under `VideoMachineError` (`ContractError`, `ToolError`, `CostGateError`,
+  `CaptureError`, ...). Messages name what failed and where (file path, scene id, format, `t`); wrap with `{ cause }`.
 - A failed subprocess becomes a `ToolError` holding the command, exit code and the last 2 KB of stderr.
-- A `cli.ts` turns an error into `{"ok":false,"error":"<class>","message":"..."}` on stdout and exit code 1. Never swallow an error silently.
+- A failed parse of any JSON file is an error, never a warning (`readJson` / `writeJson` already do this).
+- A failed **check** is not an exception: it is a `fail` entry in `test_results.json` with annotations (`scene_id`, `t`,
+  `problem`, `suggested_fix`). Throw only when the check itself cannot run.
+- Never catch everything. Catch a specific failure, add context, rethrow or record it. Never swallow an error silently.
+- Never fake an unsupported feature: throw (for example `render(..., passes)` when transparent layers aren't supported).
+- A `cli.ts` turns an error into `{"ok":false,"error":"<class>","message":"..."}` on stdout and exit code 1.
 
 ## 8. Logging
-Diagnostics go to **stderr**, one line each, prefixed with the part id (`[M3] step 4: target "Export" not found, using nav frame`). stdout is reserved for the CLI's JSON result. Never log secrets, cookies, page text or full user scripts.
+- Library functions return data and do not print. Only `cli.ts` files and acceptance scripts print.
+- stdout carries only the CLI's JSON result. Diagnostics go to stderr, one line each, prefixed with the part id
+  (`[M3] step 4: target "Export" not found, using nav frame`).
+- Never print secrets, cookies, page text, full user scripts, or whole JSON files.
 
 ## 9. Time and data
-- Times are seconds as floats on the video timeline; frame = `Math.round(t * fps)`. Never read the wall clock inside scene code.
-- Any randomness takes an explicit seed.
-- Paths inside JSON are run-relative and POSIX (`capture/clips/3.mp4`).
-- Media written by adapters: video H.264 at 30 fps CFR, audio 48 kHz WAV unless the task says otherwise.
+- Times are seconds as floats on the video timeline. Frame `n` at `fps` is `n / fps`. Compare times with a tolerance,
+  never `===`.
+- Scenes and anything they call are deterministic functions of time: seeded randomness only, no `Date` /
+  `performance.now()` inside scene code, no state that survives a seek.
+- Find words and lines by content (`lineOf`, `wordOf`), never by hard-coded seconds.
+- No pixel constants for layout in scenes: compute from the frame (per-format CSS variables).
+- JSON files: written by `writeJson` (1-space indent, LF, trailing newline). Paths inside JSON are run-relative and
+  POSIX (`capture/clips/3.mp4`). `input_hash`: SHA-256 of canonical JSON (keys sorted), hex.
+- Build paths with `node:path`; never hard-code `\` or `/` separators in joined paths.
+- Media written by adapters: video H.264 at 30 fps CFR, audio 48 kHz WAV, unless the task says otherwise.
 
 ## 10. Comments
-Explain *why*, not *what*. Mark deliberate simplifications with `ponytail:` plus the limit and the upgrade path.
+Explain *why*, not *what*. Mark deliberate simplifications with `ponytail:` plus the limit and the upgrade path. Keep the
+MIT attribution (`LICENSE.pdoom-engine`) in any file that contains code lifted from the pdoom engine or Motion
+Graphics 1.
 
-## 11. Definition of done (report this back)
+## 11. Writing files
+Write files only with Edit/Write. **Never create or modify files through Bash** (no `>`, `>>`, `sed -i`, `tee`, `cp`,
+`mv` into the repo); package-manager commands are the only exception. A hook blocks Edit/Write outside your folders;
+Bash would bypass it. Do not commit; the orchestrator commits.
+
+## 12. Definition of done (report this back)
 1. The files you created or changed.
-2. The test summary line.
-3. Lint status.
+2. The `bun test` summary line.
+3. Lint status (`bun run lint`).
 4. Anything you did differently from the plan, and why.
