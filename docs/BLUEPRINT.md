@@ -79,8 +79,9 @@ and Claude installs everything. The first user is the project owner, making reel
 | Product capture | **Playwright** with a persistent profile per product; the creator logs in once by hand. Claude never types passwords. |
 | Navigation video | `reference_only`: it teaches the flow and never appears in a render. |
 | Voice | **Kokoro via `hyperframes tts`** by default. Chatterbox (voice clone) later. ElevenLabs only behind the cost gate. |
-| Alignment | Existing **ctc-onnx** forced aligner (M10). `hyperframes transcribe` (Whisper) only when there's no script. |
+| Alignment | Existing **ctc-onnx** forced aligner (M10). `hyperframes transcribe` (Parakeet engine) only when there's no script. |
 | Avatar | Optional, built last (Phase 8). Local audio-driven (SadTalker / Wav2Lip / MuseTalk), HeyGen (paid), or a supplied clip. Background removed with `hyperframes remove-background`. |
+| Language (user ruling 2026-10-09) | **English only in v1.** Another language (e.g. Hindi) later needs three things: Whisper through a prebuilt whisper.cpp `whisper-cli` + `HYPERFRAMES_WHISPER_PATH` (Parakeet covers European languages only), a multilingual aligner model (wav2vec2-base-960h is English-only), and a Kokoro voice for that language. |
 | Formats v1 | `reel` only. 16:9 later from the same scenes (layout via per-format CSS variables). |
 | After Effects | Handoff only (layers or flattened scenes + `build_comp.jsx` with word markers). No editable keyframes. |
 | Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(User ruling 2026-10-09: off inside Video Machine; the machine-wide HyperFrames setting is left alone for now.)* |
@@ -141,13 +142,14 @@ Feedback routing (M15): words → M9 onward; what/when → plan → M12; one sce
 | Tests | `bun test` (unit) + `bun tests/<phase>.ts` (acceptance) | |
 
 ## 2.3 External integrations
-Verify each call against the **installed** version before a phase plan uses it. The command list below comes from the
-HyperFrames skill docs for 0.7.107 (Kinomat); re-check on 0.8.143.
+Verify each call against the **installed** version before a phase plan uses it. The HyperFrames rows were probed on
+0.8.143 (2026-10-09, reference laptop; raw notes in the git-ignored `runs/spike-probe/notes/`).
 
 | Integration | Calls used | Where |
 |---|---|---|
-| HyperFrames CLI | `doctor`, `skills`, `capture <url>`, `transcribe`, `tts`, `remove-background`, `lint --json`, `check`, `snapshot --at t1,t2`, `render --quality draft\|high --output <f>` | M0, M2, M5, M9, M11, M13, M17 |
-| HyperFrames composition contract | root `data-composition-id` + `data-start="0"` + `data-width/height`, `data-duration`; one `gsap.timeline({paused:true})` registered at `window.__timelines[id]`, built synchronously; `<video>`/`<audio>` playback owned by the framework | M12 |
+| HyperFrames CLI | `doctor --json`, `skills check`, `models install parakeet --json`, `capture <url> -o <dir> --skip-vision --json`, `transcribe <f> -d <dir> --json`, `tts <text> -o <wav> -v <voice> --json`, `remove-background <f> -o <out> --json`, `lint --json <dir>`, `check --json <dir>`, `snapshot <dir> --at t1,t2 --no-end --describe false -o <dir>`, `render <dir> --quality draft\|delivery --no-browser-gpu -o <f>` (+ `--format webm\|mov\|png-sequence` for alpha) | M0, M2, M5, M9, M11, M13, M17 |
+| HyperFrames probe results (0.8.143) | `doctor --json` exits 0 with top-level `ok:false` when optional tools are missing: read `checks[]`. `lint`/`check --json` → `{ok, errorCount, warningCount, findings[{code, severity, message, selector, time}]}`, exit 1 on error; a lint error makes `check` skip its browser stages (`browserSkipped`). `check` reports contrast as an error (with `suggestedColor`) but off-canvas only as info (`panel_out_of_canvas`), so `layout.safe_area` stays ours. `snapshot` writes `frame-NN-at-Xs.png` + `contact-sheet.jpg`. Transparent background works in WebM (VP9 alpha) and MOV (ProRes 4444, exact colour) → AE gets layers. Frames are identical run to run in GPU and in software mode, but differ between the two modes. 30 s draft: 15 s GPU / 33 s software (simple scene). `tts` needs Python `kokoro-onnx` + `soundfile` (via `HYPERFRAMES_PYTHON`), outputs 24 kHz mono, warm ≈ 5 s per line. `transcribe`: whisper-cpp has no Windows install path, Parakeet works (640 MB), output `<dir>/transcript.json` = `[{id, text, start, end}]`. `capture` → `extracted/tokens.json` (colors, fonts, cssVariables), `visible-text.txt`, `screenshots/`. `remove-background` runs on CPU only here (≈ 0.6 s/frame). | M0–M17 |
+| HyperFrames composition contract | root `data-composition-id` + `data-start="0"` + `data-width/height`, `data-duration`; one `gsap.timeline({paused:true})` registered at `window.__timelines[id]`, built synchronously; `<video>`/`<audio>` playback owned by the framework. GSAP (3.14.2, as `init` scaffolds) is vendored into the run folder, never loaded from the CDN | M12 |
 | Playwright | `chromium.launchPersistentContext(profileDir, {viewport, recordVideo})`, `getByRole` / `getByText`, `boundingBox()`, `innerText('body')` | M3 |
 | ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists) | M10 |
 | ffmpeg / ffprobe | `select='gt(scene,0.3)'`, segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
@@ -193,7 +195,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | Concern | Solution |
 |---|---|
 | HyperFrames freezes silently when a scene uses the clock or randomness | `motion.no_dead_spans` is blocking; `hyperframes check` runs before every render |
-| Non-determinism | `render.deterministic`: render sampled frames twice, compare hashes |
+| Non-determinism | Every snapshot, check and render uses `--no-browser-gpu` (software, same pixels on every machine); `render.deterministic`: render sampled frames twice, compare hashes |
 | Text under Instagram UI | `layout.safe_area` against `FORMATS.reel.safe` (top 14 %, bottom 20 %, sides 6 %) |
 | Reference footage leaking into output | `assets.no_reference_only` blocking |
 | Spending money | Paid adapters return `costEstimate` first; sum vs `brief.budget_usd` (default 0) → ask |
@@ -202,7 +204,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | Orphaned processes on Windows | One subprocess helper with timeout that kills the whole tree (`taskkill /T`) |
 | cp1252 pipes on Windows | `PYTHONUTF8=1` for every Python call |
 | Young dependency drifting | HyperFrames pinned to an exact version; plans cite versions |
-| Privacy | Telemetry off; no `hyperframes feedback`; no secrets in logs |
+| Privacy | Telemetry off; no `hyperframes feedback`; no secrets in logs. Gemini extras always off: `snapshot --describe false`, `capture --skip-vision`. Never run bare `hyperframes skills` (it installs into every AI tool on the machine); `init` runs with `HYPERFRAMES_SKIP_SKILLS=1` |
 | Licence | Confirm `@hyperframes/producer` and the SDK licences before publishing |
 | Source projects | Each acceptance script re-checks the `video-testing` listing against `tests/phase0/video-testing.before.txt` |
 | Toolchain drift (pdoom) | Engine dependencies installed with `--frozen-lockfile` only (a non-frozen install re-resolved three to 0.186.1) |
@@ -214,6 +216,11 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 |---|---|---|
 | `VM_HOME` (env) | path | `~/.video-machine` (models, profiles, doctor.json) |
 | `HYPERFRAMES_NO_TELEMETRY` (env) | `"1"` | `"1"`, set by the plugin |
+| `HYPERFRAMES_SKIP_SKILLS` (env) | `"1"` | `"1"`, set by the plugin |
+| `HYPERFRAMES_PYTHON` (env) | path | the plugin's uv venv python (has `kokoro-onnx`, `soundfile`), set by the plugin |
+| render quality | draft / final | `draft` / `delivery` |
+| browser GPU | flag | `--no-browser-gpu` always |
+| voice sample rate | Hz | TTS output (24 kHz) resampled to `48000` |
 | `HEYGEN_API_KEY`, `ELEVENLABS_API_KEY` (env) | secret | unset (paid adapters disabled) |
 | `brief.budget_usd` | number | `0` |
 | `brief.formats` | FormatId[] | `["reel"]` |
@@ -318,11 +325,11 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - pdoom canvas default (old "Phase 0 finish"): software Canvas2D by default in `render/pdoom`; make `tests/phase0.ts` match.
 - `lib/core`: `config.ts` (only env reader), `errors.ts` (`VideoMachineError` + subclasses), `sh.ts` (timeout + Windows tree kill).
 - Contract changes from 2.4 (`delivery`, `ScenePlan` rename, `product_url`, `Steps`, `CaptureLog`, `Doctor`).
-- Probe HyperFrames 0.8.143: confirm every command in 2.3, plus transparent-background rendering. Results go into 2.3.
+- ~~Probe HyperFrames 0.8.143~~ done 2026-10-09 (results in 2.3).
 - **Spike (orchestrator + user, throwaway, `runs/spike-*`):** one 15 s reel by hand from real inputs with HyperFrames directly. Findings update this blueprint.
 
 ### Phase 2 — Setup and intake (M0, M1)
-- `setup` skill + `doctor` CLI (install via winget/brew/apt with approval, pinned HyperFrames, `doctor`, `skills`, aligner model fetch with sha256, smoke test).
+- `setup` skill + `doctor` CLI (install via winget/brew/apt with approval, pinned HyperFrames, `doctor`, `skills check`, Kokoro packages in the uv venv, `models install parakeet`, aligner model fetch with sha256, smoke test).
 - `make-reel` intake: run folder, verbatim inputs, ≤ 3 blocking questions with defaults, `brief.json`.
 - `whereAmI` + `/video-machine:status`.
 
