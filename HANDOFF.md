@@ -13,6 +13,8 @@
   contract changes, HyperFrames 0.8.143 probe), and run the spike once the user supplies a concept, navigation video and URL.
 - User rulings 2026-10-09 (BLUEPRINT 1.6): two directions with three boards each (hook, product scene, ending); telemetry off
   inside Video Machine (machine-wide HyperFrames setting untouched, revisit later). HyperFrames 0.8.143 installed in `runs/spike-probe/`.
+- HyperFrames probe done 2026-10-09: every 2.3 command run on 0.8.143. Findings: `runs/spike-probe/notes/FINDINGS.md`
+  (git-ignored). Proposed BLUEPRINT 2.3 edits await the user's yes; then write the Phase 1 plan.
 - State checked 2026-10-09: `master` clean at 48fd032; HyperFrames not installed yet (0.8.143 is also npm latest);
   stale worktree `.claude/worktrees/who-you-are-536e8c` has no commits of its own (remove with the user's OK).
 
