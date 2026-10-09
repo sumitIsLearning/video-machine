@@ -11,7 +11,8 @@
   calls into it; a live builder test needs a fresh session, since agents load at session start).
 - Next: write `docs/superpowers/plans/phase-1-foundation.md` (move to `lib/`, plugin manifest, tooling, core helpers,
   contract changes, HyperFrames 0.8.143 probe), and run the spike once the user supplies a concept, navigation video and URL.
-- Open user confirmations (defaults recorded in BLUEPRINT 1.6): two directions with one board each; telemetry off.
+- User rulings 2026-10-09 (BLUEPRINT 1.6): two directions with three boards each (hook, product scene, ending); telemetry off
+  inside Video Machine (machine-wide HyperFrames setting untouched, revisit later). HyperFrames 0.8.143 installed in `runs/spike-probe/`.
 - State checked 2026-10-09: `master` clean at 48fd032; HyperFrames not installed yet (0.8.143 is also npm latest);
   stale worktree `.claude/worktrees/who-you-are-536e8c` has no commits of its own (remove with the user's OK).
 

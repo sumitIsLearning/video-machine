@@ -75,7 +75,7 @@ and Claude installs everything. The first user is the project owner, making reel
 | App or plugin | **Claude Code plugin.** Build an app only if payments or hosted rendering are ever needed. |
 | Renderer | **HyperFrames** (Apache 2.0, HTML + CSS + GSAP), pinned. Remotion rejected (licence friction for creators). pdoom adapter stays, not extended. |
 | Review gates | **Four:** script (G1), storyboard per scene (G2), draft (G3), delivery formats (G4). Spend always asks too. |
-| Art directions | Two directions, **one board each** (the hook) at G1→G2. *(Default; user to confirm.)* |
+| Art directions (user ruling 2026-10-09) | Two directions, **three boards each** (hook, one product scene, ending) at G1→G2, so the creator judges each look on more than one frame. |
 | Product capture | **Playwright** with a persistent profile per product; the creator logs in once by hand. Claude never types passwords. |
 | Navigation video | `reference_only`: it teaches the flow and never appears in a render. |
 | Voice | **Kokoro via `hyperframes tts`** by default. Chatterbox (voice clone) later. ElevenLabs only behind the cost gate. |
@@ -83,7 +83,7 @@ and Claude installs everything. The first user is the project owner, making reel
 | Avatar | Optional, built last (Phase 8). Local audio-driven (SadTalker / Wav2Lip / MuseTalk), HeyGen (paid), or a supplied clip. Background removed with `hyperframes remove-background`. |
 | Formats v1 | `reel` only. 16:9 later from the same scenes (layout via per-format CSS variables). |
 | After Effects | Handoff only (layers or flattened scenes + `build_comp.jsx` with word markers). No editable keyframes. |
-| Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(Default; user to confirm.)* |
+| Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(User ruling 2026-10-09: off inside Video Machine; the machine-wide HyperFrames setting is left alone for now.)* |
 | Resolution | 1080p formats. 4K only as an opt-in, never the default. |
 | Source projects | `video-testing` and `kinomat` are read-only. The only command ever run in `video-testing` was the Phase 0 baseline render. |
 | pdoom engine (kept from 2026-10-05/06 rulings) | Applies only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
@@ -334,7 +334,7 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 
 ### Phase 4 — Write and design (M5, M6, M7, M8)
 - Research (page text first, `hyperframes capture` brand tokens, web check), script with `spoken` / `on_screen` / `delivery`.
-- Two look directions (differ in ≥ 2 of palette, type, motion, motifs) + `look.directions_differ`.
+- Two look directions (differ in ≥ 2 of palette, type, motion, motifs), three boards each (hook, product scene, ending) + `look.directions_differ`.
 - Storyboard: `plan.json` with coverage check, scenes drafted with estimated timing, snapshots → board page; G2 notes → `overrides`.
 - Add a `visual-reviewer` agent (from the ui-reviewer template) for boards and contact sheets.
 
