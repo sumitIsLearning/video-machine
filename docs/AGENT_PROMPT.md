@@ -21,7 +21,7 @@ same thing everywhere.
 - Commands, from the workspace root (the scripts are added in Phase 1):
   - Unit tests: `node_modules/.bin/bun test`
   - Lint and types: `node_modules/.bin/bun run lint` (`tsc --noEmit`, `biome check`, `uv run ruff check`)
-  - Format: `node_modules/.bin/bun run format` (`biome format --write`, `uv run ruff format`)
+  - Format: `node_modules/.bin/bun run format` (`biome check --write`, `uv run ruff format`)
 - Add dependencies only with `node_modules/.bin/bun add [-d] <pkg>` (root) or `uv add [--dev] <pkg>`. Pin exact
   versions for HyperFrames and Playwright. In `engine/`, install only with `../node_modules/.bin/bun install
   --frozen-lockfile`. Never edit a lockfile by hand.
@@ -48,7 +48,7 @@ same thing everywhere.
 | Thing | Rule | Example |
 |---|---|---|
 | Folders, files | lowercase, dashes | `lib/core/text-fit.ts`, `lib/adapters/voice/hf-tts/index.ts` |
-| Adapters | `lib/adapters/<kind>/<name>/index.ts` (named camelCase export + default) and `cli.ts` beside it | `export const hfTts: VoiceAdapter` |
+| Adapters | `lib/adapters/<kind>/<name>/index.ts`: a camelCase factory taking `Deps` (`lib/core/deps.ts`) + default export, and `cli.ts` beside it | `export const hfTts = (deps: Deps = defaultDeps()): VoiceAdapter => ({...})` |
 | Check files | check id with `.` → `-` | `lib/checks/render-deterministic.ts` for `render.deterministic` |
 | Types | PascalCase, blueprint names exactly | `Brief`, `ScenePlan`, `CaptureLog` |
 | Zod schemas | `<Type>Schema` | `StepsSchema` |
@@ -126,7 +126,7 @@ Graphics 1.
 
 ## 11. Writing files
 Write files only with Edit/Write. **Never create or modify files through Bash** (no `>`, `>>`, `sed -i`, `tee`, `cp`,
-`mv` into the repo); package-manager commands are the only exception. A hook blocks Edit/Write outside your folders;
+`mv` into the repo); package-manager commands and `bun run format` are the only exceptions. A hook blocks Edit/Write outside your folders;
 Bash would bypass it. Do not commit; the orchestrator commits.
 
 ## 12. Definition of done (report this back)
