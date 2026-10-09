@@ -12,6 +12,8 @@
 - Next: write `docs/superpowers/plans/phase-1-foundation.md` (move to `lib/`, plugin manifest, tooling, core helpers,
   contract changes, HyperFrames 0.8.143 probe), and run the spike once the user supplies a concept, navigation video and URL.
 - Open user confirmations (defaults recorded in BLUEPRINT 1.6): two directions with one board each; telemetry off.
+- State checked 2026-10-09: `master` clean at 48fd032; HyperFrames not installed yet (0.8.143 is also npm latest);
+  stale worktree `.claude/worktrees/who-you-are-536e8c` has no commits of its own (remove with the user's OK).
 
 ## Phase 0 notes (below)
 
@@ -47,7 +49,7 @@
   With `--disable-accelerated-2d-canvas` every frame is identical across runs, but differs from the baseline (PSNR 45-65 dB; glyph
   antialiasing only, not visible at 1:1). This matters for non-negotiable #1 and for `render.deterministic` in Phase 3.
 
-## Next
+## Next (superseded)
 
-- Decide the canvas mode (see the open question in the Phase 0 report); then make `tests/phase0.ts` match the decision.
-- Phase 1: intake, research, script, plan; extract `looks/plotter` and `core/`; frame object in `plateApi()`.
+- Canvas mode was decided (BLUEPRINT 1.6: software Canvas2D default in `render/pdoom`); making `tests/phase0.ts` match is a
+  Phase 1 task. The old Phase 1 list (plates, `looks/plotter`, `plateApi()`) is replaced by BLUEPRINT Part 5. See "Now" at the top.
