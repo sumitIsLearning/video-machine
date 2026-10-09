@@ -1,6 +1,23 @@
 # Handoff
 
-## Now (2026-10-09): spec v1 + agent team, Phase 1 next
+## Session end (2026-10-09): Phase 1 plan awaits the user's review
+
+- **Next session:** the user reviews `docs/superpowers/plans/phase-1-foundation.md`. On approval: orchestrator `git mv` pre-step,
+  then Tasks 1-9 subagent-driven (builder -> spec-reviewer -> code-reviewer -> bun test + lint -> commit), then
+  `bun tests/phase1.ts`, Opus whole-branch review, ask before merging.
+- **Combined test reel (throwaway, git-ignored):** `runs/spike-probe/notes/combined-reel.mp4` (9.3 s, 1080x1920, H.264 + AAC
+  48 kHz, rendered in 21 s with `--quality delivery --no-browser-gpu`). Built by hand from: `hyperframes capture https://bun.sh`
+  (brand colours, Archivo / Martian Mono fonts, screenshots) -> 3 lines through `hyperframes tts` (Kokoro af_heart, 24 kHz,
+  joined with 0.25 s gaps, resampled to 48 kHz) -> `hyperframes transcribe --engine parakeet` (20/20 words right) -> one
+  composition in `runs/spike-probe/reel/p/index.html` that looks words up by text (`at('Bun.sh')`), vendored GSAP 3.14.2,
+  `<audio>` inside the root -> lint, check (clean), snapshot, render. Learned: chips need `white-space: nowrap`; Parakeet
+  word starts run ~0.1-0.15 s early vs the 0.4 s lead-in (the ctc-onnx aligner stays the timing source when a script exists);
+  `hyperframes check` flags an image zoomed inside a clipped card only as info.
+- **Transcription is swappable:** `hyperframes transcribe --engine auto|parakeet|whisper`; Whisper needs a prebuilt
+  `whisper-cli` + `HYPERFRAMES_WHISPER_PATH` (no compile). Recorded in BLUEPRINT 1.6 (Language row).
+- Spike for real (the user's own product) still needs the user's concept script, navigation video and product URL.
+
+## Earlier (2026-10-09): spec v1 + agent team, Phase 1 next
 
 - The product changed shape: a **Claude Code plugin** that turns a concept script + product navigation video into a reel,
   rendered with **HyperFrames** (not pdoom). Spec: `docs/BLUEPRINT.md` (supersedes video-testing's VIDEO-MACHINE-PROMPT.md).
