@@ -17,3 +17,9 @@ __pycache__/
 
 # test outputs
 tests/fixture/out/
+
+# design-hook cache
+.impeccable/
+
+# spike runs are throwaway
+runs/spike-*/

@@ -1,5 +1,20 @@
 # Handoff
 
+## Now (2026-10-09): spec v1 + agent team, Phase 1 next
+
+- The product changed shape: a **Claude Code plugin** that turns a concept script + product navigation video into a reel,
+  rendered with **HyperFrames** (not pdoom). Spec: `docs/BLUEPRINT.md` (supersedes video-testing's VIDEO-MACHINE-PROMPT.md).
+  Visual version with flowchart and pseudocode: https://claude.ai/artifact/CWKbFBDQDDUtzTjLy7j8nS
+- Coding standard for builders: `docs/AGENT_PROMPT.md`.
+- Dev team in `.claude/agents/`: `orchestrator` (run with `claude --agent orchestrator`), `lib-builder`, `plugin-builder`,
+  `spec-reviewer`, `code-reviewer`. Builders are fenced by `.claude/hooks/path_guard.py` (tested by piping sample tool
+  calls into it; a live builder test needs a fresh session, since agents load at session start).
+- Next: write `docs/superpowers/plans/phase-1-foundation.md` (move to `lib/`, plugin manifest, tooling, core helpers,
+  contract changes, HyperFrames 0.8.143 probe), and run the spike once the user supplies a concept, navigation video and URL.
+- Open user confirmations (defaults recorded in BLUEPRINT 1.6): two directions with one board each; telemetry off.
+
+## Phase 0 notes (below)
+
 ## Where things are (end of Phase 0, 2026-10-05)
 
 - `engine/`: copy of video-testing/app (engine, render script, fonts) + `analysis/*.py` + ONNX model (gitignored, copied by hand).

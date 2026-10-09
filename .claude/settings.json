@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Write(./.env)",
+      "Read(./.env.*)",
+      "Edit(./.env.*)",
+      "Write(./.env.*)"
+    ]
+  },
+  "env": {
+    "HYPERFRAMES_NO_TELEMETRY": "1"
+  }
+}
