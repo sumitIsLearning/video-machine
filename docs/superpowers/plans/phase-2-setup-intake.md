@@ -460,7 +460,7 @@ Add "VideoMachineError when the aligner model is missing (setup fetches it)" to 
 - `__main__`: require `len(sys.argv) == 5` and pass `Path(sys.argv[4]).resolve()`.
 - Don't edit `analysis/` (vendored).
 
-JS packages (R1): move `bun` to runtime dependencies with `node_modules/.bin/bun remove -d bun && node_modules/.bin/bun add --exact bun@1.4.2`. `package.json` must end with `"dependencies": { "bun": "1.4.2", "zod": "^4.1.0" }`, and `bun` must no longer be in `devDependencies`. Then check that `node_modules/.bin/bun --version` still prints `1.4.2`.
+JS packages (R1): move `bun` to runtime dependencies. Edit `package.json` by hand: move the `"bun": "1.4.2"` line from `devDependencies` to `dependencies`. Then run `node_modules/.bin/bun install` so it updates `bun.lock`. Don't use `bun remove bun`: on Windows it would delete the binary that is running the command. `package.json` must end with `"dependencies": { "bun": "1.4.2", "zod": "^4.1.0" }`, and `bun` must no longer be in `devDependencies`. Then check that `node_modules/.bin/bun --version` still prints `1.4.2`.
 
 Python packages (R6): run `uv add kokoro-onnx soundfile` in the repo root. Probed resolution: kokoro-onnx 0.6.1, soundfile 0.14.0, with numpy 2.5.3 and onnxruntime 1.30.0 unchanged.
 
