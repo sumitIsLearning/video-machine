@@ -1318,18 +1318,18 @@ Part markers. A part is done when its marker exists; a marker that is a folder m
 | M1 | `brief.json` | always |
 | M5 | `research.md` | always |
 | M2 | `capture/steps.json` | the brief has a `nav_video` source |
-| M3 | `capture/log.json` | `capture/steps.json` exists and the brief has a `product_url` source |
+| M3 | `capture/log.json` | the brief has a `nav_video` and a `product_url` source (ruling 2026-10-10; M2 runs first, so `next` reaches M3 only after the steps exist) |
 | M4 | `assets.json` | always |
 | M6 | `script.json` | always |
 | M7 | `look/look.json` | always |
 | M8 | `plan.json` | always |
-| M9 | `audio/vo.wav` | `timing_source === 'voiceover'` |
+| M9 | `audio/vo.wav` (non-empty) | `timing_source === 'voiceover'` |
 | M10 | `data/timing.json` | `timing_source === 'voiceover'` |
 | M11 | `avatar/` | `brief.avatar` is set and (no `script.json` yet, or some line has `delivery: 'avatar'`) |
 | M12 | `index.html` | always |
 | M13 | `out/drafts/` | always |
 | M14 | `test_results.json` | always |
-| M16 | `audio/mix.wav` | always |
+| M16 | `audio/mix.wav` (non-empty) | always |
 | M17 | `out/deliver/` | always |
 
 Mark the table in code `// ponytail: markers for parts not built yet follow BLUEPRINT 2.1; the phase that builds each part confirms its own marker.` Before `brief.json` exists, no part counts as skipped (`skipped: []`, `next: 'M1'`). Once it exists, `skipped` lists every part that isn't needed, in `PART_ORDER`, and `next` is the first needed part that isn't done (or `'done'`).
