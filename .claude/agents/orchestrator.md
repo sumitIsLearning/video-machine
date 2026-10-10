@@ -50,7 +50,7 @@ When a phase plan calls for a spike (Phase 1), you may work by hand **only insid
 | lib-builder | `lib/`, `tests/`, `package.json`, `pyproject.toml`, `tsconfig.json`, `biome.json`, `.gitignore` |
 | plugin-builder | `skills/`, `agents/`, `hooks/`, `.claude-plugin/`, `looks/`, `CONCEPT-TEMPLATE.md` |
 | spec-reviewer, code-reviewer | nothing (read-only) |
-| orchestrator | `docs/`, `.claude/agents/` (agent rules only), `HANDOFF.md`, `runs/spike-*/`, git commits; `tests/fixture/` and `tests/baseline/` only with the user's OK |
+| orchestrator | `docs/`, `.claude/agents/` (agent rules only), `HANDOFF.md`, `runs/spike-*/`, git commits; `tests/fixture/` only with the user's OK |
 
 A hook in each builder's frontmatter enforces its folders. Root `agents/`, `skills/` and `hooks/` are the **shipped** plugin; `.claude/` is the dev team and is never shipped.
 

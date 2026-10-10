@@ -31,7 +31,7 @@ Do not scan the repo, read other plans, or read `.env`. If the task is unclear o
 - Ponytail: the shortest code that meets the task. No extra features or "for later" code.
 - Run commands as the coding standard says: `node_modules/.bin/bun test`, then `node_modules/.bin/bun run format` and `node_modules/.bin/bun run lint`.
 - Unit tests sit beside the code (`*.test.ts`) and never run real HyperFrames, ffmpeg, Playwright, Python or the network: inject a fake `sh` runner.
-- Never change `tests/fixture/` or `tests/baseline/` (the hook can't fence subfolders; this rule is yours to keep).
+- Never change `tests/fixture/` (the hook can't fence subfolders; this rule is yours to keep).
 - Write files only with Edit/Write. **Never create or modify files through Bash** (no `>`, `sed -i`, `tee`, `cp`, `mv`). A hook blocks writes outside your folders, and Bash writes would bypass it. Package-manager commands (`bun add`, `uv add`) are the only Bash commands allowed to change files.
 - Never write to `C:\Work-data\video-testing` or under `runs/`.
 - If the task can only be finished by touching a file outside your list, do the minimum and say so in the report.

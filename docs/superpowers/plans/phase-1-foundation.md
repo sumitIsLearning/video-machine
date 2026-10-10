@@ -1348,6 +1348,62 @@ Run: `node_modules/.bin/bun run lint` → clean.
 
 ---
 
+### Task 10: Whole-branch review fixes (Opus review, 2026-10-10)
+
+**Agent:** lib-builder
+
+**Read first:**
+- BLUEPRINT 2.4, 2.5, 2.6 (Secrets, Plugin updates rows)
+- `docs/AGENT_PROMPT.md` §7 (errors)
+- The files named below, nothing else
+
+**Files:**
+- Modify: `lib/contracts/types.ts`, `lib/contracts/types.test.ts`, `lib/core/config.ts`, `lib/core/config.test.ts`,
+  `lib/core/json.ts`, `lib/core/json.test.ts`, `lib/core/sh.test.ts`, `lib/adapters/align/ctc-onnx/index.ts`,
+  `lib/adapters/align/ctc-onnx/index.test.ts`, `lib/adapters/align/ctc-onnx/align.py` (comment only), `tests/phase1.ts`,
+  `.gitignore`
+
+Tests first wherever behaviour changes. One commit-sized change; the orchestrator commits.
+
+1. **Strict run-folder schemas** (`types.ts`). Every object schema for a file Claude writes rejects unknown keys:
+   use `z.strictObject` (or `.strict()`) for `Brief` (and its nested objects: sources, voice, music, avatar, brand,
+   cta, deliverables), `Script` and its lines, `Look`, `ScenePlan` and its nested objects, `Plan` (and sections),
+   `AssetRef`, `Steps` entries, `CaptureLog` entries, `TestResults` (and checks, annotations, output_paths), `Doctor`.
+   `Timing` stays a plain `z.object` with a comment: it is aligner output (`align_vo.py`), not written by Claude.
+   Flip the test "brief no longer has source_material, assets or references" to expect `safeParse(...).success` false,
+   and add one test that a misspelt key (`format` for `formats`) is rejected.
+2. **Unique ids** (`types.ts`). `Script.lines[].id`, `Plan.visuals_plan.scenes[].scene_id` and `Plan.sections[].id`
+   must be unique; the refine message names the duplicate (`duplicate scene_id "hook"`). Tests for each.
+3. **Async adapter interfaces** (`types.ts`). `VoiceAdapter`, `MusicAdapter`, `AssetAdapter` and `ExportAdapter`
+   methods that run tools return `Promise<...>` (as `RenderAdapter` / `AlignAdapter` already do); `costEstimate`
+   stays sync. Nothing implements them yet.
+4. **`spoken` comment** (`types.ts`, Script line). Say: `spoken` is how TTS reads the line (M9); the aligner (M10)
+   aligns `text` and takes a per-word `spokenWords` map built by its caller. Drop "/aligner".
+5. **Comment sweep** (`types.ts`): the comment above `Frame` and every "plate" → "scene"; JSDoc on `frameOf`;
+   "the engine's" lyrics/word-timed format → "the aligner's word-timed format" (`types.ts`, `align.py` docstring).
+   Do not edit `lib/adapters/align/ctc-onnx/analysis/` (vendored).
+6. **Secret pattern** (`config.ts`). Pattern becomes `/(_KEY|_TOKEN|_SECRET|_PASSWORD|_CREDENTIALS)$/i`. Delete
+   `SECRET_ENV` and `SECRETS` (the pattern covers them); `stripSecrets` is no longer exported. Config test feeds
+   `AWS_SECRET_ACCESS_KEY`, `OPENAI_KEY`, `DB_PASSWORD`, `GOOGLE_APPLICATION_CREDENTIALS` (all gone) and keeps `Path`.
+   Update any test that imported `SECRET_ENV`.
+7. **`writeJson` tmp file** (`json.ts`). Tmp name `${file}.${process.pid}.tmp`; if `renameSync` throws, remove the
+   tmp (`rmSync(tmp, { force: true })`) and rethrow. Write the BOM regex as `/^﻿/` (escape, not the literal
+   character), and the BOM test input as `'﻿' + ...` too.
+8. **Delete the 1.5 MB large-output test** in `sh.test.ts` (it cannot catch a regression: bun buffers pipes).
+9. **Aligner outputs** (`ctc-onnx/index.ts`). Remove both `data/timing.json` and `data/audio.json` before calling
+   `sh`, and remove both again if the call or the validation fails, so a half-finished run never looks done.
+   JSDoc lists all four audio refusals (missing, not a file, empty, outside `audio/`). Tests: after a failed align
+   neither file exists.
+10. **Aligner tests** (`index.test.ts`): drop "and removes it afterwards" from the title at ~line 59; the stale-timing
+    test (~150) also asserts `data/timing.json` no longer exists.
+11. **Check 6** (`tests/phase1.ts`): add `|import\.meta\.env\b` to the env regex.
+12. **`.gitignore`**: remove the pdoom leftovers `engine/out/` and `.vite/`.
+
+**Done when:** `node_modules/.bin/bun test` all pass, `node_modules/.bin/bun run lint` clean,
+`node_modules/.bin/bun tests/phase0.ts` → `2/2 passed`, `node_modules/.bin/bun tests/phase1.ts` → `7/7 passed`.
+
+---
+
 ### After Task 9 (orchestrator)
 
 1. Run `node_modules/.bin/bun tests/phase1.ts` and show the user the output.

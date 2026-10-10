@@ -91,7 +91,10 @@ format, frame, gate, deliverable.
 ## 7. Errors
 - Custom errors live in `lib/core/errors.ts` under `VideoMachineError` (`ContractError`, `ToolError`, `CostGateError`,
   `CaptureError`, ...). Messages name what failed and where (file path, scene id, format, `t`); wrap with `{ cause }`.
-- A failed subprocess becomes a `ToolError` holding the command, exit code and the last 2 KB of stderr.
+- A failed subprocess becomes a `ToolError` holding the command, exit code and the last 2 KB of stderr (stdout when
+  stderr is empty). The command line lands in logs, so **never put a secret in argv**: pass it through a file or the
+  child's env. `sh` decodes output as text; a tool that writes binary to stdout (e.g. ffmpeg `-f f32le -`) writes to a
+  file instead.
 - A failed parse of any JSON file is an error, never a warning (`readJson` / `writeJson` already do this).
 - A failed **check** is not an exception: it is a `fail` entry in `test_results.json` with annotations (`scene_id`, `t`,
   `problem`, `suggested_fix`). Throw only when the check itself cannot run.
