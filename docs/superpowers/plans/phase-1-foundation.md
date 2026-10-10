@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move the Phase 0 code into `lib/`, add tooling, the core helpers (`config`, `errors`, `json`, `sh`), the 2.4 contract changes, software Canvas2D for pdoom, and a loadable plugin shell, so Phase 2 starts on a clean, linted, tested base.
+**Goal:** Move the Phase 0 code into `lib/`, add tooling, the core helpers (`config`, `errors`, `json`, `sh`), the 2.4 contract changes, the pdoom renderer retired (aligner kept), and a loadable plugin shell, so Phase 2 starts on a clean, linted, tested base.
 
 **Architecture:** Plain functions under `lib/`: `contracts/` (Zod schemas + adapter interfaces, imports nothing from `lib/`), `core/` (the only env reader, the only process spawner, validated JSON IO, error classes), `adapters/` (factories that take `Deps = { sh, config }` so tests pass fakes). The plugin shell is `.claude-plugin/` + one placeholder skill.
 
@@ -21,13 +21,13 @@
 - JSON files: 1-space indent, LF, trailing newline, written only through `writeJson`.
 - Windows 11 is the primary platform. Paths are built with `node:path`.
 - Nothing ever writes to `C:\Work-data\video-testing` or `C:\Work-data\kinomat`.
-- `tests/fixture/` and `tests/baseline/` are read-only for builders.
+- `tests/fixture/` is read-only for builders.
 - English only in v1 (BLUEPRINT 1.6).
 
 ## Review Focus
 
 1. **API keys in the environment** (bun auto-loads `.env`) must not reach HyperFrames, Python or any other child process, whatever the key's letter case on Windows. Pinned by the `toolEnv` tests in Task 4.
-2. **A hung tool on Windows** (Chrome, vite, a `cmd`-wrapped node) must be killed with its whole process tree when the timeout fires, not orphaned. Pinned by the tree-kill test in Task 5.
+2. **A hung tool on Windows** (Chrome, a `cmd`-wrapped node) must be killed with its whole process tree when the timeout fires, not orphaned. Pinned by the tree-kill test in Task 5.
 3. **A hand-edited or truncated run-folder JSON file** must fail with a `ContractError` naming the file, never a bare `SyntaxError`. Pinned in Task 4.
 4. **A URL source (`product_url`, `link`) or `cite` that is not http(s)** (`file:///…`, `javascript:…`) must be rejected at the brief / script, because Playwright and WebFetch will open them in Phase 3. Pinned in Task 6.
 5. **A missing audio file or empty script** handed to the aligner must fail fast with the path or reason named, before `uv` starts. Pinned in Task 7.
@@ -35,16 +35,18 @@
 ## Rulings made in this plan (orchestrator, 2026-10-09; listed in the phase summary)
 
 - R1. The move from `.claude/skills/video-machine/` to `lib/` is a pure `git mv` done by the orchestrator (the source folder is outside every builder's fence). Builders fix what breaks.
-- R2. Adapters are exported as factories taking `Deps = { sh, config }` with a default (`pdoom(deps = defaultDeps())`), so tests pass fakes. This replaces the AGENT_PROMPT example `export const hfTts: VoiceAdapter`.
+- R2. Adapters are exported as factories taking `Deps = { sh, config }` with a default (`ctcOnnx(deps = defaultDeps())`), so tests pass fakes. This replaces the AGENT_PROMPT example `export const hfTts: VoiceAdapter`.
 - R3. `readJson` / `writeJson` move from `contracts/types.ts` to `lib/core/json.ts`, because they throw `ContractError` and `contracts/` may not import from `lib/`.
-- R4. `RenderAdapter` and `AlignAdapter` follow BLUEPRINT 2.5 and become async: `scaffold`/`plateApi` (pdoom-only plate API) are dropped, `check` is added; pdoom's `lint`/`check` throw `UnsupportedError` (pdoom is kept, not extended).
+- R4. `RenderAdapter` and `AlignAdapter` follow BLUEPRINT 2.5 and become async: `scaffold`/`plateApi` (pdoom-only plate API) are dropped, `check` is added. No renderer implements `RenderAdapter` until `render/hyperframes` (Phase 6).
 - R5. `toolEnv` strips API keys (case-insensitive) before any child process sees the env.
-- R6. With software Canvas2D, pdoom stills no longer match the GPU-era baseline byte for byte (Phase 0 measured PSNR 45–65 dB). Phase 0 check 1 becomes: identical across two renders **and** PSNR ≥ 40 dB against `tests/baseline/`. The baseline files are not changed.
+- R6. *(Withdrawn 2026-10-10: the user retired pdoom, so there is no Canvas2D mode or GPU-era baseline to compare.)*
 - R7. `bun run format` runs `biome check --write` (format + import order + safe fixes) and `ruff format`. Running `bun run format` is allowed through Bash, like package managers.
 - R8. `Brief.formats` defaults to `['reel']` (BLUEPRINT 1.6 "Formats v1" and 2.7).
 
 User rulings 2026-10-10 (BLUEPRINT v1.1, commit `e293e48`) folded in: skill `make-video` (Task 3); `Brief.sources`,
 `AssetRef.origin`, `Script` `section` / `cite`, `Plan.sections` (Task 6); the spike starts from a concept only.
+User ruling 2026-10-10: **pdoom retired** (BLUEPRINT 1.6). Orchestrator pre-step 2 + Task 1b remove it; Task 7 covers the aligner
+only; Task 8 is withdrawn.
 
 ---
 
@@ -120,6 +122,65 @@ Expected: `4/4 passed`.
 
 ---
 
+### Orchestrator pre-step 2 (after Task 1, not a builder task): retire pdoom
+
+User ruling 2026-10-10. Pure moves and deletes; `engine/` and the fixture are outside every builder's fence for these.
+
+```bash
+mkdir -p lib/adapters/align/ctc-onnx/analysis/models
+git mv engine/analysis/align_vo.py engine/analysis/audio_vo.py engine/LICENSE.pdoom-engine lib/adapters/align/ctc-onnx/analysis/
+git mv engine/analysis/models/vocab.json engine/analysis/models/preprocessor_config.json lib/adapters/align/ctc-onnx/analysis/models/
+mv engine/analysis/models/w2v2_base_960h_q.onnx lib/adapters/align/ctc-onnx/analysis/models/   # git-ignored (*.onnx)
+git rm -r -q engine lib/adapters/render/pdoom tests/baseline tests/fixture/scenes tests/fixture/timeline.ts tests/fixture/audio/sfx
+rm -rf engine                      # untracked leftovers (node_modules, __pycache__, out/)
+git commit -m "chore: retire pdoom; keep aligner scripts and model under ctc-onnx/analysis"
+```
+
+`align_vo.py` / `audio_vo.py` compute `ROOT = Path(__file__).resolve().parent.parent` and the model as
+`ROOT / "analysis" / "models" / ...`, so after the move they resolve to `lib/adapters/align/ctc-onnx/analysis/models/`
+without edits. `align.py` and `tests/phase0.ts` break; Task 1b fixes them.
+
+---
+
+### Task 1b: Phase 0 test without pdoom
+
+**Agent:** lib-builder
+
+**Read first:**
+- BLUEPRINT 1.6 (pdoom engine row: retired)
+- `tests/phase0.ts`, `lib/adapters/align/ctc-onnx/align.py`
+
+**Files:**
+- Modify: `lib/adapters/align/ctc-onnx/align.py` (the `ANALYSIS` constant and the docstring's first line)
+- Modify: `tests/phase0.ts`
+
+**Interfaces:**
+- Consumes: nothing new. Produces: `tests/phase0.ts` with two checks.
+
+- [ ] **Step 1: See it fail**
+
+Run: `node_modules/.bin/bun tests/phase0.ts`
+Expected: crash with `Cannot find module '../lib/adapters/render/pdoom'`.
+
+- [ ] **Step 2: Fix**
+
+- `align.py`: `ANALYSIS = Path(__file__).resolve().parent / "analysis"`; docstring line 1 says it drives the vendored
+  `analysis/align_vo.py` and `audio_vo.py` unchanged. Update the `noqa` comment on `import align_vo` to say MODEL/VOCAB
+  point at `analysis/models`.
+- `tests/phase0.ts`: delete checks 1 (landscape stills vs baseline) and 3 (reel still), the `pdoom` import, `TIMES`,
+  `ATTEMPTS` and their comment, and the now-unused imports. Renumber: `1. fixture alignment within 10 ms`,
+  `2. video-testing unchanged since before Phase 0`. Header comment lists exactly these two. Everything inside the two
+  kept checks stays as it is.
+
+- [ ] **Step 3: Verify**
+
+Run: `node_modules/.bin/bun tests/phase0.ts` → both checks PASS, last line `2/2 passed`.
+
+**Done when:** that passes, and `git grep -n "pdoom\|render/" -- lib tests/phase0.ts ':!lib/adapters/align/ctc-onnx/analysis'` prints only the
+`LICENSE.pdoom-engine` attribution lines (if any). `tests/fixture/` and `tests/phase0/video-testing.before.txt` are data.
+
+---
+
 ### Task 2: Tooling (tsconfig, Biome, ruff, lint/format scripts, first unit test)
 
 **Agent:** lib-builder
@@ -190,7 +251,7 @@ uv add --dev ruff==0.16.10
     "types": ["bun"]
   },
   "include": ["lib", "tests"],
-  "exclude": ["tests/fixture", "tests/out", "engine", "runs", "node_modules"]
+  "exclude": ["tests/fixture", "tests/out", "runs", "node_modules"]
 }
 ```
 
@@ -200,7 +261,7 @@ uv add --dev ruff==0.16.10
 {
   "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "includes": ["**", "!engine", "!tests/fixture", "!runs", "!.claude"] },
+  "files": { "includes": ["**", "!tests/fixture", "!runs", "!.claude"] },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
   "linter": { "enabled": true, "rules": { "preset": "recommended" } },
   "javascript": { "formatter": { "quoteStyle": "single" } },
@@ -213,7 +274,7 @@ uv add --dev ruff==0.16.10
 ```toml
 [tool.ruff]
 line-length = 120
-extend-exclude = ["engine", "tests/fixture", "runs"]
+extend-exclude = ["lib/adapters/align/ctc-onnx/analysis", "tests/fixture", "runs"]  # vendored aligner scripts stay as lifted
 ```
 
 - [ ] **Step 4: Run lint to see it fail**
@@ -1009,7 +1070,7 @@ Do not touch the adapter interfaces in this task (Task 7 does).
 Run: `node_modules/.bin/bun test` → all pass.
 Run: `node_modules/.bin/bun run lint` → clean.
 
-**Done when:** both pass, and `git grep -n "plate_id\|PlatePlan\|plates" -- lib` prints nothing except inside `lib/adapters/render/pdoom/` (the engine's own `--only` plate filter and `--per-plate` flag stay).
+**Done when:** both pass, and `git grep -n "plate_id\|PlatePlan\|plates" -- lib` prints nothing.
 
 ---
 
@@ -1018,16 +1079,16 @@ Run: `node_modules/.bin/bun run lint` → clean.
 **Agent:** lib-builder
 
 **Read first:**
-- BLUEPRINT 2.5 (adapter functions) and 1.6 (pdoom engine row)
+- BLUEPRINT 2.5 (adapter functions)
 - AGENT_PROMPT §4 (module layout), §7 (errors)
 - `lib/contracts/types.ts` (the adapter interfaces at the end)
 - `lib/core/config.ts`, `lib/core/sh.ts`, `lib/core/errors.ts`, `lib/core/json.ts`
-- `lib/adapters/render/pdoom/index.ts`, `lib/adapters/align/ctc-onnx/index.ts`
+- `lib/adapters/align/ctc-onnx/index.ts`
 - `tests/phase0.ts`
 
 **Files:**
-- Create: `lib/core/deps.ts`, `lib/adapters/render/pdoom/index.test.ts`, `lib/adapters/align/ctc-onnx/index.test.ts`
-- Modify: `lib/contracts/types.ts` (`RenderAdapter`, `AlignAdapter` only), `lib/adapters/render/pdoom/index.ts`, `lib/adapters/align/ctc-onnx/index.ts`, `tests/phase0.ts`
+- Create: `lib/core/deps.ts`, `lib/adapters/align/ctc-onnx/index.test.ts`
+- Modify: `lib/contracts/types.ts` (`RenderAdapter`, `AlignAdapter` only), `lib/adapters/align/ctc-onnx/index.ts`, `tests/phase0.ts`
 
 **Interfaces:**
 - Consumes: `Sh`, `ShOptions`, `sh` (Task 5); `Config`, `Env`, `loadConfig` (Task 4); `UnsupportedError`, `VideoMachineError` (Task 4); `readJson` (Task 4).
@@ -1050,77 +1111,9 @@ export interface AlignAdapter {
 }
 ```
 
-  - `lib/adapters/render/pdoom/index.ts`: `export const pdoom = (deps: Deps = defaultDeps()): RenderAdapter`, `export default pdoom`.
   - `lib/adapters/align/ctc-onnx/index.ts`: `export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter`, `export default ctcOnnx`. The standalone `align` export is removed.
 
 - [ ] **Step 1: Write the failing tests**
-
-`lib/adapters/render/pdoom/index.test.ts`:
-
-```ts
-import { expect, test } from 'bun:test';
-import path from 'node:path';
-import { type Env, loadConfig } from '../../../core/config';
-import type { Deps } from '../../../core/deps';
-import { UnsupportedError } from '../../../core/errors';
-import type { ShOptions } from '../../../core/sh';
-import { pdoom } from './index';
-
-const fakeDeps = (env: Env = { PATH: '/bin' }) => {
-  const calls: { cmd: string[]; opts?: ShOptions }[] = [];
-  const deps: Deps = {
-    config: loadConfig(env),
-    sh: async (cmd, opts) => {
-      calls.push({ cmd, opts });
-      return { code: 0, stdout: '', stderr: '' };
-    },
-  };
-  return { deps, calls };
-};
-const RUN = path.resolve('some', 'run');
-
-test('still() renders the requested times at the format size and returns their paths', async () => {
-  const { deps, calls } = fakeDeps();
-  const files = await pdoom(deps).still(RUN, 'landscape_1080p', [5, 12.5]);
-  expect(files).toEqual([
-    path.join(RUN, 'out', 'stills', 'landscape_1080p', 'f_0005.00.png'),
-    path.join(RUN, 'out', 'stills', 'landscape_1080p', 'f_0012.50.png'),
-  ]);
-  const { cmd, opts } = calls[0]!;
-  expect(cmd.slice(0, 3)).toEqual([deps.config.bun, 'scripts/render.ts', 'stills']);
-  expect(cmd).toContain('--strict');
-  expect(cmd.join(' ')).toContain('--t 5,12.5');
-  expect(cmd.join(' ')).toContain('--w 1920 --h 1080');
-  expect(opts?.cwd).toBe(path.join(deps.config.pluginRoot, 'engine'));
-  expect(opts?.env?.VM_RUN).toBe(RUN);
-  expect(opts?.env?.HYPERFRAMES_NO_TELEMETRY).toBe('1');
-});
-
-test('a draft render writes out/drafts/<format>/video.mp4 at the format size and fps', async () => {
-  const { deps, calls } = fakeDeps();
-  expect(await pdoom(deps).render(RUN, 'reel', 'draft')).toBe(path.join(RUN, 'out', 'drafts', 'reel', 'video.mp4'));
-  expect(calls[0]!.cmd.join(' ')).toContain('--fps 30');
-  expect(calls[0]!.cmd.join(' ')).toContain('--w 1080 --h 1920');
-});
-
-test('layer passes are refused, not faked, and nothing runs', async () => {
-  const { deps, calls } = fakeDeps();
-  await expect(pdoom(deps).render(RUN, 'reel', 'final', ['bg'])).rejects.toBeInstanceOf(UnsupportedError);
-  expect(calls).toHaveLength(0);
-});
-
-test('lint and check are not offered by the pdoom adapter', async () => {
-  const { deps } = fakeDeps();
-  await expect(pdoom(deps).lint(RUN)).rejects.toBeInstanceOf(UnsupportedError);
-  await expect(pdoom(deps).check(RUN)).rejects.toBeInstanceOf(UnsupportedError);
-});
-
-test('supports() follows the formats table', () => {
-  const { deps } = fakeDeps();
-  expect(pdoom(deps).supports('reel')).toEqual({ ok: true });
-  expect(pdoom(deps).supports('vhs' as never).ok).toBe(false);
-});
-```
 
 `lib/adapters/align/ctc-onnx/index.test.ts`:
 
@@ -1195,125 +1188,33 @@ test('align fails with a ContractError when align.py writes an invalid timing.js
 - [ ] **Step 2: Run them to see them fail**
 
 Run: `node_modules/.bin/bun test lib/adapters`
-Expected: FAIL (`pdoom` is an object, not a function; `ctcOnnx` likewise; `../../../core/deps` missing).
+Expected: FAIL (`ctcOnnx` not exported; `../../../core/deps` missing).
 
 - [ ] **Step 3: Implement**
 
 - `lib/core/deps.ts` as in Interfaces, with JSDoc.
-- Interfaces in `contracts/types.ts` exactly as in Interfaces (drop `scaffold` and `plateApi`; `perPlate` → `perScene`).
-- `pdoom(deps)`:
-  - `ENGINE = path.join(deps.config.pluginRoot, 'engine')`; delete the module-level `WORKSPACE` and `BUN` constants and every `process.env` / `Bun.spawnSync`.
-  - private `run(runDir, format, args, timeoutMs)` → `deps.sh([deps.config.bun, 'scripts/render.ts', ...args, '--w', w, '--h', h, '--strict'], { cwd: ENGINE, env: { ...deps.config.toolEnv, VM_RUN: path.resolve(runDir) }, timeoutMs })`. Use `DEFAULT_TIMEOUT_MS` for stills and sheets, 30 minutes for `video`. A failed render surfaces as the `ToolError` from `sh` (no wrapping).
-  - Output paths are built from `path.resolve(runDir)` (same names as today).
-  - All methods except `supports` are `async`. `lint` / `check`: `throw new UnsupportedError('pdoom.<name>: the pdoom adapter is kept, not extended (BLUEPRINT 1.6); use render/hyperframes')`. `render` with `passes?.length`: `throw new UnsupportedError('pdoom.render: layer passes are not supported')` before running anything.
+- Interfaces in `contracts/types.ts` exactly as in Interfaces (drop `scaffold` and `plateApi`; `perPlate` → `perScene`). Nothing implements `RenderAdapter` yet (Phase 6).
 - `ctcOnnx(deps)`:
   - Guards, in order, before any process runs: `lines.length === 0` → `UnsupportedError('ctc-onnx.align needs the script lines: it aligns text to audio, it does not transcribe')`; `!existsSync(audioPath)` → `VideoMachineError(\`ctc-onnx.align: audio not found: ${audioPath}\`)`.
   - Spec file in `mkdtempSync(path.join(tmpdir(), 'vm-align-'))` as today.
   - `deps.sh(['uv', 'run', '--project', deps.config.pluginRoot, 'python', ALIGN_PY, path.resolve(audioPath), spec, runDir], { env: deps.config.toolEnv })` where `ALIGN_PY = path.join(deps.config.pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py')` and `runDir = path.resolve(path.dirname(audioPath), '..')`. `PYTHONUTF8` now comes from `toolEnv`.
   - Validate with `readJson(out, TimingSchema)` and return `out`.
-- `tests/phase0.ts`: make the `check` helper async (`await fn()`), build `const renderer = pdoom()` and use `await renderer.still(...)`, replace `align(...)` with `await ctcOnnx().align(...)`. Keep every assertion as it is.
+- `tests/phase0.ts`: make the `check` helper async (`await fn()`) and replace `align(...)` with `await ctcOnnx().align(...)`. Keep every assertion as it is.
 
 - [ ] **Step 4: Verify**
 
 Run: `node_modules/.bin/bun test` → all pass.
 Run: `node_modules/.bin/bun run lint` → clean.
-Run: `node_modules/.bin/bun tests/phase0.ts` → `4/4 passed`.
+Run: `node_modules/.bin/bun tests/phase0.ts` → `2/2 passed`.
 
 **Done when:** all three pass, and `git grep -n "process.env\|Bun.env\|Bun.spawn" -- lib ':!lib/core/config.ts' ':!lib/core/sh.ts' ':!*.test.ts'` prints nothing.
 
 ---
 
-### Task 8: pdoom renders with software Canvas2D by default
+### Task 8: *(withdrawn 2026-10-10)*
 
-**Agent:** lib-builder
-
-**Read first:**
-- BLUEPRINT 1.6 (pdoom engine row)
-- `HANDOFF.md` section "What broke, and what was learned" (the Canvas2D bullet)
-- `lib/adapters/render/pdoom/index.ts`, `lib/adapters/render/pdoom/index.test.ts`
-- `tests/phase0.ts`
-- `engine/scripts/render.ts` line 64 only (how `EXTRA_CHROME_ARGS` reaches Chrome; do not edit `engine/`)
-
-**Files:**
-- Modify: `lib/adapters/render/pdoom/index.ts`, `lib/adapters/render/pdoom/index.test.ts`, `tests/phase0.ts`
-
-**Interfaces:**
-- Consumes: `pdoom(deps)` and the `fakeDeps(env)` helper in its test file (Task 7); `sh` (Task 5).
-- Produces: no new exports.
-
-- [ ] **Step 1: Write the failing tests** — append to `lib/adapters/render/pdoom/index.test.ts`
-
-```ts
-test('pdoom renders with software Canvas2D so frames are the same on every run', async () => {
-  const { deps, calls } = fakeDeps();
-  await pdoom(deps).still(RUN, 'reel', [1]);
-  expect(calls[0]!.opts?.env?.EXTRA_CHROME_ARGS?.split(' ')).toContain('--disable-accelerated-2d-canvas');
-});
-
-test('Chrome args already in the env are kept', async () => {
-  const { deps, calls } = fakeDeps({ PATH: '/bin', EXTRA_CHROME_ARGS: '--foo' });
-  await pdoom(deps).still(RUN, 'reel', [1]);
-  const args = calls[0]!.opts?.env?.EXTRA_CHROME_ARGS?.split(' ');
-  expect(args).toContain('--foo');
-  expect(args).toContain('--disable-accelerated-2d-canvas');
-});
-```
-
-- [ ] **Step 2: Run them to see them fail**
-
-Run: `node_modules/.bin/bun test lib/adapters/render/pdoom`
-Expected: FAIL (`EXTRA_CHROME_ARGS` undefined).
-
-- [ ] **Step 3: Implement**
-
-In `run(...)`, set `EXTRA_CHROME_ARGS` to the existing value (if any) plus `--disable-accelerated-2d-canvas`, space-separated. Comment why: GPU Canvas2D rasterizes hairline text one of two ways depending on GPU cache state (Phase 0), so it is not deterministic.
-
-Rewrite check 1 of `tests/phase0.ts` (ruling R6; the baseline files stay as they are) and update the header comment's line 1 to match:
-
-```ts
-await check('1. landscape stills are identical across runs and close to the GPU-era baseline (PSNR >= 40 dB)', async () => {
-  const name = (t: number) => `f_${t.toFixed(2).padStart(7, '0')}.png`;
-  const renderHashes = async () => {
-    rmSync(path.join(FIXTURE, 'out'), { recursive: true, force: true });
-    const files = await renderer.still(FIXTURE, 'landscape_1080p', TIMES);
-    return files.map((f) => Bun.hash(readFileSync(f)));
-  };
-  const first = await renderHashes();
-  const second = await renderHashes();
-  const unstable = TIMES.filter((_, i) => first[i] !== second[i]);
-  if (unstable.length) throw new Error(`differs between two renders at t=${unstable.join(', ')}`);
-  const psnr = async (t: number) => {
-    const r = await sh([
-      'ffmpeg', '-hide_banner',
-      '-i', path.join(FIXTURE, 'out', 'stills', 'landscape_1080p', name(t)),
-      '-i', path.join(WS, 'tests', 'baseline', name(t)),
-      '-lavfi', 'psnr', '-f', 'null', '-',
-    ]);
-    const m = /average:(inf|[\d.]+)/.exec(r.stderr); // ffmpeg prints "PSNR r:… average:47.31 …" or "average:inf"
-    if (!m) throw new Error(`no PSNR in ffmpeg output for t=${t}`);
-    return m[1] === 'inf' ? Number.POSITIVE_INFINITY : Number(m[1]);
-  };
-  const lines: string[] = [];
-  let worst = Number.POSITIVE_INFINITY;
-  for (const t of TIMES) {
-    const p = await psnr(t);
-    worst = Math.min(worst, p);
-    lines.push(`t=${t}: ${p === Number.POSITIVE_INFINITY ? 'identical to baseline' : `${p.toFixed(1)} dB`}`);
-  }
-  if (worst < 40) throw new Error(lines.join('\n'));
-  return `identical across 2 renders\n${lines.join('\n')}`;
-});
-```
-
-Import `sh` from `../lib/core/sh`. Delete the `ATTEMPTS` constant and its comment.
-
-- [ ] **Step 4: Verify**
-
-Run: `node_modules/.bin/bun test` → all pass.
-Run: `node_modules/.bin/bun run lint` → clean.
-Run: `node_modules/.bin/bun tests/phase0.ts` → `4/4 passed`; check 1 lists five PSNR values, all ≥ 40 dB (Phase 0 measured 45–65 dB).
-
-**Done when:** all three pass. Report the five PSNR values.
+The user retired pdoom (BLUEPRINT 1.6), so there is no pdoom Canvas2D mode to set. Numbering kept so ledger and
+commit references stay valid.
 
 ---
 
@@ -1341,7 +1242,7 @@ Probed: `claude plugin validate <file> --strict --json` prints `{ success, manif
 //   node_modules/.bin/bun tests/phase1.ts
 // 1. unit tests pass                        2. lint is clean (tsc, Biome, ruff)
 // 3. Phase 0 acceptance still passes        4. plugin and marketplace manifests pass strict validation
-// 5. claude --plugin-dir . loads make-video  6. lib/ keeps its boundaries (env, processes, old folder gone)
+// 5. claude --plugin-dir . loads make-video  6. lib/ keeps its boundaries (env, processes, retired folders gone)
 // 7. the pinned HyperFrames version resolves
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -1415,7 +1316,8 @@ await check('6. lib/ keeps its boundaries', async () => {
     if (/process\.env|Bun\.env/.test(src) && rel(f) !== 'lib/core/config.ts') bad.push(`${rel(f)} reads the environment`);
     if (/Bun\.spawn|node:child_process/.test(src) && rel(f) !== 'lib/core/sh.ts') bad.push(`${rel(f)} spawns a process`);
   }
-  if (existsSync(path.join(WS, '.claude', 'skills', 'video-machine'))) bad.push('.claude/skills/video-machine still exists');
+  for (const gone of ['.claude/skills/video-machine', 'engine', 'lib/adapters/render/pdoom', 'tests/baseline'])
+    if (existsSync(path.join(WS, gone))) bad.push(`${gone} still exists`);
   if (bad.length) throw new Error(bad.join('\n'));
   return `${files.length} files checked`;
 });

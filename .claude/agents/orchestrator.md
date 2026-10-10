@@ -47,7 +47,7 @@ When a phase plan calls for a spike (Phase 1), you may work by hand **only insid
 ## Folder ownership
 | Agent | May write |
 |---|---|
-| lib-builder | `lib/`, `tests/`, `engine/`, `package.json`, `pyproject.toml`, `tsconfig.json`, `biome.json`, `.gitignore` |
+| lib-builder | `lib/`, `tests/`, `package.json`, `pyproject.toml`, `tsconfig.json`, `biome.json`, `.gitignore` |
 | plugin-builder | `skills/`, `agents/`, `hooks/`, `.claude-plugin/`, `looks/`, `CONCEPT-TEMPLATE.md` |
 | spec-reviewer, code-reviewer | nothing (read-only) |
 | orchestrator | `docs/`, `.claude/agents/` (agent rules only), `HANDOFF.md`, `runs/spike-*/`, git commits; `tests/fixture/` and `tests/baseline/` only with the user's OK |

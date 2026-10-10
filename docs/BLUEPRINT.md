@@ -82,7 +82,7 @@ and Claude installs everything. The first user is the project owner, making reel
 | Decision | Resolution |
 |---|---|
 | App or plugin | **Claude Code plugin.** Build an app only if payments or hosted rendering are ever needed. |
-| Renderer | **HyperFrames** (Apache 2.0, HTML + CSS + GSAP), pinned. Remotion rejected (licence friction for creators). pdoom adapter stays, not extended. |
+| Renderer | **HyperFrames** (Apache 2.0, HTML + CSS + GSAP), pinned. Remotion rejected (licence friction for creators). The pdoom renderer is retired (user ruling 2026-10-10). |
 | Review gates | **Four:** script (G1), storyboard per scene (G2), draft (G3), delivery formats (G4). Spend always asks too. |
 | Art directions (user ruling 2026-10-09) | Two directions, **three boards each** (hook, one product scene, ending) at G1→G2, so the creator judges each look on more than one frame. |
 | Product capture | **Playwright** with a persistent profile per product; the creator logs in once by hand. Claude never types passwords. |
@@ -99,8 +99,8 @@ and Claude installs everything. The first user is the project owner, making reel
 | Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(User ruling 2026-10-09: off inside Video Machine; the machine-wide HyperFrames setting is left alone for now.)* |
 | Resolution | 1080p formats. 4K only as an opt-in, never the default. |
 | Source projects | `video-testing` and `kinomat` are read-only. The only command ever run in `video-testing` was the Phase 0 baseline render. |
-| pdoom engine (kept from 2026-10-05/06 rulings) | Applies only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
-| Tooling (ruling 2026-10-06, kept) | `bun test`, `tsc --noEmit`, Biome (lint + format), ruff via uv. `engine/` and `tests/fixture/` are excluded from lint and format. |
+| pdoom engine (retired, user ruling 2026-10-10) | `render/pdoom`, `engine/`, the pdoom fixture scenes and `tests/baseline/` are deleted; HyperFrames is the only renderer. Only the aligner's Python (`engine/analysis/` → `lib/adapters/align/ctc-onnx/analysis/`) is kept. Superseded rule, for the record: | Applies only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
+| Tooling (ruling 2026-10-06, kept) | `bun test`, `tsc --noEmit`, Biome (lint + format), ruff via uv. The vendored aligner scripts (`lib/adapters/align/ctc-onnx/analysis/`) and `tests/fixture/` are excluded from lint and format. |
 | Build team (ruling 2026-10-09, replaces 2026-10-06) | Orchestrator + `lib-builder`, `plugin-builder` + `spec-reviewer` + `code-reviewer`. A `visual-reviewer` joins in Phase 4. The old `skill-builder` / `look-builder` / `engine-builder` split assumed pdoom plates. |
 | Phase numbering (2026-10-09; 2026-10-10 adds Phase 9 Long-form, Polish becomes 10) | Phases 1–10 in Part 5 replace the old spec phases 1–5. The old "Phase 0 finish" items (canvas default, tooling) move into Phase 1. |
 | Out of scope | Web UI, server, database, accounts, template catalog, auto-posting, 4K by default, vlog/raw-footage editing (future), paid AI media generation (future). |
@@ -229,8 +229,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | Privacy | Telemetry off; no `hyperframes feedback`; no secrets in logs. Gemini extras always off: `snapshot --describe false`, `capture --skip-vision`. Never run bare `hyperframes skills` (it installs into every AI tool on the machine); `init` runs with `HYPERFRAMES_SKIP_SKILLS=1` |
 | Licence | Confirm `@hyperframes/producer` and the SDK licences before publishing |
 | Source projects | Each acceptance script re-checks the `video-testing` listing against `tests/phase0/video-testing.before.txt` |
-| Toolchain drift (pdoom) | Engine dependencies installed with `--frozen-lockfile` only (a non-frozen install re-resolved three to 0.186.1) |
-| Fixtures | `tests/baseline/` and `tests/fixture/` are owned by no builder; the orchestrator changes them only with the user's OK |
+| Fixtures | `tests/fixture/` is owned by no builder; the orchestrator changes them only with the user's OK |
 | Secrets | API keys only in the workspace `.env`; `.claude/settings.json` denies agents Read/Edit on it. Never paste keys into chat |
 
 ## 2.7 Settings
@@ -318,17 +317,15 @@ video-machine/                      # repo = the plugin and its own marketplace
     core/                           # config.ts, errors.ts, sh.ts, timing lookup, run-folder helpers
     adapters/
       render/hyperframes/           # primary renderer (Phase 6)
-      render/pdoom/                 # Phase 0, kept
-      align/ctc-onnx/               # Phase 0
+      align/ctc-onnx/               # Phase 0; analysis/ = vendored align_vo.py, audio_vo.py, model
       voice/hf-tts/  voice/supplied/
       capture/playwright/
       avatar/<name>/
       export/srt/  export/ae/
     checks/                         # one file per check HyperFrames doesn't already do
   looks/                            # style library, a starting point only
-  engine/                           # pdoom copy (used only by render/pdoom)
   tests/                            # unit tests live beside the code as *.test.ts
-    fixture/  baseline/             # Phase 0 fixtures (orchestrator-owned)
+    fixture/                        # Phase 0 aligner fixture (orchestrator-owned)
     phase0.ts  phase<N>.ts          # acceptance tests, one per phase
   docs/
     BLUEPRINT.md  AGENT_PROMPT.md
@@ -346,7 +343,7 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - Move contracts and adapters to `lib/`; fix imports and the align adapter's workspace path; Phase 0 test still passes.
 - Plugin manifest + marketplace; `claude --plugin-dir .` loads a placeholder `make-video` skill.
 - Tooling (old "Phase 0 finish"): `tsconfig.json`, Biome, ruff, `bun run lint` / `bun run format` scripts, `bun test` with one unit test.
-- pdoom canvas default (old "Phase 0 finish"): software Canvas2D by default in `render/pdoom`; make `tests/phase0.ts` match.
+- Retire pdoom (user ruling 2026-10-10): delete `render/pdoom`, `engine/` (aligner Python moves into `lib/adapters/align/ctc-onnx/analysis/`), pdoom fixture scenes and `tests/baseline/`; `tests/phase0.ts` keeps the alignment and `video-testing` checks.
 - `lib/core`: `config.ts` (only env reader), `errors.ts` (`VideoMachineError` + subclasses), `sh.ts` (timeout + Windows tree kill).
 - Contract changes from 2.4 (`delivery`, `section`, `cite`, `ScenePlan` rename, `Plan.sections`, `Brief.sources`, `AssetRef.origin`, `Steps`, `CaptureLog`, `Doctor`).
 - ~~Probe HyperFrames 0.8.143~~ done 2026-10-09 (results in 2.3).

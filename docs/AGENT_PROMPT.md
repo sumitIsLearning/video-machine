@@ -13,8 +13,7 @@ same thing everywhere.
 
 ## 1. Tooling
 - TypeScript, run by **bun 1.4.2, pinned in the workspace**. Always call it as `node_modules/.bin/bun` from the
-  workspace root (`../node_modules/.bin/bun` from `engine/`). The global `bun` is 1.3.5 and breaks Chrome launch and the
-  engine lockfile.
+  workspace root. The global `bun` is 1.3.5 and breaks Chrome launch.
 - Python (model wrappers only, e.g. the aligner), run by `uv` directly: `uv run --project . python ...`. Never
   `python -m uv`. Every Python subprocess gets `PYTHONUTF8=1`.
 - HyperFrames is pinned: use the `HYPERFRAMES_VERSION` constant from `lib/core/config.ts`, never a bare `npx hyperframes`.
@@ -23,8 +22,7 @@ same thing everywhere.
   - Lint and types: `node_modules/.bin/bun run lint` (`tsc --noEmit`, `biome check`, `uv run ruff check`)
   - Format: `node_modules/.bin/bun run format` (`biome check --write`, `uv run ruff format`)
 - Add dependencies only with `node_modules/.bin/bun add [-d] <pkg>` (root) or `uv add [--dev] <pkg>`. Pin exact
-  versions for HyperFrames and Playwright. In `engine/`, install only with `../node_modules/.bin/bun install
-  --frozen-lockfile`. Never edit a lockfile by hand.
+  versions for HyperFrames and Playwright. Never edit a lockfile by hand.
 - Keep the formatter's output. If the plan's code and the formatter disagree on layout, the formatter wins.
 - A task is done only when unit tests pass and lint is clean.
 - Acceptance scripts (`tests/phase<N>.ts`) drive real HyperFrames, Chrome, ffmpeg, Playwright and the aligner and take
@@ -62,7 +60,7 @@ Use the blueprint's domain words exactly: run, brief, scene, beat, board, look, 
 format, frame, gate, deliverable.
 
 ## 4. Module layout
-- Library code is plain functions and objects. No classes (the pdoom `engine/` keeps its own).
+- Library code is plain functions and objects. No classes.
 - Import direction: `lib/checks/` and `lib/adapters/` → `lib/core/` → `lib/contracts/`. `contracts/` imports nothing
   from `lib/`. **Adapters never import each other** or `looks/`.
 - Each adapter's `cli.ts` parses argv, calls `index.ts`, and prints **one JSON line** to stdout. Shipped skills call
@@ -122,7 +120,7 @@ format, frame, gate, deliverable.
 ## 10. Comments
 Explain *why*, not *what*. Mark deliberate simplifications with `ponytail:` plus the limit and the upgrade path. Keep the
 MIT attribution (`LICENSE.pdoom-engine`) in any file that contains code lifted from the pdoom engine or Motion
-Graphics 1.
+Graphics 1 (today: the vendored aligner scripts in `lib/adapters/align/ctc-onnx/analysis/`).
 
 ## 11. Writing files
 Write files only with Edit/Write. **Never create or modify files through Bash** (no `>`, `>>`, `sed -i`, `tee`, `cp`,

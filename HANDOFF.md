@@ -1,5 +1,17 @@
 # Handoff
 
+## Now (2026-10-10): blueprint v1.1, Phase 1 running on branch `phase-1-foundation`
+
+- **User rulings 2026-10-10 (BLUEPRINT v1.1, `e293e48`):** concept is the only required input; everything else is
+  `brief.sources[]`; nav video is source material (renders only as a replay fallback); research (WebSearch/WebFetch)
+  always runs right after intake; Claude draws / captures / finds its own licensed assets (paid AI media: Future);
+  reel built first, contracts format/length-agnostic, long-form 16:9 with chapters is new Phase 9 (Polish → 10);
+  shipped skill renamed `make-video`.
+- Phase 1 plan updated to match (`a4d1e8b`), approved, executing subagent-driven. Pre-step done (`cfb68a1`).
+  Ledger (git-ignored via `.git/info/exclude`): `.superpowers/sdd/phase-1-foundation/progress.md`, trust it + `git log`.
+- Visual blueprint artifact (claude.ai) still shows the v1 pipeline: refresh it.
+- Spike now starts from a concept only (no nav video needed).
+
 ## Session end (2026-10-09): Phase 1 plan awaits the user's review
 
 - **Next session:** the user reviews `docs/superpowers/plans/phase-1-foundation.md`. On approval: orchestrator `git mv` pre-step,

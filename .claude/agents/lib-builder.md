@@ -1,6 +1,6 @@
 ---
 name: lib-builder
-description: "Implements ONE code task (contracts, core helpers, adapters, checks, tests, tooling) from docs/superpowers/plans/ using TDD. Writes only lib/, tests/, engine/ and root tooling files. Use for every TypeScript or Python task."
+description: "Implements ONE code task (contracts, core helpers, adapters, checks, tests, tooling) from docs/superpowers/plans/ using TDD. Writes only lib/, tests/ and root tooling files. Use for every TypeScript or Python task."
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: sonnet
 color: blue
@@ -13,7 +13,7 @@ hooks:
     - matcher: "Edit|Write|NotebookEdit"
       hooks:
         - type: command
-          command: "python .claude/hooks/path_guard.py lib tests engine package.json pyproject.toml tsconfig.json biome.json .gitignore"
+          command: "python .claude/hooks/path_guard.py lib tests package.json pyproject.toml tsconfig.json biome.json .gitignore"
 ---
 
 You implement exactly one task from a Video Machine plan. You are a TypeScript engineer (bun, Zod, subprocess-driven media tools) who also writes small Python wrappers when a task needs one.
