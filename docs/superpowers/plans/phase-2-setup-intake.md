@@ -1699,6 +1699,71 @@ Use `allowFail: true` for the calls that are expected to fail, then check the ex
 
 ---
 
+### Task 10: Whole-branch review fixes (Opus review, 2026-10-10)
+
+**Agent:** lib-builder
+
+**Read first:**
+- BLUEPRINT 2.4 (`Brief`), 2.6, 2.7
+- `docs/AGENT_PROMPT.md` §7 (errors), §8 (logging), §9 (paths in JSON)
+- The files named below, nothing else
+
+**Files:**
+- Modify:
+  - `lib/contracts/types.ts`, `lib/contracts/types.test.ts`
+  - `lib/core/config.ts`, `lib/core/config.test.ts`
+  - `lib/setup/doctor.ts`, `doctor.test.ts`, `install.ts`, `smoke.ts`, `smoke.test.ts`, `cli.ts`, `cli.test.ts`
+  - `lib/run/intake.ts`, `intake.test.ts`, `where.ts`, `where.test.ts`, `cli.ts`, `cli.test.ts`
+  - `tests/phase2.ts`
+
+Tests first wherever behaviour changes. One commit-sized change; the orchestrator commits.
+
+1. **Formats in the brief draft** (`intake.ts` `writeBrief`).
+   - Default `formats` to `['reel']` only when `draft.formats` is undefined. Any other value goes to `BriefSchema` unchanged, so `"square"` (not an array) becomes a `ContractError`, not a silent reel.
+   - Look up `DURATION_DEFAULTS` only when `FormatIdSchema.safeParse(formats[0]).success`. Otherwise let `BriefSchema` report the bad format (`ContractError`), so a misspelt format like `"vertical"` is Claude's error to fix, not a question for the creator.
+   - Tests: `{formats: "square", duration_target_s: [5, 10]}` gives `ContractError` and no `brief.json`. `{formats: ["vertical"]}` gives `ContractError`.
+2. **One failing-tools rule.**
+   - Move `DOCTOR_TOOLS` and `failingTools(d: Doctor): string[]` to `lib/contracts/types.ts`. A tool listed in `DOCTOR_TOOLS` but missing from `d.tools` counts as failing.
+   - `lib/setup/doctor.ts` re-uses them, and `lib/run/cli.ts` `status` uses `failingTools` too, replacing its own loop.
+   - Test (in `types.test.ts`): a doctor record missing `parakeet` lists `parakeet` as failing.
+3. **Doctor details in the JSON line.** `lib/setup/cli.ts` `doctor` also returns `details: Record<tool, string>` for each failing tool (its `detail`, or `"missing from doctor.json"`), so the skill never has to read the file. Task 10b updates the skill.
+4. **One `doctor.json` read policy.** In `lib/setup/cli.ts` `readSaved`, any read error carrying a string `code` (EISDIR, EACCES), and any `ContractError`, counts as unreadable: rewrite the file, with the `[M0]` stderr line. Only ENOENT means "none". This matches `status`. Test with a folder at `doctor.json`.
+5. **Canonical run id** (`intake.ts` `writeBrief` and `where.ts` `whereAmI`). `run_id` is the basename of `realpathSync.native(runDir)`, so the on-disk casing wins. Test (Windows only, `test.skipIf`): `writeBrief(runDir.toUpperCase(), {})` writes the lower-case run id.
+6. **`listRuns` survives fs errors.** Also catch errors that carry a string `code` and report them as `{ run_id, error }`.
+7. **Python env from the parent** (`config.ts`). `toToolEnv` drops `PYTHONHOME`, `PYTHONPATH` and `UV_PYTHON`, case-insensitively, the same way as the forced keys. Test: none of them survive.
+8. **Canonical run paths** (`types.ts` `RunPathSchema`). Also require `path.posix.normalize(p) === p` and that `p` doesn't end with `/`. This covers `.`, `./x`, `a//b` and `x/`. Flip the Task 1 positive case `./input/a.png` to a rejected case, and add `input//a.mp4` and `input/a.mp4/` as rejected cases.
+9. **No stderr from library code.** `lib/setup/smoke.ts`: `runSmoke` takes `opts.onWarn?: (line: string) => void` (default: do nothing) and calls it instead of writing to stderr. `lib/setup/cli.ts` passes a function that writes the line to stderr.
+10. **Small cleanups.**
+    - `doctor.ts` `checkUv`: exit 0 with an unparseable version gives `{ ok: false, detail: <first line> }`.
+    - `install.ts`: replace `isModelValid` with the exported `checkModel(model).ok` from `doctor.ts`.
+    - `lib/run/cli.ts`: replace `Io.deps` with `vmHome?: string` (default from `loadConfig()`), and update the tests.
+    - `where.ts`: the `listRuns` JSDoc says "sorted by folder name, descending (folder names start with the date)".
+    - `install.ts`: add a `ponytail:` note that a crash between write and rename can leave a `<model>.<pid>.download` file.
+    - `tests/phase2.ts`:
+      - check 2 runs lint with `env: { ...process.env }`, so ruff goes to the repo `.venv` and not `~/.video-machine/venv`; update the header comment;
+      - check 5 compares with `INSTALL_STEPS.length`.
+
+**Done when:**
+- `node_modules/.bin/bun test` all pass.
+- `node_modules/.bin/bun run lint` clean.
+- `node_modules/.bin/bun tests/phase2.ts` → `11/11 passed`. Paste the output.
+
+### Task 10b: Setup skill reads doctor details from the JSON line
+
+**Agent:** plugin-builder
+
+**Read first:** `skills/setup/SKILL.md`, and this task's item 3 above.
+
+**Files:** Modify `skills/setup/SKILL.md`.
+
+Step 4 now reads the failing tools' `details` from the `doctor` JSON line (`details: {tool: detail}`). Drop the instruction to `cat` the `doctor.json` path, because that path comes JSON-escaped and with spaces. Keep everything else.
+
+**Done when:**
+- `claude plugin validate .claude-plugin/plugin.json --strict --json` succeeds.
+- `grep -n "cat" skills/setup/SKILL.md` shows no `doctor.json` read.
+
+---
+
 ### After Task 9 (orchestrator)
 
 1. Run `node_modules/.bin/bun tests/phase2.ts` and show the user the output. Run `/video-machine:status` in a `claude --plugin-dir .` session on a real run and show what it prints.
