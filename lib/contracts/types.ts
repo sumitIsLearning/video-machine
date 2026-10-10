@@ -1,8 +1,6 @@
 // Data contracts for the Video Machine (spec §3) and adapter contracts (§4).
 // Every JSON file the skill writes goes through writeJson/readJson: a failed parse is an error, never a warning.
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
 import { z } from 'zod';
 
 // ------------------------------------------------------------------ formats
@@ -262,20 +260,4 @@ export interface AssetAdapter {
 export interface ExportAdapter {
   kind: Deliverable['kind'];
   export(runDir: string, d: Deliverable): string;
-}
-
-// ------------------------------------------------------------------ validated IO
-/** Read a JSON file and parse it against its schema; throws with the file path and every issue. */
-export function readJson<T extends z.ZodType>(file: string, schema: T): z.infer<T> {
-  const r = schema.safeParse(JSON.parse(readFileSync(file, 'utf8')));
-  if (!r.success) throw new Error(`${file} does not match its schema:\n${z.prettifyError(r.error)}`);
-  return r.data;
-}
-/** Validate, then write (pretty, LF). Invalid data is never written. */
-export function writeJson<T extends z.ZodType>(file: string, schema: T, data: z.input<T>): z.infer<T> {
-  const r = schema.safeParse(data);
-  if (!r.success) throw new Error(`refusing to write ${file}:\n${z.prettifyError(r.error)}`);
-  mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(r.data, null, 1)}\n`);
-  return r.data;
 }

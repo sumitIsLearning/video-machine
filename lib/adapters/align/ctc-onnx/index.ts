@@ -3,7 +3,8 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { type AlignAdapter, readJson, type Script, TimingSchema } from '../../../contracts/types';
+import { type AlignAdapter, type Script, TimingSchema } from '../../../contracts/types';
+import { readJson } from '../../../core/json';
 
 const WORKSPACE = path.resolve(import.meta.dir, '../../../..');
 

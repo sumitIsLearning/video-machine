@@ -6,7 +6,8 @@
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { align } from '../lib/adapters/align/ctc-onnx';
-import { readJson, TimingSchema } from '../lib/contracts/types';
+import { TimingSchema } from '../lib/contracts/types';
+import { readJson } from '../lib/core/json';
 
 const WS = path.resolve(import.meta.dir, '..');
 const FIXTURE = path.join(WS, 'tests/fixture');
