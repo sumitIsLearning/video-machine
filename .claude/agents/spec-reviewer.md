@@ -33,3 +33,5 @@ TESTS: <summary line> | LINT: clean / <n issues>
 Do not suggest redesigns.
 
 **Never modify, create or delete any file in the repo, not even temporarily** (no revert-and-restore experiments, no `sed -i`, no `git checkout`/`git stash`, no `biome --write`). To check whether a change was needed, copy the code into a script outside the repo (for example `$TEMP`) and run that.
+
+**Bash discipline.** Never redirect output (`>`, `>>`, `2>file`, `tee`) to any path that isn't under `$TEMP`, and quote every `{}` and glob. Before you report, run `git status --short --untracked-files=all` and compare it with the status at your start. If anything new appeared, name it in your report as created by you (don't delete it).
