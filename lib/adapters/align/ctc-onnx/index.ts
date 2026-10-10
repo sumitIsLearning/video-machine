@@ -8,13 +8,27 @@ import { type Deps, defaultDeps } from '../../../core/deps';
 import { UnsupportedError, VideoMachineError } from '../../../core/errors';
 import { readJson } from '../../../core/json';
 
+/** A downloadable model: where it comes from, how to verify it, where it lives. */
+export type ModelSpec = { url: string; sha256: string; bytes: number; path: string };
+
+/**
+ * The aligner model (wav2vec2-base-960h, quantized ONNX, Apache-2.0 upstream), pinned to one Hugging Face commit.
+ * Setup fetches it into <vmHome>/models (never the plugin root, which plugin updates replace). Returns its spec.
+ */
+export const alignerModel = (vmHome: string): ModelSpec => ({
+  url: 'https://huggingface.co/Xenova/wav2vec2-base-960h/resolve/a19f851b3d42865797e410752b4c570c871e4825/onnx/model_quantized.onnx',
+  sha256: 'cd5040c147381580ed73258143dd8e0c28e800a09e74ee42ee2b3e8cb4d760a3',
+  bytes: 95_286_046,
+  path: path.join(vmHome, 'models', 'w2v2_base_960h_q.onnx'),
+});
+
 /**
  * The CTC aligner. `align(audioPath, lines, spokenWords)` aligns `audioPath` (inside <run>/audio/) against `lines`,
  * writes <run>/data/timing.json and audio.json, and returns the timing.json path.
  * `spokenWords` maps a display word to what is said ("MCP." → ["EM", "SEE", "PEE"]).
  * Removes both outputs before running, and again if the run or the validation fails.
  * Throws UnsupportedError without lines, VideoMachineError when the audio is missing, not a file, empty or outside
- * <run>/audio/, ToolError when align.py fails and ContractError when it writes an invalid timing.json.
+ * <run>/audio/, VideoMachineError when the aligner model is missing (setup fetches it), ToolError when align.py fails and ContractError when it writes an invalid timing.json.
  */
 export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
   async align(audioPath, lines, spokenWords = {}) {
@@ -30,7 +44,10 @@ export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
     // align.py writes data/ next to audio/, so a stray audio path must not write into the run's parent.
     if (path.basename(path.dirname(audio)) !== 'audio')
       throw new VideoMachineError(`ctc-onnx.align: audio must be inside the run's audio/ folder: ${audioPath}`);
-    const { pluginRoot, toolEnv } = deps.config;
+    const { pluginRoot, vmHome, toolEnv } = deps.config;
+    const model = alignerModel(vmHome).path;
+    if (!statSync(model, { throwIfNoEntry: false })?.isFile())
+      throw new VideoMachineError(`ctc-onnx.align: aligner model not found at ${model}; run the setup skill`);
     const alignPy = path.join(pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py');
     const runDir = path.resolve(path.dirname(audio), '..');
     const out = path.join(runDir, 'data', 'timing.json');
@@ -44,7 +61,10 @@ export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
     // ponytail: throwaway, unschema'd input for align.py, so it skips writeJson on purpose.
     writeFileSync(spec, JSON.stringify({ lines: lines.map((l) => ({ text: l.text })), spoken_words: spokenWords }));
     try {
-      await deps.sh(['uv', 'run', '--project', pluginRoot, 'python', alignPy, audio, spec, runDir], { env: toolEnv });
+      await deps.sh(
+        ['uv', 'run', '--frozen', '--no-dev', '--project', pluginRoot, 'python', alignPy, audio, spec, runDir, model],
+        { env: toolEnv },
+      );
       readJson(out, TimingSchema); // validate on write
       return out;
     } catch (e) {

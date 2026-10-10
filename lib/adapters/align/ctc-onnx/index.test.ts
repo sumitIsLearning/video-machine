@@ -6,7 +6,7 @@ import { loadConfig } from '../../../core/config';
 import type { Deps } from '../../../core/deps';
 import { ContractError, ToolError, UnsupportedError, VideoMachineError } from '../../../core/errors';
 import type { ShOptions } from '../../../core/sh';
-import { ctcOnnx } from './index';
+import { alignerModel, ctcOnnx } from './index';
 
 const lines = [{ id: 'l1', text: 'Ship faster.', delivery: 'voiceover' as const }];
 
@@ -19,16 +19,22 @@ afterEach(() => {
  * A run folder with audio/vo.wav, and a fake sh that writes `timing` as data/timing.json
  * (or throws `fail`, or writes nothing when `timing` is null).
  */
-const setup = (timing: string | null, fail?: Error) => {
+const setup = (timing: string | null, fail?: Error, { model = true } = {}) => {
   const run = mkdtempSync(path.join(tmpdir(), 'vm-'));
   runs.push(run);
+  const vmHome = mkdtempSync(path.join(tmpdir(), 'vm-'));
+  runs.push(vmHome);
+  if (model) {
+    mkdirSync(path.join(vmHome, 'models'));
+    writeFileSync(alignerModel(vmHome).path, 'onnx');
+  }
   mkdirSync(path.join(run, 'audio'));
   const audio = path.join(run, 'audio', 'vo.wav');
   writeFileSync(audio, 'RIFF');
   const calls: string[][] = [];
   const opts: (ShOptions | undefined)[] = [];
   const deps: Deps = {
-    config: loadConfig({ PATH: '/bin' }),
+    config: loadConfig({ PATH: '/bin', VM_HOME: vmHome }),
     sh: async (cmd, o) => {
       calls.push(cmd);
       opts.push(o);
@@ -49,10 +55,11 @@ test('align runs align.py through uv in the plugin project and returns the valid
   const out = await ctcOnnx(deps).align(audio, lines, { 'MCP.': ['EM', 'SEE', 'PEE'] });
   expect(out).toBe(path.join(run, 'data', 'timing.json'));
   const cmd = calls[0] ?? [];
-  expect(cmd.slice(0, 5)).toEqual(['uv', 'run', '--project', deps.config.pluginRoot, 'python']);
-  expect(cmd[5]).toBe(path.join(deps.config.pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py'));
-  expect(cmd[6]).toBe(audio);
-  expect(cmd[8]).toBe(run);
+  expect(cmd.slice(0, 7)).toEqual(['uv', 'run', '--frozen', '--no-dev', '--project', deps.config.pluginRoot, 'python']);
+  expect(cmd[7]).toBe(path.join(deps.config.pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py'));
+  expect(cmd[8]).toBe(audio);
+  expect(cmd[10]).toBe(run);
+  expect(cmd[11]).toBe(alignerModel(deps.config.vmHome).path);
   expect(opts[0]?.env).toBe(deps.config.toolEnv);
 });
 
@@ -61,7 +68,7 @@ test('align hands align.py a spec with the line texts and spoken words', async (
   let spec: unknown;
   const inner = deps.sh;
   deps.sh = async (cmd, o) => {
-    spec = JSON.parse(readFileSync(cmd[7] ?? '', 'utf8'));
+    spec = JSON.parse(readFileSync(cmd[9] ?? '', 'utf8'));
     return inner(cmd, o);
   };
   await ctcOnnx(deps).align(audio, lines, { 'MCP.': ['EM', 'SEE', 'PEE'] });
@@ -71,7 +78,7 @@ test('align hands align.py a spec with the line texts and spoken words', async (
 test('align removes the spec folder after a success', async () => {
   const { audio, calls, deps } = setup(GOOD);
   await ctcOnnx(deps).align(audio, lines);
-  expect(existsSync(path.dirname(calls[0]?.[7] ?? ''))).toBe(false);
+  expect(existsSync(path.dirname(calls[0]?.[9] ?? ''))).toBe(false);
 });
 
 test('align removes the spec folder after a failure', async () => {
@@ -79,9 +86,30 @@ test('align removes the spec folder after a failure', async () => {
   await ctcOnnx(deps)
     .align(audio, lines)
     .catch(() => {});
-  const specDir = path.dirname(calls[0]?.[7] ?? '');
+  const specDir = path.dirname(calls[0]?.[9] ?? '');
   expect(specDir).not.toBe('.');
   expect(existsSync(specDir)).toBe(false);
+});
+
+test('align refuses to start without the aligner model and says to run setup', async () => {
+  const { audio, calls, deps } = setup(GOOD, undefined, { model: false });
+  const err = await ctcOnnx(deps)
+    .align(audio, lines)
+    .catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(VideoMachineError);
+  expect((err as Error).message).toContain(alignerModel(deps.config.vmHome).path);
+  expect((err as Error).message).toContain('setup');
+  expect(calls).toHaveLength(0);
+});
+
+test('the aligner model is the pinned Xenova wav2vec2-base-960h quantized ONNX under vmHome/models', () => {
+  const m = alignerModel(path.join('vm'));
+  expect(m.path).toBe(path.join('vm', 'models', 'w2v2_base_960h_q.onnx'));
+  expect(m.url).toBe(
+    'https://huggingface.co/Xenova/wav2vec2-base-960h/resolve/a19f851b3d42865797e410752b4c570c871e4825/onnx/model_quantized.onnx',
+  );
+  expect(m.sha256).toBe('cd5040c147381580ed73258143dd8e0c28e800a09e74ee42ee2b3e8cb4d760a3');
+  expect(m.bytes).toBe(95_286_046);
 });
 
 test('align refuses to run without script lines', async () => {

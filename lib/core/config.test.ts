@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT } from './config';
+import { HF_CMD, HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT } from './config';
 
 test('HyperFrames is pinned to 0.8.143', () => {
   expect(HYPERFRAMES_VERSION).toBe('0.8.143');
@@ -35,8 +35,47 @@ test('toolEnv keeps the parent env and switches off telemetry, skills installs a
   });
 });
 
+test('the Python venv lives under vmHome, never in the plugin', () => {
+  const c = loadConfig({ VM_HOME: 'some/vm-home' });
+  expect(c.venvDir).toBe(path.join(path.resolve('some/vm-home'), 'venv'));
+  expect(c.toolEnv.UV_PROJECT_ENVIRONMENT).toBe(c.venvDir);
+});
+
+test('HyperFrames gets the venv python, where Kokoro is installed', () => {
+  const c = loadConfig({});
+  const py =
+    process.platform === 'win32'
+      ? path.join(c.venvDir, 'Scripts', 'python.exe')
+      : path.join(c.venvDir, 'bin', 'python');
+  expect(c.toolEnv.HYPERFRAMES_PYTHON).toBe(py);
+});
+
+test('a parent env cannot point uv or HyperFrames at another Python', () => {
+  const c = loadConfig({ UV_PROJECT_ENVIRONMENT: 'elsewhere', HYPERFRAMES_PYTHON: 'other.exe' });
+  expect(c.toolEnv.UV_PROJECT_ENVIRONMENT).toBe(c.venvDir);
+  expect(c.toolEnv.HYPERFRAMES_PYTHON).not.toBe('other.exe');
+});
+
+test('HF_CMD runs the pinned HyperFrames through npx', () => {
+  expect([...HF_CMD]).toEqual(['npx', '--yes', 'hyperframes@0.8.143']);
+});
+
 test('a parent setting cannot switch telemetry back on', () => {
   expect(loadConfig({ HYPERFRAMES_NO_TELEMETRY: '0' }).toolEnv.HYPERFRAMES_NO_TELEMETRY).toBe('1');
+});
+
+test('Python never writes bytecode into the plugin, whatever the parent says', () => {
+  expect(loadConfig({}).toolEnv.PYTHONDONTWRITEBYTECODE).toBe('1');
+  expect(loadConfig({ PYTHONDONTWRITEBYTECODE: '0' }).toolEnv.PYTHONDONTWRITEBYTECODE).toBe('1');
+});
+
+test('a parent key that differs only in letter case cannot sit next to a forced one', () => {
+  const { toolEnv } = loadConfig({ Uv_Project_Environment: 'x', hyperframes_no_telemetry: '0', pythonutf8: '0' });
+  const names = Object.keys(toolEnv).map((k) => k.toLowerCase());
+  expect(new Set(names).size).toBe(names.length);
+  expect(toolEnv.UV_PROJECT_ENVIRONMENT).toBe(loadConfig({}).venvDir);
+  expect(toolEnv.HYPERFRAMES_NO_TELEMETRY).toBe('1');
+  expect(toolEnv.PYTHONUTF8).toBe('1');
 });
 
 test('toolEnv never hands API keys to child processes', () => {

@@ -10,7 +10,7 @@ node_modules/
 .venv/
 __pycache__/
 
-# alignment model (95 MB, copied by hand from video-testing/analysis/models)
+# alignment model (95 MB): setup fetches it into <VM_HOME>/models; a copy in analysis/models is a dev leftover
 *.onnx
 
 # test outputs

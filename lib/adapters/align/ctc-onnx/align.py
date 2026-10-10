@@ -1,6 +1,6 @@
 """Align adapter (CTC, wav2vec2 ONNX): drives the vendored analysis/align_vo.py and audio_vo.py unchanged.
 
-    uv run python align.py <audio> <lines.json> <run_dir>
+    uv run python align.py <audio> <lines.json> <run_dir> <model.onnx>
 
 lines.json: {"lines": [{"text": ...}, ...], "spoken_words"?: {"5.5.": ["FIVE", "POINT", "FIVE"], ...}}
   spoken_words maps a display word to what is said (align_vo's SPOKEN); words not in it are read as written.
@@ -15,10 +15,10 @@ from pathlib import Path
 
 ANALYSIS = Path(__file__).resolve().parent / "analysis"
 sys.path.insert(0, str(ANALYSIS))
-import align_vo  # module-level paths are overridden below; MODEL/VOCAB keep pointing at analysis/models
+import align_vo  # module-level paths are overridden below; VOCAB stays in analysis/models, MODEL comes from <vmHome>/models
 
 
-def main(audio: Path, lines_file: Path, run_dir: Path) -> Path:
+def main(audio: Path, lines_file: Path, run_dir: Path, model: Path) -> Path:
     spec = json.loads(lines_file.read_text(encoding="utf-8"))
     texts = [line["text"] for line in spec["lines"]]
     if not texts:
@@ -31,6 +31,7 @@ def main(audio: Path, lines_file: Path, run_dir: Path) -> Path:
     with tempfile.TemporaryDirectory() as tmp:
         align_vo.ROOT, align_vo.AUDIO = Path(tmp), audio
         align_vo.SCRIPT, align_vo.SPOKEN = texts, spec.get("spoken_words", {})
+        align_vo.MODEL = model
         (Path(tmp) / "data").mkdir()
         align_vo.main()
         timing.write_text((Path(tmp) / "data" / "lyrics.json").read_text(encoding="utf-8"), encoding="utf-8")
@@ -59,6 +60,6 @@ def main(audio: Path, lines_file: Path, run_dir: Path) -> Path:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 5:
         sys.exit(__doc__)
-    print(main(Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve(), Path(sys.argv[3]).resolve()))
+    print(main(*(Path(a).resolve() for a in sys.argv[1:5])))
