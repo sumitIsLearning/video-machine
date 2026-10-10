@@ -1,6 +1,40 @@
 # Handoff
 
-## Now (2026-10-10): Phase 2 approved, executing on branch `phase-2-setup-intake`
+## Phase 2 done (2026-10-10): branch `phase-2-setup-intake`, awaiting the user's merge OK
+
+- 19 commits on `phase-2-setup-intake` (base `363c229`, head after this HANDOFF commit).
+  - `bun tests/phase2.ts` 11/11 on a fresh `VM_HOME`.
+  - `bun test` 218 pass, lint clean.
+  - Opus whole-branch review: APPROVE after the Task 10/10b fix wave.
+- **What exists now:**
+  - `lib/setup/` (M0): `doctor` (10 tools, read-only), idempotent `install venv|model|browser|parakeet`, `smoke`
+    (render 21 s, tts 6 s, align 1 s), all behind `lib/setup/cli.ts`.
+  - `lib/run/` (M1): `new` / `import` / `brief` / `where` / `status` in `lib/run/cli.ts`.
+  - Skills: `setup`, `make-video` (intake, stops after M1), `status`. `/video-machine:status` was checked in a real
+    `claude --plugin-dir .` session.
+- **On this machine:** `~/.video-machine/` holds `models/` (copied from the dev model), `venv/` and `doctor.json`.
+  `analysis/models/*.onnx` in the repo is a dev leftover; align reads the vmHome model.
+- **Rulings:** the phase-summary list is in the session; the full ledger is
+  `.superpowers/sdd/phase-2-setup-intake/progress.md` (git-ignored). The ones that change behaviour:
+  - JS deps go in the plugin root (user ruling R1).
+  - `listRuns` returns `{run_id, error}` for a broken run.
+  - M3 is needed when the brief has `nav_video` + `product_url`.
+  - Audio markers must be non-empty.
+  - Realpath containment is checked at intake.
+  - `sh` takes `stdin`.
+  - Setup asks once with all download sizes.
+  - Skills use `runs/<run_id>`.
+- **Carry to the Phase 3 plan:**
+  - Run the concept-only spike first (R10).
+  - Probe WebSearch/WebFetch in a skill, and Openverse vs Pexels.
+  - File openers re-check containment.
+  - M3 must handle a missing `steps.json`.
+- **Carry to the Phase 4 plan:** gate approvals (G1–G4) are not recorded; a resumed session could pass a gate (R8).
+- **Deferred minors** (accepted by the Opus triage, details in the ledger): the `doctor.json` "rewritten" line is printed
+  before the write, plus small untested branches. Download sizes for the venv (115 MB), Chrome (up to 500 MB) and Kokoro
+  (340 MB) were measured in `~/.cache` on the reference laptop.
+
+## Before Phase 2 ran (2026-10-10)
 
 - Phase 1 is merged: `master` == `phase-1-foundation` at `363c229`.
 - Plan: `docs/superpowers/plans/phase-2-setup-intake.md` (9 tasks + pre-step; rulings R1–R12).
