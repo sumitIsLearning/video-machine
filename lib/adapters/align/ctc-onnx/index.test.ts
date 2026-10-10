@@ -56,7 +56,7 @@ test('align runs align.py through uv in the plugin project and returns the valid
   expect(opts[0]?.env).toBe(deps.config.toolEnv);
 });
 
-test('align hands align.py a spec with the line texts and spoken words, and removes it afterwards', async () => {
+test('align hands align.py a spec with the line texts and spoken words', async () => {
   const { audio, deps } = setup(GOOD);
   let spec: unknown;
   const inner = deps.sh;
@@ -148,6 +148,31 @@ test('align never returns a stale timing.json left by an earlier run', async () 
   mkdirSync(path.join(run, 'data'));
   writeFileSync(path.join(run, 'data', 'timing.json'), GOOD);
   await expect(ctcOnnx(deps).align(audio, lines)).rejects.toThrow();
+  expect(existsSync(path.join(run, 'data', 'timing.json'))).toBe(false);
+});
+
+test('after a failed align neither timing.json nor audio.json exists', async () => {
+  for (const [timing, fail] of [
+    [GOOD, new ToolError({ cmd: ['uv'], code: 1, stderr: 'boom' })],
+    ['{"lines": 3}', undefined],
+  ] as const) {
+    const { run, audio, deps } = setup(timing, fail);
+    mkdirSync(path.join(run, 'data'));
+    writeFileSync(path.join(run, 'data', 'audio.json'), '{}');
+    await ctcOnnx(deps)
+      .align(audio, lines)
+      .catch(() => {});
+    expect(existsSync(path.join(run, 'data', 'timing.json'))).toBe(false);
+    expect(existsSync(path.join(run, 'data', 'audio.json'))).toBe(false);
+  }
+});
+
+test('align removes a stale audio.json before running align.py', async () => {
+  const { run, audio, deps } = setup(GOOD);
+  mkdirSync(path.join(run, 'data'));
+  writeFileSync(path.join(run, 'data', 'audio.json'), '{}');
+  await ctcOnnx(deps).align(audio, lines);
+  expect(existsSync(path.join(run, 'data', 'audio.json'))).toBe(false);
 });
 
 test('align passes a ToolError from the runner through unchanged', async () => {

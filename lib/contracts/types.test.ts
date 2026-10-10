@@ -110,10 +110,45 @@ test('brief rejects an unknown source kind and an empty path', () => {
 });
 
 test('brief no longer has source_material, assets or references', () => {
-  const parsed = BriefSchema.parse({ ...brief, source_material: ['a'], assets: ['b'], references: [] });
-  expect(Object.keys(parsed)).not.toContain('source_material');
-  expect(Object.keys(parsed)).not.toContain('assets');
-  expect(Object.keys(parsed)).not.toContain('references');
+  expect(BriefSchema.safeParse({ ...brief, source_material: ['a'], assets: ['b'], references: [] }).success).toBe(
+    false,
+  );
+});
+
+test('a misspelt key is rejected rather than dropped', () => {
+  expect(BriefSchema.safeParse({ ...brief, format: ['reel'] }).success).toBe(false);
+});
+
+test('unknown keys are rejected in nested objects too', () => {
+  expect(BriefSchema.safeParse({ ...brief, cta: { text: 'Go', link: 'x' } }).success).toBe(false);
+  expect(ScriptSchema.safeParse(script([{ ...line, speaker: 'me' }])).success).toBe(false);
+  expect(ScenePlanSchema.safeParse({ ...scene, cut_in: { anchor: 'a', rule: 'on_word', extra: 1 } }).success).toBe(
+    false,
+  );
+});
+
+test('script line ids must be unique', () => {
+  const dup = ScriptSchema.safeParse(script([line, { ...line, text: 'Again.' }]));
+  expect(dup.success).toBe(false);
+  expect(dup.error?.issues.map((i) => i.message)).toEqual(['duplicate id "l1"']);
+});
+
+test('scene ids must be unique within a plan', () => {
+  const plan = { run_id: 'r', version: 1, look_id: 'a', asset_ids: [], formats: ['reel'] };
+  const dup = PlanSchema.safeParse({ ...plan, visuals_plan: { scenes: [scene, scene] } });
+  expect(dup.success).toBe(false);
+  expect(dup.error?.issues.map((i) => i.message)).toEqual(['duplicate scene_id "hook"']);
+});
+
+test('section ids must be unique within a plan', () => {
+  const plan = { run_id: 'r', version: 1, look_id: 'a', asset_ids: [], formats: ['reel'] };
+  const sections = [
+    { id: 'intro', title: 'A' },
+    { id: 'intro', title: 'B' },
+  ];
+  const dup = PlanSchema.safeParse({ ...plan, sections, visuals_plan: { scenes: [scene] } });
+  expect(dup.success).toBe(false);
+  expect(dup.error?.issues.map((i) => i.message)).toEqual(['duplicate section id "intro"']);
 });
 
 test('script lines take a section and http(s) cite URLs', () => {

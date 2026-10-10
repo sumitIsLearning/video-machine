@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
@@ -29,7 +29,7 @@ test('readJson returns the parsed data with defaults applied', () => {
 
 test('readJson parses a file that starts with a BOM', () => {
   const f = path.join(tmp(), 'bom.json');
-  writeFileSync(f, '﻿{"n": 3}');
+  writeFileSync(f, '\u{FEFF}{"n": 3}');
   expect(readJson(f, Schema)).toEqual({ n: 3, tag: 'x' });
 });
 
@@ -39,6 +39,14 @@ test('writeJson replaces an existing file and leaves no .tmp behind', () => {
   writeJson(f, Schema, { n: 1 });
   writeJson(f, Schema, { n: 2 });
   expect(readJson(f, Schema).n).toBe(2);
+  expect(readdirSync(dir)).toEqual(['a.json']);
+});
+
+test('writeJson removes its .tmp file when the rename fails', () => {
+  const dir = tmp();
+  const f = path.join(dir, 'a.json');
+  mkdirSync(f); // a folder at the target makes the rename fail
+  expect(() => writeJson(f, Schema, { n: 1 })).toThrow();
   expect(readdirSync(dir)).toEqual(['a.json']);
 });
 

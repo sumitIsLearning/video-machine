@@ -97,7 +97,7 @@ await check('6. lib/ keeps its boundaries', async () => {
   for (const f of files) {
     const src = readFileSync(f, 'utf8');
     if (
-      /\b(process|Bun)\s*(\.|\[\s*['"])env\b|from ['"](node:)?process['"]/.test(src) &&
+      /\b(process|Bun)\s*(\.|\[\s*['"])env\b|import\.meta\.env\b|from ['"](node:)?process['"]/.test(src) &&
       rel(f) !== 'lib/core/config.ts'
     )
       bad.push(`${rel(f)} reads the environment`);

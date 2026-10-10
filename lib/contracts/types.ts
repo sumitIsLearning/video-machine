@@ -16,8 +16,9 @@ export const FORMATS: Record<FormatId, { w: number; h: number; fps: number; safe
   portrait_feed: { w: 1080, h: 1350, fps: 30, safe: { top: 0.06, bottom: 0.08, left: 0.06, right: 0.06 } },
 };
 
-/** What a plate lays itself out against (§7). */
+/** What a scene lays itself out against (§7). */
 export type Frame = { w: number; h: number; aspect: 'landscape' | 'vertical' | 'square'; safe: Safe };
+/** The frame (size, aspect, safe area) of a format. Returns a new object; never throws for a valid FormatId. */
 export const frameOf = (f: FormatId): Frame => {
   const { w, h, safe } = FORMATS[f];
   return { w, h, safe, aspect: w > h ? 'landscape' : w < h ? 'vertical' : 'square' };
@@ -32,8 +33,17 @@ const httpUrl = z.url({ protocol: /^https?$/ }).refine((u) => {
   return !username && !password;
 }, 'URL must not contain a username or password');
 
+// Every schema for a file Claude writes is strict (z.strictObject): a misspelt key is an error, not silently dropped.
+const addDuplicateIssues = (ids: string[], label: string, ctx: z.core.$RefinementCtx, path: (string | number)[]) => {
+  const seen = new Set<string>();
+  ids.forEach((id, k) => {
+    if (seen.has(id)) ctx.addIssue({ code: 'custom', message: `duplicate ${label} "${id}"`, path: [...path, k] });
+    seen.add(id);
+  });
+};
+
 // ------------------------------------------------------------------ brief
-export const DeliverableSchema = z.object({
+export const DeliverableSchema = z.strictObject({
   format: FormatIdSchema,
   kind: z.enum(['mp4_h264', 'mov_prores4444', 'png_sequence', 'webm', 'gif', 'srt', 'ae_package']),
   captions: z.enum(['burned', 'separate', 'none']),
@@ -42,12 +52,12 @@ export type Deliverable = z.infer<typeof DeliverableSchema>;
 
 // brief.sources: whatever the creator handed over besides concept.md (BLUEPRINT 1.6 Inputs). Empty = concept only.
 export const SourceSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.enum(['nav_video', 'file']), path_or_url: z.string().min(1), note: z.string().optional() }),
-  z.object({ kind: z.enum(['product_url', 'link']), path_or_url: httpUrl, note: z.string().optional() }),
+  z.strictObject({ kind: z.enum(['nav_video', 'file']), path_or_url: z.string().min(1), note: z.string().optional() }),
+  z.strictObject({ kind: z.enum(['product_url', 'link']), path_or_url: httpUrl, note: z.string().optional() }),
 ]);
 export type Source = z.infer<typeof SourceSchema>;
 
-export const BriefSchema = z.object({
+export const BriefSchema = z.strictObject({
   run_id: z.string().min(1),
   concept: z.string().min(1),
   goals: z.array(z.string()),
@@ -57,14 +67,14 @@ export const BriefSchema = z.object({
   timing_source: z.enum(['voiceover', 'music', 'text_only']),
   voice: z
     .discriminatedUnion('source', [
-      z.object({ source: z.literal('supplied'), path: z.string() }),
-      z.object({ source: z.literal('tts'), adapter: z.string(), voice_id: z.string() }),
+      z.strictObject({ source: z.literal('supplied'), path: z.string() }),
+      z.strictObject({ source: z.literal('tts'), adapter: z.string(), voice_id: z.string() }),
     ])
     .optional(),
   music: z
     .discriminatedUnion('source', [
-      z.object({ source: z.literal('supplied'), path: z.string() }),
-      z.object({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
+      z.strictObject({ source: z.literal('supplied'), path: z.string() }),
+      z.strictObject({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
     ])
     .optional(),
   formats: z.array(FormatIdSchema).min(1).default(['reel']),
@@ -72,7 +82,7 @@ export const BriefSchema = z.object({
   sources: z.array(SourceSchema).default([]),
   // ponytail: Phase 8 decides where a supplied avatar clip's path lives; only the portrait is modelled now.
   avatar: z
-    .object({
+    .strictObject({
       source: z.enum(['adapter', 'supplied']),
       adapter: z.string().optional(),
       portrait: z.string().optional(),
@@ -80,22 +90,22 @@ export const BriefSchema = z.object({
     .optional(),
   look_hint: z.string().optional(),
   brand: z
-    .object({
+    .strictObject({
       logo: z.string().optional(),
       colors: z
         .array(
-          z.object({
+          z.strictObject({
             hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
             role: z.enum(['bg', 'fg', 'accent', 'muted']).optional(),
           }),
         )
         .optional(),
       fonts: z
-        .array(z.object({ family: z.string(), path: z.string().optional(), license: z.string().min(1) }))
+        .array(z.strictObject({ family: z.string(), path: z.string().optional(), license: z.string().min(1) }))
         .optional(),
     })
     .optional(),
-  cta: z.object({ text: z.string(), url_or_handle: z.string().optional() }).optional(),
+  cta: z.strictObject({ text: z.string(), url_or_handle: z.string().optional() }).optional(),
   must_include: z.array(z.string()).optional(),
   must_avoid: z.array(z.string()).optional(),
   budget_usd: z.number().min(0).default(0),
@@ -103,33 +113,44 @@ export const BriefSchema = z.object({
 export type Brief = z.infer<typeof BriefSchema>;
 
 // ------------------------------------------------------------------ script
-export const ScriptSchema = z.object({
-  run_id: z.string(),
-  version: z.number().int().min(1),
-  lines: z
-    .array(
-      z.object({
-        id: z.string(),
-        text: z.string().min(1), // what is said (or shown, if text_only)
-        spoken: z.string().optional(), // how TTS/aligner should read it ("5.5" → "five point five")
-        on_screen: z.string().optional(),
-        delivery: z.enum(['voiceover', 'avatar']).default('voiceover'),
-        section: z.string().min(1).optional(),
-        cite: z.array(httpUrl).min(1).optional(),
-      }),
-    )
-    .min(1),
-});
+export const ScriptSchema = z
+  .strictObject({
+    run_id: z.string(),
+    version: z.number().int().min(1),
+    lines: z
+      .array(
+        z.strictObject({
+          id: z.string(),
+          text: z.string().min(1), // what is said (or shown, if text_only)
+          // how TTS reads the line (M9), e.g. "5.5" → "five point five"; the aligner (M10) aligns `text` and takes a
+          // per-word `spokenWords` map built by its caller
+          spoken: z.string().optional(),
+          on_screen: z.string().optional(),
+          delivery: z.enum(['voiceover', 'avatar']).default('voiceover'),
+          section: z.string().min(1).optional(),
+          cite: z.array(httpUrl).min(1).optional(),
+        }),
+      )
+      .min(1),
+  })
+  .superRefine((script, ctx) =>
+    addDuplicateIssues(
+      script.lines.map((l) => l.id),
+      'id',
+      ctx,
+      ['lines'],
+    ),
+  );
 export type Script = z.infer<typeof ScriptSchema>;
 
 // ------------------------------------------------------------------ look
-export const LookSchema = z.object({
+export const LookSchema = z.strictObject({
   id: z.string(),
   based_on: z.array(z.string()),
   idea: z.string(),
   palette: z
     .array(
-      z.object({
+      z.strictObject({
         name: z.string(),
         hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
         role: z.enum(['bg', 'fg', 'accent', 'muted']),
@@ -138,7 +159,7 @@ export const LookSchema = z.object({
     .min(1),
   type: z
     .array(
-      z.object({
+      z.strictObject({
         role: z.enum(['display', 'body', 'mono', 'label']),
         family: z.string(),
         weights: z.array(z.number()),
@@ -146,27 +167,27 @@ export const LookSchema = z.object({
       }),
     )
     .min(1),
-  motion: z.object({
+  motion: z.strictObject({
     character: z.string(),
     easings: z.array(z.string()),
     typical_beat_s: z.tuple([z.number(), z.number()]),
     camera: z.string(),
   }),
-  motifs: z.array(z.object({ id: z.string(), meaning: z.string(), code: z.string().optional() })),
+  motifs: z.array(z.strictObject({ id: z.string(), meaning: z.string(), code: z.string().optional() })),
   post: z.record(z.string(), z.number()),
-  layout_rules: z.object({ landscape: z.string(), vertical: z.string(), square: z.string() }),
+  layout_rules: z.strictObject({ landscape: z.string(), vertical: z.string(), square: z.string() }),
 });
 export type Look = z.infer<typeof LookSchema>;
 
 // ------------------------------------------------------------------ plan
-export const ScenePlanSchema = z.object({
+export const ScenePlanSchema = z.strictObject({
   scene_id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
   section: z.string().optional(),
   lines: z.array(z.string()).min(1),
-  cut_in: z.object({ anchor: z.string(), rule: z.enum(['pause_before', 'on_word', 'on_beat']) }),
+  cut_in: z.strictObject({ anchor: z.string(), rule: z.enum(['pause_before', 'on_word', 'on_beat']) }),
   intent: z.string(),
   beats: z.array(
-    z.object({
+    z.strictObject({
       on: z.string(), // word/phrase found by content, or "beat:12"
       nth: z.number().int().min(0).optional(),
       does: z.string(),
@@ -183,20 +204,32 @@ export const ScenePlanSchema = z.object({
 export type ScenePlan = z.infer<typeof ScenePlanSchema>;
 
 export const PlanSchema = z
-  .object({
+  .strictObject({
     run_id: z.string(),
     version: z.number().int().min(1),
     look_id: z.string(),
     // Long-form (Phase 9) fills sections; reels leave them out.
     sections: z
-      .array(z.object({ id: z.string().regex(/^[a-z][a-z0-9_-]*$/), title: z.string().min(1) }))
+      .array(z.strictObject({ id: z.string().regex(/^[a-z][a-z0-9_-]*$/), title: z.string().min(1) }))
       .min(1)
       .optional(),
-    visuals_plan: z.object({ scenes: z.array(ScenePlanSchema).min(1) }),
+    visuals_plan: z.strictObject({ scenes: z.array(ScenePlanSchema).min(1) }),
     asset_ids: z.array(z.string()),
     formats: z.array(FormatIdSchema).min(1),
   })
   .superRefine((plan, ctx) => {
+    addDuplicateIssues(
+      plan.visuals_plan.scenes.map((s) => s.scene_id),
+      'scene_id',
+      ctx,
+      ['visuals_plan', 'scenes'],
+    );
+    addDuplicateIssues(
+      (plan.sections ?? []).map((s) => s.id),
+      'section id',
+      ctx,
+      ['sections'],
+    );
     const known = new Set(plan.sections?.map((s) => s.id));
     plan.visuals_plan.scenes.forEach((s, k) => {
       if (s.section === undefined || known.has(s.section)) return;
@@ -210,7 +243,7 @@ export const PlanSchema = z
 export type Plan = z.infer<typeof PlanSchema>;
 
 // ------------------------------------------------------------------ assets
-export const AssetRefSchema = z.object({
+export const AssetRefSchema = z.strictObject({
   asset_id: z.string(),
   kind: z.enum(['image', 'video', 'audio', 'font', 'svg', 'data']),
   path: z.string(),
@@ -222,7 +255,8 @@ export const AssetRefSchema = z.object({
 export type AssetRef = z.infer<typeof AssetRefSchema>;
 
 // ------------------------------------------------------------------ timing
-// data/timing.json: the engine's word-timed format (what align_vo.py writes as lyrics.json).
+// data/timing.json: the aligner's word-timed format (what align_vo.py writes as lyrics.json).
+// Plain z.object (not strict) on purpose: this is aligner output, not a file Claude writes.
 const WordTimingSchema = z.object({
   w: z.string(),
   start: z.number(),
@@ -240,7 +274,7 @@ export type Timing = z.infer<typeof TimingSchema>;
 // ------------------------------------------------------------------ capture
 // capture/steps.json: the replay script for the product walk-through.
 const StepSchema = z
-  .object({
+  .strictObject({
     i: z.number().int().min(0),
     url: httpUrl, // the replay opens it
     action: z.enum(['click', 'type', 'scroll', 'wait']),
@@ -260,11 +294,13 @@ export type Steps = z.infer<typeof StepsSchema>;
 // capture/log.json: what the replay did for each step, with times on the nav-video timeline.
 export const CaptureLogSchema = z.array(
   z
-    .object({
+    .strictObject({
       i: z.number().int().min(0),
       t0: z.number().min(0),
       t1: z.number().min(0),
-      box: z.object({ x: z.number(), y: z.number(), w: z.number().positive(), h: z.number().positive() }).optional(),
+      box: z
+        .strictObject({ x: z.number(), y: z.number(), w: z.number().positive(), h: z.number().positive() })
+        .optional(),
       url: z.string(),
       failed: z.string().optional(), // why the step failed, in words
       fallback: z.string().optional(), // run-relative path of the nav-video frame used instead
@@ -274,11 +310,11 @@ export const CaptureLogSchema = z.array(
 export type CaptureLog = z.infer<typeof CaptureLogSchema>;
 
 // ~/.video-machine/doctor.json (VM_HOME, never in a run folder): tool versions and smoke-render timings.
-export const DoctorSchema = z.object({
+export const DoctorSchema = z.strictObject({
   checked_at: z.iso.datetime(),
   tools: z.record(
     z.string(),
-    z.object({
+    z.strictObject({
       ok: z.boolean(),
       version: z.string().optional(),
       path: z.string().optional(),
@@ -290,25 +326,25 @@ export const DoctorSchema = z.object({
 export type Doctor = z.infer<typeof DoctorSchema>;
 
 // ------------------------------------------------------------------ test results
-export const TestResultsSchema = z.object({
+export const TestResultsSchema = z.strictObject({
   run_id: z.string(),
   plan_version: z.number().int(),
-  output_paths: z.object({
+  output_paths: z.strictObject({
     stills: formatRecord(z.array(z.string())),
     contact_sheets: formatRecord(z.string()),
     drafts: formatRecord(z.string()),
-    deliverables: z.array(z.object({ deliverable: DeliverableSchema, path: z.string() })),
+    deliverables: z.array(z.strictObject({ deliverable: DeliverableSchema, path: z.string() })),
     report: z.string(),
   }),
   checks: z.array(
-    z.object({
+    z.strictObject({
       id: z.string(),
       format: FormatIdSchema.optional(),
       blocking: z.boolean(),
       status: z.enum(['pass', 'fail', 'skip']),
       detail: z.string(),
       annotations: z.array(
-        z.object({
+        z.strictObject({
           scene_id: z.string().optional(),
           t: z.number().optional(),
           problem: z.string(),
@@ -317,7 +353,7 @@ export const TestResultsSchema = z.object({
       ),
     }),
   ),
-  summary: z.object({ blocking_failed: z.number().int(), warnings: z.number().int() }),
+  summary: z.strictObject({ blocking_failed: z.number().int(), warnings: z.number().int() }),
 });
 export type TestResults = z.infer<typeof TestResultsSchema>;
 
@@ -335,11 +371,11 @@ export interface RenderAdapter {
   render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): Promise<string>;
 }
 export interface VoiceAdapter {
-  synth(lines: Script['lines'], voice_id: string): string;
+  synth(lines: Script['lines'], voice_id: string): Promise<string>;
   costEstimate(lines: Script['lines']): number;
 }
 export interface MusicAdapter {
-  get(query: string, duration_s: number): AssetRef;
+  get(query: string, duration_s: number): Promise<AssetRef>;
   costEstimate?(query: string): number;
 }
 export interface AlignAdapter {
@@ -347,11 +383,11 @@ export interface AlignAdapter {
   align(audioPath: string, lines: Script['lines'], spokenWords?: Record<string, string[]>): Promise<string>;
 }
 export interface AssetAdapter {
-  find(query: string, kind: AssetRef['kind']): AssetRef[];
-  make?(spec: string): AssetRef;
+  find(query: string, kind: AssetRef['kind']): Promise<AssetRef[]>;
+  make?(spec: string): Promise<AssetRef>;
   costEstimate?(spec: string): number;
 }
 export interface ExportAdapter {
   kind: Deliverable['kind'];
-  export(runDir: string, d: Deliverable): string;
+  export(runDir: string, d: Deliverable): Promise<string>;
 }

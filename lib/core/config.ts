@@ -14,19 +14,12 @@ export const HYPERFRAMES_VERSION = '0.8.143';
 /** Root of the plugin (the repo root). */
 export const PLUGIN_ROOT = path.resolve(import.meta.dir, '../..');
 
-/** Environment variables that hold API keys; child processes never see them. */
-export const SECRET_ENV = ['HEYGEN_API_KEY', 'ELEVENLABS_API_KEY', 'GEMINI_API_KEY'] as const;
-const SECRETS = new Set<string>(SECRET_ENV);
-const SECRET_PATTERN = /(_API_KEY|_TOKEN|_SECRET)$/i;
+// Child processes never see variables whose name looks like a secret (the /i flag covers Windows' case-blind names).
+// ponytail: name pattern only; add an allowlist if a tool ever needs a token.
+const SECRET_PATTERN = /(_KEY|_TOKEN|_SECRET|_PASSWORD|_CREDENTIALS)$/i;
 
-/**
- * Copy of `env` without API keys.
- * Returns a new env; the input is not changed.
- */
-export const stripSecrets = (env: Env): Env =>
-  // ponytail: known list + name pattern; add an allowlist if a tool ever needs a token.
-  // Windows env names ignore case, so match keys upper-cased.
-  Object.fromEntries(Object.entries(env).filter(([k]) => !SECRETS.has(k.toUpperCase()) && !SECRET_PATTERN.test(k)));
+const stripSecrets = (env: Env): Env =>
+  Object.fromEntries(Object.entries(env).filter(([k]) => !SECRET_PATTERN.test(k)));
 
 /**
  * The env for a child process: `env` without API keys, telemetry and skill installs off, UTF-8 Python.

@@ -1,12 +1,10 @@
 # renders and audio (large, regenerable)
 runs/*/out/
 runs/*/audio/
-engine/out/
 tests/out/
 
 # dependencies
 node_modules/
-.vite/
 
 # Python (uv)
 .venv/

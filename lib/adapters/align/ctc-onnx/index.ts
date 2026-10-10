@@ -12,8 +12,9 @@ import { readJson } from '../../../core/json';
  * The CTC aligner. `align(audioPath, lines, spokenWords)` aligns `audioPath` (inside <run>/audio/) against `lines`,
  * writes <run>/data/timing.json and audio.json, and returns the timing.json path.
  * `spokenWords` maps a display word to what is said ("MCP." → ["EM", "SEE", "PEE"]).
- * Throws UnsupportedError without lines, VideoMachineError when the audio is missing, ToolError when align.py fails
- * and ContractError when it writes an invalid timing.json.
+ * Removes both outputs before running, and again if the run or the validation fails.
+ * Throws UnsupportedError without lines, VideoMachineError when the audio is missing, not a file, empty or outside
+ * <run>/audio/, ToolError when align.py fails and ContractError when it writes an invalid timing.json.
  */
 export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
   async align(audioPath, lines, spokenWords = {}) {
@@ -33,7 +34,11 @@ export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
     const alignPy = path.join(pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py');
     const runDir = path.resolve(path.dirname(audio), '..');
     const out = path.join(runDir, 'data', 'timing.json');
-    rmSync(out, { force: true }); // a stale file must never be validated and returned
+    const outputs = [out, path.join(runDir, 'data', 'audio.json')];
+    const removeOutputs = () => {
+      for (const f of outputs) rmSync(f, { force: true });
+    };
+    removeOutputs(); // a stale file must never be validated and returned
     const specDir = mkdtempSync(path.join(tmpdir(), 'vm-align-'));
     const spec = path.join(specDir, 'lines.json');
     // ponytail: throwaway, unschema'd input for align.py, so it skips writeJson on purpose.
@@ -42,6 +47,9 @@ export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
       await deps.sh(['uv', 'run', '--project', pluginRoot, 'python', alignPy, audio, spec, runDir], { env: toolEnv });
       readJson(out, TimingSchema); // validate on write
       return out;
+    } catch (e) {
+      removeOutputs(); // a half-finished run must never look done
+      throw e;
     } finally {
       rmSync(specDir, { recursive: true, force: true }); // the spec holds the script text
     }

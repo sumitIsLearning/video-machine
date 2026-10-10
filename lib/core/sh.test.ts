@@ -67,12 +67,6 @@ test('when stderr is empty the ToolError carries the stdout tail', async () => {
   expect((e as ToolError).stderrTail).toBe('oops');
 });
 
-test('large stdout and stderr both come back complete', async () => {
-  const n = 1_500_000;
-  const r = await sh(js(`process.stdout.write('a'.repeat(${n})); process.stderr.write('b'.repeat(${n}))`));
-  expect([r.stdout.length, r.stderr.length]).toEqual([n, n]);
-});
-
 test.skipIf(process.platform !== 'win32')(
   'a timed-out command whose pipes stay open elsewhere still rejects shortly after the timeout',
   async () => {

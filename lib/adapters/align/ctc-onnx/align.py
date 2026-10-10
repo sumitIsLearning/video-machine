@@ -4,7 +4,7 @@
 
 lines.json: {"lines": [{"text": ...}, ...], "spoken_words"?: {"5.5.": ["FIVE", "POINT", "FIVE"], ...}}
   spoken_words maps a display word to what is said (align_vo's SPOKEN); words not in it are read as written.
-Writes <run_dir>/data/timing.json (word times, the engine's lyrics format) and <run_dir>/data/audio.json
+Writes <run_dir>/data/timing.json (word times, the aligner's word-timed format) and <run_dir>/data/audio.json
 (voice envelopes, word onsets, nominal beat grid). Prints the timing.json path.
 """
 

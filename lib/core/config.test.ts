@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT, SECRET_ENV } from './config';
+import { HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT } from './config';
 
 test('HyperFrames is pinned to 0.8.143', () => {
   expect(HYPERFRAMES_VERSION).toBe('0.8.143');
@@ -40,22 +40,24 @@ test('a parent setting cannot switch telemetry back on', () => {
 });
 
 test('toolEnv never hands API keys to child processes', () => {
-  expect(SECRET_ENV).toEqual(expect.arrayContaining(['HEYGEN_API_KEY', 'ELEVENLABS_API_KEY', 'GEMINI_API_KEY']));
-  const env = Object.fromEntries(SECRET_ENV.map((k) => [k, 'secret']));
-  const { toolEnv } = loadConfig({ ...env, PATH: '/bin' });
-  for (const k of SECRET_ENV) expect(toolEnv[k]).toBeUndefined();
+  const names = ['HEYGEN_API_KEY', 'ELEVENLABS_API_KEY', 'GEMINI_API_KEY'];
+  const { toolEnv } = loadConfig({ ...Object.fromEntries(names.map((k) => [k, 'secret'])), PATH: '/bin' });
+  for (const k of names) expect(toolEnv[k]).toBeUndefined();
   expect(toolEnv.PATH).toBe('/bin');
 });
 
-test('keys, tokens and secrets are removed whatever their letter case, other keys survive', () => {
+test('keys, tokens, secrets, passwords and credentials are removed whatever their letter case, other keys survive', () => {
   const { toolEnv } = loadConfig({
     heygen_api_key: 'secret',
     Gemini_Api_Key: 'secret',
-    Anthropic_Api_Key: 'secret',
     hf_token: 'secret',
     Some_Secret: 'secret',
+    AWS_SECRET_ACCESS_KEY: 'secret',
+    OPENAI_KEY: 'secret',
+    DB_PASSWORD: 'secret',
+    GOOGLE_APPLICATION_CREDENTIALS: 'secret',
     Path: 'C:\\bin',
   });
-  expect(Object.keys(toolEnv).filter((k) => /(_API_KEY|_TOKEN|_SECRET)$/i.test(k))).toEqual([]);
+  expect(Object.keys(toolEnv).filter((k) => /(_KEY|_TOKEN|_SECRET|_PASSWORD|_CREDENTIALS)$/i.test(k))).toEqual([]);
   expect(toolEnv.Path).toBe('C:\\bin');
 });
