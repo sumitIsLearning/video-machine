@@ -889,7 +889,7 @@ Run: `node_modules/.bin/bun test` → all pass. Run: `node_modules/.bin/bun run 
 - Produces:
   - `type SmokeTimes = { render: number; tts: number; align: number }` (seconds)
   - `runSmoke(deps?: Deps, opts?: { clock?: () => number }): Promise<SmokeTimes>`
-  - `lib/setup/cli.ts`: `main(argv: string[], deps?: Deps): Promise<Record<string, unknown>>`, with the guard `if (import.meta.main) process.exit(await runCli(() => main(process.argv.slice(2))))`
+  - `lib/setup/cli.ts`: `main(argv: string[], deps?: Deps): Promise<Record<string, unknown>>`, with the guard `if (import.meta.main) process.exitCode = await runCli(() => main(process.argv.slice(2)))` (exitCode, not `process.exit`, so piped stdout is never cut short)
   - CLI commands:
     - `doctor` writes `<vmHome>/doctor.json` (keeping the previous `smoke_s`) and returns `{ ok, failing, doctor: <path> }`
     - `install [step...]` returns `{ ok, steps: StepResult[] }`
@@ -1077,7 +1077,7 @@ Run: `node_modules/.bin/bun test lib/setup` → FAIL (`./smoke` and `./cli` are 
 - `doctor`: `const d = await runDoctor(deps)`. Keep the old `smoke_s`: if `<vmHome>/doctor.json` exists, `readJson` it and take its `smoke_s`. Catch `ContractError` only (an unreadable file): keep `{}` and write a stderr line `[M0] doctor.json was unreadable; rewritten`. Then `writeJson(file, DoctorSchema, { ...d, smoke_s })` and return `{ ok: failing.length === 0, failing, doctor: file }`.
 - `install`: steps = `argv.slice(1)`, or all of `INSTALL_STEPS` when empty. Unknown names throw `InputError(\`unknown install step "<x>"; steps: ${INSTALL_STEPS.join(', ')}\`)`. Return `{ ok: results.every((s) => s.ok), steps: results }`.
 - `smoke`: if `doctor.json` is missing or unreadable, run the `doctor` command first. Then `writeJson` with `smoke_s` set to the `runSmoke` result. Return `{ smoke_s }`.
-- Bottom of the file: `if (import.meta.main) process.exit(await runCli(() => main(process.argv.slice(2))));`
+- Bottom of the file: `if (import.meta.main) process.exitCode = await runCli(() => main(process.argv.slice(2)));`
 
 - [ ] **Step 4: Run the tests to see them pass**
 
@@ -1569,7 +1569,7 @@ Run: `node_modules/.bin/bun test lib/run` → FAIL (`./where` and `./cli` are mi
 - `brief`: decode stdin as UTF-8 and `JSON.parse` it. A `SyntaxError` becomes `InputError(\`the brief draft on stdin is not JSON: ${e.message}\`)`. Return `{ run_id, brief: <path> }`.
 - `status`: read `<vmHome>/doctor.json` with `readJson(…, DoctorSchema)`. A missing file gives `doctor: null`. An unreadable one (`ContractError`) gives `doctor: { ok: false, failing: ['doctor.json unreadable'], checked_at: null }`. Otherwise give `{ ok, failing, checked_at }`, where `failing` lists the tool names whose `ok` is false, in file order.
 - Usage errors throw `InputError('usage: cli.ts new --concept <file|-> [--runs <dir>] | import <run_dir> <file...> | brief <run_dir> (draft JSON on stdin) | where <run_dir> | status [--runs <dir>]')`.
-- Bottom of the file: `if (import.meta.main) process.exit(await runCli(() => main(process.argv.slice(2))));`
+- Bottom of the file: `if (import.meta.main) process.exitCode = await runCli(() => main(process.argv.slice(2)));`
 
 - [ ] **Step 4: Run the tests to see them pass**
 
