@@ -29,7 +29,7 @@
 1. **API keys in the environment** (bun auto-loads `.env`) must not reach HyperFrames, Python or any other child process, whatever the key's letter case on Windows. Pinned by the `toolEnv` tests in Task 4.
 2. **A hung tool on Windows** (Chrome, vite, a `cmd`-wrapped node) must be killed with its whole process tree when the timeout fires, not orphaned. Pinned by the tree-kill test in Task 5.
 3. **A hand-edited or truncated run-folder JSON file** must fail with a `ContractError` naming the file, never a bare `SyntaxError`. Pinned in Task 4.
-4. **A `product_url` that is not http(s)** (`file:///…`, `javascript:…`) must be rejected at the brief, because Playwright will open it in Phase 3. Pinned in Task 6.
+4. **A URL source (`product_url`, `link`) or `cite` that is not http(s)** (`file:///…`, `javascript:…`) must be rejected at the brief / script, because Playwright and WebFetch will open them in Phase 3. Pinned in Task 6.
 5. **A missing audio file or empty script** handed to the aligner must fail fast with the path or reason named, before `uv` starts. Pinned in Task 7.
 
 ## Rulings made in this plan (orchestrator, 2026-10-09; listed in the phase summary)
@@ -42,6 +42,9 @@
 - R6. With software Canvas2D, pdoom stills no longer match the GPU-era baseline byte for byte (Phase 0 measured PSNR 45–65 dB). Phase 0 check 1 becomes: identical across two renders **and** PSNR ≥ 40 dB against `tests/baseline/`. The baseline files are not changed.
 - R7. `bun run format` runs `biome check --write` (format + import order + safe fixes) and `ruff format`. Running `bun run format` is allowed through Bash, like package managers.
 - R8. `Brief.formats` defaults to `['reel']` (BLUEPRINT 1.6 "Formats v1" and 2.7).
+
+User rulings 2026-10-10 (BLUEPRINT v1.1, commit `e293e48`) folded in: skill `make-video` (Task 3); `Brief.sources`,
+`AssetRef.origin`, `Script` `section` / `cite`, `Plan.sections` (Task 6); the spike starts from a concept only.
 
 ---
 
@@ -231,7 +234,7 @@ Run: `node_modules/.bin/bun run lint` → exit 0, no findings.
 
 ---
 
-### Task 3: Plugin shell (manifest, marketplace, placeholder `make-reel` skill)
+### Task 3: Plugin shell (manifest, marketplace, placeholder `make-video` skill)
 
 **Agent:** plugin-builder
 
@@ -239,10 +242,10 @@ Run: `node_modules/.bin/bun run lint` → exit 0, no findings.
 - BLUEPRINT Part 4 (folder structure) and 2.2 (plugin runtime row)
 
 **Files:**
-- Create: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `skills/make-reel/SKILL.md`
+- Create: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `skills/make-video/SKILL.md`
 
 **Interfaces:**
-- Produces: plugin name `video-machine`, skill `make-reel` (Phase 2 replaces the body).
+- Produces: plugin name `video-machine`, skill `make-video` (Phase 2 replaces the body).
 
 - [ ] **Step 1: Run the checks to see them fail**
 
@@ -257,7 +260,7 @@ Expected: failure (file not found).
 {
   "name": "video-machine",
   "version": "0.1.0",
-  "description": "Turns a concept script and a product navigation video into a motion-graphics reel.",
+  "description": "Turns a concept and any source material into a motion-graphics video (reels first).",
   "author": { "name": "Sumit Chakraborty" }
 }
 ```
@@ -273,33 +276,33 @@ Expected: failure (file not found).
     {
       "name": "video-machine",
       "source": "./",
-      "description": "Concept script + product navigation video to a motion-graphics reel."
+      "description": "Concept + any source material to a motion-graphics video (reels first)."
     }
   ]
 }
 ```
 
-`skills/make-reel/SKILL.md`:
+`skills/make-video/SKILL.md`:
 
 ```markdown
 ---
-name: make-reel
-description: Use when the creator wants a motion-graphics product reel made from a concept script and a product navigation video.
+name: make-video
+description: Use when the creator wants a motion-graphics video (reel first; long-form later) made from a concept, with optional navigation videos, product URL, files or links.
 ---
 
-# Make a reel
+# Make a video
 
 Phase 1 placeholder. The procedure arrives in Phase 2. Tell the creator that the Video Machine is still being built and
-that no reel can be made yet. Do not try to make one by other means.
+that no video can be made yet. Do not try to make one by other means.
 ```
 
-No `license` field: the plugin's licence is decided in Phase 9.
+No `license` field: the plugin's licence is decided in Phase 10 (Polish).
 
 - [ ] **Step 3: Verify**
 
 Run: `claude plugin validate .claude-plugin/plugin.json --strict --json` → `"success": true`, no errors, no warnings.
 Run: `claude plugin validate .claude-plugin/marketplace.json --strict --json` → `"success": true`, no errors, no warnings.
-Run: `claude --plugin-dir . plugin details video-machine` → output contains `Skills (1)  make-reel`.
+Run: `claude --plugin-dir . plugin details video-machine` → output contains `Skills (1)  make-video`.
 
 **Done when:** the three commands above give those results. (`bun run lint` is checked by the orchestrator; Biome reads these JSON files.)
 
@@ -718,7 +721,7 @@ Run: `node_modules/.bin/bun run lint` → clean.
 **Agent:** lib-builder
 
 **Read first:**
-- BLUEPRINT 2.4 (data models), 2.7 (`brief.formats` default), 1.6 (Formats v1, Avatar, Language rows)
+- BLUEPRINT 2.4 (data models), 2.7 (`brief.formats` default), 1.6 (Inputs, Navigation video, Resources, Formats v1, Avatar, Language rows)
 - `lib/contracts/types.ts`, `lib/contracts/types.test.ts`
 
 **Files:**
@@ -726,17 +729,19 @@ Run: `node_modules/.bin/bun run lint` → clean.
 
 **Interfaces:**
 - Produces (exact names; later phases use them):
-  - `ScriptSchema` lines gain `delivery: 'voiceover' | 'avatar'` (default `'voiceover'`).
-  - `ScenePlanSchema` / `type ScenePlan` replace `PlatePlanSchema` / `PlatePlan`; field `scene_id` replaces `plate_id`.
-  - `PlanSchema.visuals_plan` is `{ scenes: ScenePlan[] }` (min 1).
+  - `ScriptSchema` lines gain `delivery: 'voiceover' | 'avatar'` (default `'voiceover'`), `section?: string`, `cite?: string[]` (http(s) URLs, at least one when present).
+  - `ScenePlanSchema` / `type ScenePlan` replace `PlatePlanSchema` / `PlatePlan`; field `scene_id` replaces `plate_id`; gains `section?: string`.
+  - `PlanSchema.visuals_plan` is `{ scenes: ScenePlan[] }` (min 1). `PlanSchema` gains `sections?: { id: string; title: string }[]` (min 1 when present); every `ScenePlan.section` must name one of them.
   - `TestResultsSchema` check annotations use `scene_id` instead of `plate_id`; `type Issue` uses `scene_id` instead of `plate_id`.
-  - `BriefSchema` gains `product_url?: string` (http/https only) and `avatar?: { source: 'adapter' | 'supplied'; adapter?: string; portrait?: string }`; `formats` default becomes `['reel']`.
+  - `BriefSchema` gains `sources: Source[]` (default `[]`) and `avatar?: { source: 'adapter' | 'supplied'; adapter?: string; portrait?: string }`; loses `source_material`, `assets`, `references`; `formats` default becomes `['reel']`. `SourceSchema` / `type Source` = `{ kind: 'nav_video' | 'product_url' | 'file' | 'link'; path_or_url: string; note?: string }`, where `product_url` and `link` must be http(s) URLs.
+  - `AssetRefSchema` gains `origin: 'supplied' | 'nav_video' | 'captured' | 'web' | 'found' | 'drawn'`.
   - New: `StepsSchema` / `type Steps`, `CaptureLogSchema` / `type CaptureLog`, `DoctorSchema` / `type Doctor`.
 
 - [ ] **Step 1: Write the failing tests** — append to `lib/contracts/types.test.ts` (merge the import with the existing one)
 
 ```ts
 import {
+  AssetRefSchema,
   BriefSchema,
   CaptureLogSchema,
   DoctorSchema,
@@ -808,15 +813,64 @@ test('brief formats default to reel only', () => {
   expect(BriefSchema.parse(brief).formats).toEqual(['reel']);
 });
 
-test('brief takes an http(s) product_url', () => {
-  const url = 'https://app.example.com/login';
-  expect(BriefSchema.parse({ ...brief, product_url: url }).product_url).toBe(url);
+test('a concept alone is a valid brief: sources default to empty', () => {
+  expect(BriefSchema.parse(brief).sources).toEqual([]);
 });
 
-test('brief rejects a product_url that is not an http(s) URL', () => {
-  for (const bad of ['app dot example', 'file:///C:/Users/me/secrets.txt', 'javascript:alert(1)']) {
-    expect(BriefSchema.safeParse({ ...brief, product_url: bad }).success).toBe(false);
+test('brief takes any mix of sources', () => {
+  const sources = [
+    { kind: 'nav_video', path_or_url: 'input/nav.mp4' },
+    { kind: 'product_url', path_or_url: 'https://app.example.com/login' },
+    { kind: 'file', path_or_url: 'input/logo.svg', note: 'logo' },
+    { kind: 'link', path_or_url: 'http://blog.example.com/launch', note: 'competitor' },
+  ];
+  expect(BriefSchema.parse({ ...brief, sources }).sources).toHaveLength(4);
+});
+
+test('brief rejects a product_url or link source that is not an http(s) URL', () => {
+  for (const kind of ['product_url', 'link']) {
+    for (const bad of ['app dot example', 'file:///C:/Users/me/secrets.txt', 'javascript:alert(1)']) {
+      expect(BriefSchema.safeParse({ ...brief, sources: [{ kind, path_or_url: bad }] }).success).toBe(false);
+    }
   }
+});
+
+test('brief rejects an unknown source kind and an empty path', () => {
+  expect(BriefSchema.safeParse({ ...brief, sources: [{ kind: 'dream', path_or_url: 'x' }] }).success).toBe(false);
+  expect(BriefSchema.safeParse({ ...brief, sources: [{ kind: 'file', path_or_url: '' }] }).success).toBe(false);
+});
+
+test('brief no longer has source_material, assets or references', () => {
+  const parsed = BriefSchema.parse({ ...brief, source_material: ['a'], assets: ['b'], references: [] });
+  expect(Object.keys(parsed)).not.toContain('source_material');
+  expect(Object.keys(parsed)).not.toContain('assets');
+  expect(Object.keys(parsed)).not.toContain('references');
+});
+
+test('script lines take a section and http(s) cite URLs', () => {
+  const parsed = ScriptSchema.parse(script([{ ...line, section: 'intro', cite: ['https://example.com/stats'] }]));
+  expect(parsed.lines[0]?.cite).toEqual(['https://example.com/stats']);
+  expect(ScriptSchema.safeParse(script([{ ...line, cite: ['not a url'] }])).success).toBe(false);
+  expect(ScriptSchema.safeParse(script([{ ...line, cite: [] }])).success).toBe(false);
+});
+
+test('plan sections are optional, and a scene may only name a declared section', () => {
+  const plan = { run_id: 'r', version: 1, look_id: 'a', asset_ids: [], formats: ['reel'] };
+  const sections = [{ id: 'intro', title: 'Why it matters' }];
+  const inIntro = { ...scene, section: 'intro' };
+  expect(PlanSchema.safeParse({ ...plan, sections, visuals_plan: { scenes: [inIntro] } }).success).toBe(true);
+  expect(PlanSchema.safeParse({ ...plan, visuals_plan: { scenes: [inIntro] } }).success).toBe(false);
+  expect(PlanSchema.safeParse({ ...plan, sections: [], visuals_plan: { scenes: [scene] } }).success).toBe(false);
+});
+
+const asset = { asset_id: 'a1', kind: 'image', path: 'capture/shots/1.png', source: 'replay', license: 'own', usage: 'render' };
+
+test('every asset records where it came from', () => {
+  for (const origin of ['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn']) {
+    expect(AssetRefSchema.parse({ ...asset, origin }).origin).toBe(origin);
+  }
+  expect(AssetRefSchema.safeParse(asset).success).toBe(false);
+  expect(AssetRefSchema.safeParse({ ...asset, origin: 'ai' }).success).toBe(false);
 });
 
 test('brief takes an optional avatar with a known source', () => {
@@ -885,14 +939,25 @@ test('doctor.json records tool versions, paths and smoke timings', () => {
 - [ ] **Step 2: Run them to see them fail**
 
 Run: `node_modules/.bin/bun test lib/contracts`
-Expected: FAIL (`ScenePlanSchema`, `StepsSchema`, `CaptureLogSchema`, `DoctorSchema` not exported; `delivery` undefined; formats default is `['landscape_1080p','reel']`).
+Expected: FAIL (`ScenePlanSchema`, `StepsSchema`, `CaptureLogSchema`, `DoctorSchema` not exported; `delivery` undefined; formats default is `['landscape_1080p','reel']`; `sources` undefined; `source_material` still kept; `origin` not required).
 
 - [ ] **Step 3: Implement** in `lib/contracts/types.ts`
 
-- Script line: `delivery: z.enum(['voiceover', 'avatar']).default('voiceover')`.
-- Rename `PlatePlanSchema` → `ScenePlanSchema`, `PlatePlan` → `ScenePlan`, `plate_id` → `scene_id` (same regex), `visuals_plan: z.object({ scenes: z.array(ScenePlanSchema).min(1) })`.
+- Script line: `delivery: z.enum(['voiceover', 'avatar']).default('voiceover')`, `section: z.string().min(1).optional()`, `cite: z.array(httpUrl).min(1).optional()` (`const httpUrl = z.url({ protocol: /^https?$/ })`, defined once and reused below).
+- Rename `PlatePlanSchema` → `ScenePlanSchema`, `PlatePlan` → `ScenePlan`, `plate_id` → `scene_id` (same regex), add `section: z.string().optional()`; `visuals_plan: z.object({ scenes: z.array(ScenePlanSchema).min(1) })`.
+- Plan: `sections: z.array(z.object({ id: z.string().regex(/^[a-z][a-z0-9_-]*$/), title: z.string().min(1) })).min(1).optional()`, plus a `.refine` on `PlanSchema`: every scene's `section` (when set) is one of `sections[].id` (message names the scene: `scene "hook" names unknown section "intro"`). Long-form (Phase 9) fills these; reels leave them out.
 - `TestResultsSchema` annotations and `type Issue`: `plate_id` → `scene_id`.
-- Brief: `product_url: z.url({ protocol: /^https?$/ }).optional()`; `avatar: z.object({ source: z.enum(['adapter', 'supplied']), adapter: z.string().optional(), portrait: z.string().optional() }).optional()` with a `// ponytail:` comment that Phase 8 decides where a supplied clip's path lives; `formats: z.array(FormatIdSchema).min(1).default(['reel'])`.
+- Brief: delete `references`, `assets`, `source_material`. Add
+  ```ts
+  // brief.sources: whatever the creator handed over besides concept.md (BLUEPRINT 1.6 Inputs). Empty = concept only.
+  export const SourceSchema = z.discriminatedUnion('kind', [
+    z.object({ kind: z.enum(['nav_video', 'file']), path_or_url: z.string().min(1), note: z.string().optional() }),
+    z.object({ kind: z.enum(['product_url', 'link']), path_or_url: httpUrl, note: z.string().optional() }),
+  ]);
+  export type Source = z.infer<typeof SourceSchema>;
+  ```
+  (probed on the installed zod 4.6.5: an enum discriminator works, `javascript:` / `file:` URLs are rejected), `sources: z.array(SourceSchema).default([])`; `avatar: z.object({ source: z.enum(['adapter', 'supplied']), adapter: z.string().optional(), portrait: z.string().optional() }).optional()` with a `// ponytail:` comment that Phase 8 decides where a supplied clip's path lives; `formats: z.array(FormatIdSchema).min(1).default(['reel'])`.
+- AssetRef: `origin: z.enum(['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn'])` (required). `license` stays `z.string()`; `'unknown'` is allowed here and blocked at render by `assets.licensed` (Phase 6).
 - New schemas (one `// capture/steps.json` style comment above each):
 
 ```ts
@@ -1267,7 +1332,7 @@ Run: `node_modules/.bin/bun tests/phase0.ts` → `4/4 passed`; check 1 lists fiv
 **Interfaces:**
 - Consumes: `HYPERFRAMES_VERSION`, `PLUGIN_ROOT`, `loadConfig` (Task 4); `sh` (Task 5).
 
-Probed: `claude plugin validate <file> --strict --json` prints `{ success, manifest: { errors, warnings } }` and exits 0 on success; `claude --plugin-dir . plugin details video-machine` prints a line `Skills (1)  make-reel`; `npx --yes hyperframes@0.8.143 --version` prints `0.8.143`.
+Probed: `claude plugin validate <file> --strict --json` prints `{ success, manifest: { errors, warnings } }` and exits 0 on success; `claude --plugin-dir . plugin details video-machine` prints a line `Skills (1)  make-video`; `npx --yes hyperframes@0.8.143 --version` prints `0.8.143`.
 
 - [ ] **Step 1: Write the script** — `tests/phase1.ts`
 
@@ -1276,7 +1341,7 @@ Probed: `claude plugin validate <file> --strict --json` prints `{ success, manif
 //   node_modules/.bin/bun tests/phase1.ts
 // 1. unit tests pass                        2. lint is clean (tsc, Biome, ruff)
 // 3. Phase 0 acceptance still passes        4. plugin and marketplace manifests pass strict validation
-// 5. claude --plugin-dir . loads make-reel  6. lib/ keeps its boundaries (env, processes, old folder gone)
+// 5. claude --plugin-dir . loads make-video  6. lib/ keeps its boundaries (env, processes, old folder gone)
 // 7. the pinned HyperFrames version resolves
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -1326,10 +1391,10 @@ await check('4. plugin and marketplace manifests pass strict validation', async 
   return out.join('\n');
 });
 
-await check('5. claude --plugin-dir . loads the make-reel skill', async () => {
+await check('5. claude --plugin-dir . loads the make-video skill', async () => {
   const r = await sh(['claude', '--plugin-dir', '.', 'plugin', 'details', 'video-machine'], { cwd: WS });
   const skills = /Skills \(\d+\)\s+(.*)/.exec(r.stdout)?.[1]?.split(/,\s*/) ?? [];
-  if (!skills.includes('make-reel')) throw new Error(r.stdout);
+  if (!skills.includes('make-video')) throw new Error(r.stdout);
   return `skills: ${skills.join(', ')}`;
 });
 
@@ -1386,4 +1451,4 @@ Run: `node_modules/.bin/bun run lint` → clean.
 1. Run `node_modules/.bin/bun tests/phase1.ts` and show the user the output.
 2. Dispatch `code-reviewer` with `model: opus` over the whole branch; turn its findings into one fix task, then one scoped re-review.
 3. Update `HANDOFF.md`; ask the user before merging.
-4. **Spike (orchestrator + user, `runs/spike-*`, throwaway):** one 15 s reel by hand with HyperFrames 0.8.143 directly, from the user's concept script, navigation video and product URL. Findings go into the blueprint (with the user's approval) and the Phase 2 plan. Spike code is never copied into `lib/`.
+4. **Spike (orchestrator + user, `runs/spike-*`, throwaway):** one 15 s reel by hand with HyperFrames 0.8.143 directly, from a concept only (WebSearch/WebFetch research, `hyperframes capture` of public pages, graphics drawn in code); the user's navigation video and product URL are used if they supply them. Findings go into the blueprint (with the user's approval) and the Phase 2 plan. Spike code is never copied into `lib/`.
