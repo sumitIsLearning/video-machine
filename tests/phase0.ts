@@ -5,7 +5,7 @@
 
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { align } from '../lib/adapters/align/ctc-onnx';
+import { ctcOnnx } from '../lib/adapters/align/ctc-onnx';
 import { TimingSchema } from '../lib/contracts/types';
 import { readJson } from '../lib/core/json';
 
@@ -14,11 +14,11 @@ const FIXTURE = path.join(WS, 'tests/fixture');
 const SOURCE = 'C:/Work-data/video-testing';
 
 const results: { test: string; ok: boolean; detail: string }[] = [];
-const check = (test: string, fn: () => string) => {
+const check = async (test: string, fn: () => string | Promise<string>) => {
   const t0 = performance.now();
   let result: { test: string; ok: boolean; detail: string };
   try {
-    result = { test, ok: true, detail: fn() };
+    result = { test, ok: true, detail: await fn() };
   } catch (e) {
     result = { test, ok: false, detail: String((e as Error).message ?? e) };
   }
@@ -28,7 +28,7 @@ const check = (test: string, fn: () => string) => {
   );
 };
 
-check('1. fixture alignment within 10 ms', () => {
+await check('1. fixture alignment within 10 ms', async () => {
   const run = path.join(WS, 'tests/out/align');
   rmSync(run, { recursive: true, force: true });
   mkdirSync(path.join(run, 'audio'), { recursive: true });
@@ -36,7 +36,7 @@ check('1. fixture alignment within 10 ms', () => {
   const want = readJson(path.join(FIXTURE, 'data/lyrics.json'), TimingSchema);
   const spoken = JSON.parse(readFileSync(path.join(FIXTURE, 'spoken.json'), 'utf8'));
   const got = readJson(
-    align(
+    await ctcOnnx().align(
       path.join(run, 'audio/voiceover.mp3'),
       want.lines.map((l, i) => ({ id: `l${i}`, text: l.text, delivery: 'voiceover' as const })),
       spoken,
@@ -73,7 +73,7 @@ check('1. fixture alignment within 10 ms', () => {
   return `${ww.length} words, max deviation ${(worst * 1000).toFixed(1)} ms`;
 });
 
-check('2. video-testing unchanged since before Phase 0', () => {
+await check('2. video-testing unchanged since before Phase 0', () => {
   const now: string[] = [];
   const walk = (d: string) => {
     for (const e of readdirSync(d, { withFileTypes: true })) {

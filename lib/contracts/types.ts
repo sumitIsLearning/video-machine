@@ -328,12 +328,11 @@ export type LayerPass = 'bg' | 'graphics' | 'type' | 'captions' | 'fx';
 export interface RenderAdapter {
   name: string;
   supports(format: FormatId): { ok: boolean; reason?: string };
-  scaffold(runDir: string, plan: Plan, look: Look): void;
-  plateApi(): string;
-  lint(runDir: string): Issue[];
-  still(runDir: string, format: FormatId, t: number[], only?: string[]): string[];
-  contactSheet(runDir: string, format: FormatId, perPlate: number): string;
-  render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): string;
+  lint(runDir: string): Promise<Issue[]>;
+  check(runDir: string): Promise<Issue[]>;
+  still(runDir: string, format: FormatId, t: number[], only?: string[]): Promise<string[]>;
+  contactSheet(runDir: string, format: FormatId, perScene: number): Promise<string>;
+  render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): Promise<string>;
 }
 export interface VoiceAdapter {
   synth(lines: Script['lines'], voice_id: string): string;
@@ -344,7 +343,8 @@ export interface MusicAdapter {
   costEstimate?(query: string): number;
 }
 export interface AlignAdapter {
-  align(audioPath: string, lines?: Script['lines']): string /* timing.json path */;
+  /** Resolves to the timing.json path. */
+  align(audioPath: string, lines: Script['lines'], spokenWords?: Record<string, string[]>): Promise<string>;
 }
 export interface AssetAdapter {
   find(query: string, kind: AssetRef['kind']): AssetRef[];
