@@ -1,4 +1,4 @@
-"""Align adapter (CTC, wav2vec2 ONNX): drives engine/analysis/align_vo.py and audio_vo.py unchanged.
+"""Align adapter (CTC, wav2vec2 ONNX): drives the vendored analysis/align_vo.py and audio_vo.py unchanged.
 
     uv run python align.py <audio> <lines.json> <run_dir>
 
@@ -10,9 +10,9 @@ Writes <run_dir>/data/timing.json (word times, the engine's lyrics format) and <
 import json, sys, tempfile
 from pathlib import Path
 
-ANALYSIS = Path(__file__).resolve().parents[4] / "engine" / "analysis"
+ANALYSIS = Path(__file__).resolve().parent / "analysis"
 sys.path.insert(0, str(ANALYSIS))
-import align_vo  # noqa: E402  (module-level paths are overridden below; MODEL/VOCAB keep pointing at engine/analysis/models)
+import align_vo  # noqa: E402  (module-level paths are overridden below; MODEL/VOCAB keep pointing at analysis/models)
 
 
 def main(audio: Path, lines_file: Path, run_dir: Path) -> Path:
