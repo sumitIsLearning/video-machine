@@ -169,7 +169,7 @@ Verify each call against the **installed** version before a phase plan uses it. 
 | ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists). Model: `Xenova/wav2vec2-base-960h` @ `a19f851b3d42865797e410752b4c570c871e4825`, `onnx/model_quantized.onnx`, 95 286 046 bytes, sha256 `cd5040c1…60a3`, fetched by setup into `<VM_HOME>/models/` | M0, M10 |
 | ffmpeg / ffprobe | `select='gt(scene,0.3)'`, segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
 | Claude Code WebSearch / WebFetch | Called by Claude from the skills (not from `lib/`); every used fact keeps its URL | M5, M8 |
-| Free-licence media source | **Openverse API** (`api.openverse.org/v1/images|audio`, no key; anonymous 20/min, 200/day; each result has `license`, `license_version`, `license_url`, `attribution`, `creator`, `foreign_landing_url`). Pexels (free key in `.env`) only if Openverse coverage proves thin | M5, M8 |
+| Free-licence media source | **Openverse API** (`api.openverse.org/v1/images\|audio`, no key; anonymous 20/min, 200/day; each result has `license`, `license_version`, `license_url`, `attribution`, `creator`, `foreign_landing_url`). Pexels (free key in `.env`) only if Openverse coverage proves thin | M5, M8 |
 | HeyGen (optional, paid) | avatar generation, ~$1/min | M11, behind the cost gate |
 
 ## 2.4 Data models
