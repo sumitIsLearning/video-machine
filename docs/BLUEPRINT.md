@@ -162,11 +162,11 @@ Verify each call against the **installed** version before a phase plan uses it. 
 
 | Integration | Calls used | Where |
 |---|---|---|
-| HyperFrames CLI | `doctor --json`, `skills check`, `models install parakeet --json`, `capture <url> -o <dir> --skip-vision --json`, `transcribe <f> -d <dir> --json`, `tts <text> -o <wav> -v <voice> --json`, `remove-background <f> -o <out> --json`, `lint --json <dir>`, `check --json <dir>`, `snapshot <dir> --at t1,t2 --no-end --describe false -o <dir>`, `render <dir> --quality draft\|delivery --no-browser-gpu -o <f>` (+ `--format webm\|mov\|png-sequence` for alpha) | M0, M2, M5, M9, M11, M13, M17 |
+| HyperFrames CLI | `doctor --json`, `browser ensure`, `models install parakeet --json`, `init <name> --example blank --resolution portrait --non-interactive` (smoke test only), `capture <url> -o <dir> --skip-vision --json`, `transcribe <f> -d <dir> --json`, `tts <text> -o <wav> -v <voice> --json`, `remove-background <f> -o <out> --json`, `lint --json <dir>`, `check --json <dir>`, `snapshot <dir> --at t1,t2 --no-end --describe false -o <dir>`, `render <dir> --quality draft\|delivery --no-browser-gpu -o <f>` (+ `--format webm\|mov\|png-sequence` for alpha) | M0, M2, M5, M9, M11, M13, M17 |
 | HyperFrames probe results (0.8.143) | `doctor --json` exits 0 with top-level `ok:false` when optional tools are missing: read `checks[]`. `lint`/`check --json` → `{ok, errorCount, warningCount, findings[{code, severity, message, selector, time}]}`, exit 1 on error; a lint error makes `check` skip its browser stages (`browserSkipped`). `check` reports contrast as an error (with `suggestedColor`) but off-canvas only as info (`panel_out_of_canvas`), so `layout.safe_area` stays ours. `snapshot` writes `frame-NN-at-Xs.png` + `contact-sheet.jpg`. Transparent background works in WebM (VP9 alpha) and MOV (ProRes 4444, exact colour) → AE gets layers. Frames are identical run to run in GPU and in software mode, but differ between the two modes. 30 s draft: 15 s GPU / 33 s software (simple scene). `tts` needs Python `kokoro-onnx` + `soundfile` (via `HYPERFRAMES_PYTHON`), outputs 24 kHz mono, warm ≈ 5 s per line. `transcribe`: whisper-cpp has no Windows install path, Parakeet works (640 MB), output `<dir>/transcript.json` = `[{id, text, start, end}]`. `capture` → `extracted/tokens.json` (colors, fonts, cssVariables), `visible-text.txt`, `screenshots/`. `remove-background` runs on CPU only here (≈ 0.6 s/frame). | M0–M17 |
 | HyperFrames composition contract | root `data-composition-id` + `data-start="0"` + `data-width/height`, `data-duration`; one `gsap.timeline({paused:true})` registered at `window.__timelines[id]`, built synchronously; `<video>`/`<audio>` playback owned by the framework. GSAP (3.14.2, as `init` scaffolds) is vendored into the run folder, never loaded from the CDN | M12 |
 | Playwright | `chromium.launchPersistentContext(profileDir, {viewport, recordVideo})`, `getByRole` / `getByText`, `boundingBox()`, `innerText('body')` | M3 |
-| ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists) | M10 |
+| ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists). Model: `Xenova/wav2vec2-base-960h` @ `a19f851b3d42865797e410752b4c570c871e4825`, `onnx/model_quantized.onnx`, 95 286 046 bytes, sha256 `cd5040c1…60a3`, fetched by setup into `<VM_HOME>/models/` | M0, M10 |
 | ffmpeg / ffprobe | `select='gt(scene,0.3)'`, segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
 | Claude Code WebSearch / WebFetch | Called by Claude from the skills (not from `lib/`); every used fact keeps its URL | M5, M8 |
 | Free-licence media source | Candidates: Openverse API (no key), Pexels API (free key). Probed before the Phase 3 plan; licence + attribution stored per asset | M5, M8 |
@@ -223,6 +223,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | Spending money | Paid adapters return `costEstimate` first; sum vs `brief.budget_usd` (default 0) → ask |
 | Passwords | Never typed by Claude; persistent profile, creator logs in by hand |
 | Plugin updates wipe data | Runs live in the creator's cwd (`./runs/`); models in `~/.video-machine/`; nothing written under `${CLAUDE_PLUGIN_ROOT}` at runtime |
+| Plugin JS dependencies (user ruling 2026-10-10) | Only `bun` 1.4.2 + `zod` at runtime (90 MB, `--production`). Setup installs them **into the plugin root** with `npx --yes bun@1.4.2 install --frozen-lockfile --production`. This is the one setup-time write there. A plugin update removes them; `make-video` sees the missing bun and re-runs setup |
 | Orphaned processes on Windows | One subprocess helper with timeout that kills the whole tree (`taskkill /T`) |
 | cp1252 pipes on Windows | `PYTHONUTF8=1` for every Python call |
 | Young dependency drifting | HyperFrames pinned to an exact version; plans cite versions |
@@ -308,13 +309,16 @@ video-machine/                      # repo = the plugin and its own marketplace
     capture/SKILL.md                # M2–M4
     storyboard/SKILL.md             # M7–M8
     review/SKILL.md                 # M15 routing rules
+    status/SKILL.md                 # /video-machine:status (setup health + each run's next part)
   agents/                           # SHIPPED subagents
     scene-writer.md                 # M12
     avatar-director.md              # M11
   hooks/hooks.json                  # SHIPPED hook: validate runs/**/*.json on write
   lib/
     contracts/types.ts              # M18 schemas + adapter interfaces
-    core/                           # config.ts, errors.ts, sh.ts, timing lookup, run-folder helpers
+    core/                           # config.ts, errors.ts, sh.ts, cli.ts, json.ts, timing lookup
+    setup/                          # M0: doctor, install steps, smoke test, cli.ts (may import adapters)
+    run/                            # M1 intake, whereAmI, cli.ts (may import adapters)
     adapters/
       render/hyperframes/           # primary renderer (Phase 6)
       align/ctc-onnx/               # Phase 0; analysis/ = vendored align_vo.py, audio_vo.py, model
@@ -350,7 +354,7 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - **Spike (orchestrator + user, throwaway, `runs/spike-*`):** one 15 s reel by hand from a **concept only** (web research, page captures, drawn graphics) with HyperFrames directly; a nav video is used if the user has one. Findings update this blueprint.
 
 ### Phase 2 — Setup and intake (M0, M1)
-- `setup` skill + `doctor` CLI (install via winget/brew/apt with approval, pinned HyperFrames, `doctor`, `skills check`, Kokoro packages in the uv venv, `models install parakeet`, aligner model fetch with sha256, smoke test).
+- `setup` skill + `doctor` CLI (install via winget/brew/apt with approval, pinned HyperFrames, `doctor`, `browser ensure`, Kokoro packages in the uv venv, `models install parakeet`, aligner model fetch with sha256, smoke test).
 - `make-video` intake: run folder, verbatim inputs, `sources[]` from whatever was handed over, ≤ 3 blocking questions with defaults, `brief.json`.
 - `whereAmI` (skips parts whose input is absent) + `/video-machine:status`.
 

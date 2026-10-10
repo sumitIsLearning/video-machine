@@ -1,6 +1,21 @@
 # Handoff
 
-## Phase 1 done (2026-10-10): branch `phase-1-foundation`, awaiting the user's merge OK
+## Now (2026-10-10): Phase 2 approved, executing on branch `phase-2-setup-intake`
+
+- Phase 1 is merged: `master` == `phase-1-foundation` at `363c229`.
+- Plan: `docs/superpowers/plans/phase-2-setup-intake.md` (9 tasks + pre-step; rulings R1–R12).
+  - R1 approved: JS deps (bun + zod, 90 MB, --production) go into the plugin root at setup time.
+  - BLUEPRINT edits (2.3, 2.6, Part 4, Part 5) approved and applied.
+- Probes are in `runs/spike-setup/` (git-ignored):
+  - The aligner model is byte-identical to `Xenova/wav2vec2-base-960h@a19f851` `onnx/model_quantized.onnx`.
+  - uv venv via `UV_PROJECT_ENVIRONMENT` writes nothing in the repo; `uv sync --frozen --no-dev --check` exits 1
+    when the venv is missing or outdated.
+  - kokoro-onnx 0.6.1 + soundfile run on Python 3.14.4; `hyperframes tts` through the venv python takes 7 s.
+  - Blank init + 10 s draft render takes 25 s; `browser ensure` / `models install parakeet --json` are idempotent.
+  - `npx bun@1.4.2 install --frozen-lockfile` takes 5 s / 204 MB; bun honours `NODE_PATH` only with `--no-install`.
+- The Phase 1 concept-only spike was never run; it moves to before the Phase 3 plan (R10).
+
+## Phase 1 done (2026-10-10): branch `phase-1-foundation`, merged to master
 
 - 17 commits on `phase-1-foundation` (master at `a4d1e8b`). `bun tests/phase1.ts` 7/7, `bun test` 79 pass, lint clean
   (`biome --error-on-warnings`), phase0 2/2. Opus whole-branch review: APPROVE after Task 10 fix wave.
