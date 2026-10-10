@@ -1637,7 +1637,7 @@ Required content:
 
 **`skills/status/SKILL.md`** (description: `"Use when the creator asks how their videos stand, what is next, or types /video-machine:status: shows setup health and each run's next part."`)
 - Run `status`. Show the doctor line first: ok / failing tools / checked_at, or "setup never ran → video-machine:setup".
-- Then show one row per run: run id, next part in words, skipped parts.
+- Then show one row per run: run id, next part in words, skipped parts. A run can come back as `{ run_id, error }` instead, when one of its files is invalid. Show that run's row with the error and "fix this file, then run status again", and keep listing the others.
 - Part names: M1 intake, M2 video reader, M3 replay and capture, M4 assets panel, M5 research, M6 script, M7 looks, M8 storyboard, M9 voice, M10 timing, M11 avatar, M12 scenes, M13 render, M14 checks, M16 sound, M17 export.
 - Read-only: it never starts a part.
 
