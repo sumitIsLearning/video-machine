@@ -213,6 +213,24 @@ test('a format with no default length asks for duration_target_s', () => {
   expect(() => writeBrief(r.runDir, { formats: ['landscape_1080p'] })).toThrow(/duration_target_s/);
 });
 
+test('formats that is not an array, or names an unknown format, is a contract error and nothing is written', () => {
+  const r = run();
+  for (const draft of [
+    { formats: 'square', duration_target_s: [5, 10] },
+    { formats: ['vertical'] },
+    { formats: null },
+    { formats: [] },
+  ]) {
+    expect(() => writeBrief(r.runDir, draft)).toThrow(ContractError);
+    expect(existsSync(path.join(r.runDir, 'brief.json'))).toBe(false);
+  }
+});
+
+test.skipIf(process.platform !== 'win32')('the run id is the on-disk name, whatever casing the caller used', () => {
+  const r = run();
+  expect(writeBrief(r.runDir.toUpperCase(), {}).run_id).toBe(r.run_id);
+});
+
 test('a draft that is not an object, or names another run, is refused', () => {
   const r = run();
   expect(() => writeBrief(r.runDir, [])).toThrow(InputError);

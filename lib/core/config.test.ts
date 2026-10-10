@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { HF_CMD, HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT } from './config';
+import { HF_CMD, HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT, toToolEnv } from './config';
 
 test('HyperFrames is pinned to 0.8.143', () => {
   expect(HYPERFRAMES_VERSION).toBe('0.8.143');
@@ -54,6 +54,13 @@ test('a parent env cannot point uv or HyperFrames at another Python', () => {
   const c = loadConfig({ UV_PROJECT_ENVIRONMENT: 'elsewhere', HYPERFRAMES_PYTHON: 'other.exe' });
   expect(c.toolEnv.UV_PROJECT_ENVIRONMENT).toBe(c.venvDir);
   expect(c.toolEnv.HYPERFRAMES_PYTHON).not.toBe('other.exe');
+});
+
+test('a parent Python home, path or uv interpreter never reaches a child, whatever the letter case', () => {
+  const env = toToolEnv({ PYTHONHOME: 'x', pythonpath: 'y', Uv_Python: 'z', PATH: '/bin' });
+  expect(Object.keys(env).sort()).toEqual(
+    ['HYPERFRAMES_NO_TELEMETRY', 'HYPERFRAMES_SKIP_SKILLS', 'PATH', 'PYTHONDONTWRITEBYTECODE', 'PYTHONUTF8'].sort(),
+  );
 });
 
 test('HF_CMD runs the pinned HyperFrames through npx', () => {

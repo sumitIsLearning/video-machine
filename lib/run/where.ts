@@ -3,7 +3,7 @@ import path from 'node:path';
 import { type Brief, BriefSchema, type Script, ScriptSchema } from '../contracts/types';
 import { ContractError } from '../core/errors';
 import { readJson } from '../core/json';
-import { assertRunDir } from './intake';
+import { assertRunDir, runIdOf } from './intake';
 
 /** The parts in run order (BLUEPRINT 2.1): M5 research comes before M2 capture. */
 export const PART_ORDER = [
@@ -88,7 +88,7 @@ const isNeeded = (brief: Brief, script: Script | undefined, part: PartId): boole
  */
 export function whereAmI(runDir: string): Where {
   assertRunDir(runDir);
-  const run_id = path.basename(path.resolve(runDir));
+  const run_id = runIdOf(runDir);
   if (!isDone(runDir, 'M1')) return { run_id, next: 'M1', skipped: [] };
   const brief = readJson(path.join(runDir, MARKER.M1), BriefSchema);
   const script = isDone(runDir, 'M6') ? readJson(path.join(runDir, MARKER.M6), ScriptSchema) : undefined;
@@ -101,9 +101,9 @@ export function whereAmI(runDir: string): Where {
 }
 
 /**
- * Every run in a runs folder, sorted by folder name descending (names start with the date, so newest first).
- * Returns a `Where` per run, or `{ run_id, error }` for a run whose brief.json or script.json is invalid (one bad run
- * must not hide the others); a missing folder gives [].
+ * Every run in a runs folder, sorted by folder name, descending (folder names start with the date).
+ * Returns a `Where` per run, or `{ run_id, error }` for a run whose brief.json or script.json is invalid or cannot
+ * be read (one bad run must not hide the others); a missing folder gives [].
  */
 export function listRuns(runsDir: string): RunStatus[] {
   if (!existsSync(runsDir)) return [];
@@ -116,8 +116,10 @@ export function listRuns(runsDir: string): RunStatus[] {
       try {
         return whereAmI(path.join(runsDir, name));
       } catch (e) {
-        if (!(e instanceof ContractError)) throw e;
-        return { run_id: name, error: e.message.split('\n')[0] ?? e.message };
+        // an fs error with a code (EISDIR, EACCES) is one unreadable run, not a reason to hide the others
+        if (!(e instanceof ContractError) && typeof (e as NodeJS.ErrnoException).code !== 'string') throw e;
+        const message = (e as Error).message;
+        return { run_id: name, error: message.split('\n')[0] ?? message };
       }
     });
 }

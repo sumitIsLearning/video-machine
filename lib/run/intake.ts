@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { type Brief, BriefSchema, DEFAULT_VOICE, DURATION_DEFAULTS, type FormatId } from '../contracts/types';
+import { type Brief, BriefSchema, DEFAULT_VOICE, DURATION_DEFAULTS, FormatIdSchema } from '../contracts/types';
 import { ContractError, InputError } from '../core/errors';
 import { writeJson } from '../core/json';
 
@@ -69,6 +69,9 @@ export function assertRunDir(runDir: string): void {
   if (!existsSync(path.join(runDir, 'concept.md')))
     throw new InputError(`${runDir} is not a run folder (no concept.md)`);
 }
+
+/** The run id of a run folder: its on-disk name, so the casing a caller typed on Windows never counts. */
+export const runIdOf = (runDir: string): string => path.basename(realpathSync.native(runDir));
 
 /**
  * Copy the creator's files into `input/` (a name that is taken gets `-2`, `-3`, ...).
@@ -128,14 +131,20 @@ export function writeBrief(runDir: string, draft: unknown): Brief {
   if (typeof draft !== 'object' || draft === null || Array.isArray(draft))
     throw new InputError('the brief draft must be a JSON object');
   const d = draft as Record<string, unknown>;
-  const run_id = path.basename(path.resolve(runDir));
+  const run_id = runIdOf(runDir);
   if (d.run_id !== undefined && d.run_id !== run_id)
     throw new InputError(`the draft names run "${String(d.run_id)}" but this folder is run "${run_id}"`);
 
-  const formats = Array.isArray(d.formats) && d.formats.length > 0 ? d.formats : ['reel'];
-  const duration_target_s = d.duration_target_s ?? DURATION_DEFAULTS[formats[0] as FormatId];
-  if (duration_target_s === undefined)
-    throw new InputError(`no default length for format "${formats[0]}"; ask the creator for duration_target_s`);
+  // Anything but "not given" goes to BriefSchema as is: a misspelt format is Claude's error to fix, not the creator's.
+  const formats = d.formats === undefined ? ['reel'] : d.formats;
+  const first = Array.isArray(formats) ? formats[0] : undefined;
+  const known = FormatIdSchema.safeParse(first);
+  let duration_target_s = d.duration_target_s;
+  if (duration_target_s === undefined && known.success) {
+    duration_target_s = DURATION_DEFAULTS[known.data];
+    if (duration_target_s === undefined)
+      throw new InputError(`no default length for format "${known.data}"; ask the creator for duration_target_s`);
+  }
 
   const timing_source = d.timing_source ?? 'voiceover';
   const firstLine = stripBom(readFileSync(path.join(runDir, 'concept.md'), 'utf8'))

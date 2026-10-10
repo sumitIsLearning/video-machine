@@ -1,22 +1,27 @@
 import path from 'node:path';
-import { type Doctor, DoctorSchema } from '../contracts/types';
+import { type Doctor, DoctorSchema, failingTools } from '../contracts/types';
 import { runCli } from '../core/cli';
 import { type Deps, defaultDeps } from '../core/deps';
 import { ContractError, InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
-import { failingTools, runDoctor } from './doctor';
+import { runDoctor } from './doctor';
 import { INSTALL_STEPS, type InstallStep, install } from './install';
 import { runSmoke } from './smoke';
 
 const USAGE = `usage: cli.ts doctor | install | smoke (install takes optional steps: ${INSTALL_STEPS.join(', ')})`;
 
-/** The saved doctor.json, or undefined when there is none or it cannot be read (the caller rewrites it). */
+/**
+ * The saved doctor.json, or undefined when there is none (ENOENT) or it cannot be read: invalid content or any
+ * fs error with a code (EISDIR, EACCES). An unreadable file is reported on stderr and the caller rewrites it,
+ * the same policy as `status`.
+ */
 const readSaved = (file: string): Doctor | undefined => {
   try {
     return readJson(file, DoctorSchema);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
-    if (!(e instanceof ContractError)) throw e;
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') return undefined;
+    if (!(e instanceof ContractError) && typeof code !== 'string') throw e;
     process.stderr.write('[M0] doctor.json was unreadable; rewritten\n');
     return undefined;
   }
@@ -36,8 +41,11 @@ export const main = async (argv: string[], deps: Deps = defaultDeps()): Promise<
   const file = path.join(deps.config.vmHome, 'doctor.json');
   const [command, ...rest] = argv;
   if (command === 'doctor') {
-    const failing = failingTools(await runAndSaveDoctor(deps, file, readSaved(file)));
-    return { ok: failing.length === 0, failing, doctor: file };
+    const d = await runAndSaveDoctor(deps, file, readSaved(file));
+    const failing = failingTools(d);
+    // So the setup skill never has to read the file (its path arrives JSON-escaped).
+    const details = Object.fromEntries(failing.map((t) => [t, d.tools[t]?.detail ?? 'missing from doctor.json']));
+    return { ok: failing.length === 0, failing, details, doctor: file };
   }
   if (command === 'install') {
     const unknown = rest.find((s) => !(INSTALL_STEPS as readonly string[]).includes(s));
@@ -47,7 +55,7 @@ export const main = async (argv: string[], deps: Deps = defaultDeps()): Promise<
   }
   if (command === 'smoke') {
     const before = readSaved(file) ?? (await runAndSaveDoctor(deps, file, undefined));
-    const smoke_s = await runSmoke(deps);
+    const smoke_s = await runSmoke(deps, { onWarn: (line) => process.stderr.write(`${line}\n`) });
     // The smoke takes ~25 s; a doctor run in that time must not be overwritten with the tools read before it.
     writeJson(file, DoctorSchema, { ...(readSaved(file) ?? before), smoke_s });
     return { smoke_s };

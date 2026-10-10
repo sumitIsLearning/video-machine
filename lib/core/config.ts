@@ -23,24 +23,29 @@ const stripSecrets = (env: Env): Env =>
 
 // Windows env names are case-blind: drop every parent key that matches a forced one in any case, or the child
 // would see both and pick one at random.
-const force = (env: Env, forced: Record<string, string>): Env => {
-  const names = new Set(Object.keys(forced).map((k) => k.toUpperCase()));
+const force = (env: Env, forced: Record<string, string>, dropped: string[] = []): Env => {
+  const names = new Set([...Object.keys(forced), ...dropped].map((k) => k.toUpperCase()));
   const kept = Object.entries(env).filter(([k]) => !names.has(k.toUpperCase()));
   return { ...Object.fromEntries(kept), ...forced };
 };
 
 /**
  * The env for a child process: `env` without API keys, telemetry and skill installs off, UTF-8 Python,
- * no .pyc files (nothing is written under the plugin root at runtime).
+ * no .pyc files (nothing is written under the plugin root at runtime), and none of the parent's settings that
+ * would pick another Python (`PYTHONHOME`, `PYTHONPATH`, `UV_PYTHON`).
  * Returns a new env; the input is not changed.
  */
 export const toToolEnv = (env: Env): Env =>
-  force(stripSecrets(env), {
-    HYPERFRAMES_NO_TELEMETRY: '1',
-    HYPERFRAMES_SKIP_SKILLS: '1',
-    PYTHONUTF8: '1',
-    PYTHONDONTWRITEBYTECODE: '1',
-  });
+  force(
+    stripSecrets(env),
+    {
+      HYPERFRAMES_NO_TELEMETRY: '1',
+      HYPERFRAMES_SKIP_SKILLS: '1',
+      PYTHONUTF8: '1',
+      PYTHONDONTWRITEBYTECODE: '1',
+    },
+    ['PYTHONHOME', 'PYTHONPATH', 'UV_PYTHON'],
+  );
 
 /** The pinned HyperFrames CLI; every HyperFrames call starts with these words. */
 export const HF_CMD = ['npx', '--yes', `hyperframes@${HYPERFRAMES_VERSION}`] as const;

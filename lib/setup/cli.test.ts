@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from 'bun:test';
+import { afterEach, expect, spyOn, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -34,6 +34,30 @@ test('doctor writes doctor.json under vmHome and lists the failing tools', async
   expect(r.ok).toBe(false);
   expect(r.failing).toContain('node');
   readJson(file, DoctorSchema);
+});
+
+test('doctor returns the detail of each failing tool', async () => {
+  const r = await main(['doctor'], missingWorld());
+  const details = r.details as Record<string, string>;
+  expect(Object.keys(details).sort()).toEqual([...(r.failing as string[])].sort());
+  expect(details.node).toBe('not found');
+});
+
+test('doctor treats a doctor.json it cannot read (a folder) as unreadable and says so on stderr', async () => {
+  const deps = missingWorld();
+  mkdirSync(path.join(deps.config.vmHome, 'doctor.json'));
+  const lines: string[] = [];
+  const spy = spyOn(process.stderr, 'write').mockImplementation((s) => {
+    lines.push(String(s));
+    return true;
+  });
+  try {
+    // The folder then blocks the rewrite itself; what matters here is that the read was not the failure.
+    await main(['doctor'], deps).catch(() => {});
+  } finally {
+    spy.mockRestore();
+  }
+  expect(lines).toContain('[M0] doctor.json was unreadable; rewritten\n');
 });
 
 test('doctor keeps the smoke timings from the previous doctor.json', async () => {

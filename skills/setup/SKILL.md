@@ -7,7 +7,7 @@ description: "Use when the creator says set it up, install the Video Machine, or
 
 Run every command with the Bash tool (Git Bash on Windows), not PowerShell. Every command prints one JSON line. Read its
 `ok` field (for `install`, also `steps[].ok` and `steps[].detail`), never the exit code. Any `ok:false` means: show the
-creator the `message` or `detail` (`doctor` reports `failing` instead, see step 4). The error class (`InputError`, `ContractError`, `ToolError`, others) is only a hint at
+creator the `message` or `detail` (`doctor` reports `failing` and `details` instead, see step 4). The error class (`InputError`, `ContractError`, `ToolError`, others) is only a hint at
 whose fix it is. Report each step in plain words.
 
 ## 0. Ask once, before anything is installed
@@ -79,9 +79,9 @@ Run `doctor` until `ok` is true. Fix each failing tool:
 | `parakeet` | `install parakeet` |
 | `hyperframes` | never run hyperframes directly; re-run `install` or check Node, npm and the network |
 
-`doctor` prints `{ok, failing, doctor: <path>}`. The per-tool `detail` is in the file named by `doctor`: run `cat` on
-that path to read the `detail` of each failing tool. After two attempts at fixing the same tool, show its `detail` to the
-creator and stop.
+`doctor` prints `{ok, failing, details, doctor: <path>}`. `details` maps each failing tool to its `detail`: read it from
+that JSON line and do not open the file named by `doctor`. After two attempts at fixing the same tool, show its `detail`
+to the creator and stop.
 
 ## 5. Smoke test
 

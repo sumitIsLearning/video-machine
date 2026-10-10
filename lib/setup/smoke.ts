@@ -17,26 +17,30 @@ const TEN_MIN = 10 * 60_000;
 const isNonEmptyFile = (p: string) => (statSync(p, { throwIfNoEntry: false })?.size ?? 0) > 0;
 
 /** On Windows a child (Chrome) can still hold files for a moment; a cleanup failure must not hide the real result. */
-const removeTemp = (dir: string) => {
+const removeTemp = (dir: string, onWarn: (line: string) => void) => {
   try {
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;
     if (typeof code !== 'string') throw e;
-    process.stderr.write(`[M0] could not remove ${dir}: ${code}\n`);
+    onWarn(`[M0] could not remove ${dir}: ${code}`);
   }
 };
 
 /**
  * Prove the whole chain works on this machine: render a blank reel draft, speak one line, align it.
- * Needs the network (the blank example loads GSAP from a CDN). Uses and removes a temp folder.
+ * Needs the network (the blank example loads GSAP from a CDN). Uses and removes a temp folder; a folder that
+ * cannot be removed is reported through `opts.onWarn` (default: ignored), not thrown.
  * Returns the seconds each stage took (0.1 s resolution).
  * Throws VideoMachineError whose message starts with `smoke <stage>` (the original error, a ToolError or
  * ContractError for example, is its `cause`).
  */
 export const runSmoke = async (
   deps: Deps = defaultDeps(),
-  { clock = () => performance.now() / 1000 }: { clock?: () => number } = {},
+  {
+    clock = () => performance.now() / 1000,
+    onWarn = () => {},
+  }: { clock?: () => number; onWarn?: (line: string) => void } = {},
 ): Promise<SmokeTimes> => {
   const env = deps.config.toolEnv;
   const tmp = mkdtempSync(path.join(tmpdir(), 'vm-smoke-'));
@@ -88,6 +92,6 @@ export const runSmoke = async (
     });
     return times;
   } finally {
-    removeTemp(tmp);
+    removeTemp(tmp, onWarn);
   }
 };

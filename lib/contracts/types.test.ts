@@ -4,8 +4,10 @@ import {
   BriefSchema,
   CaptureLogSchema,
   DEFAULT_VOICE,
+  DOCTOR_TOOLS,
   DoctorSchema,
   DURATION_DEFAULTS,
+  failingTools,
   frameOf,
   PlanSchema,
   RunPathSchema,
@@ -263,10 +265,20 @@ test('doctor.json records tool versions, paths and smoke timings', () => {
   expect(DoctorSchema.safeParse({ checked_at: 'yesterday', tools: {}, smoke_s: {} }).success).toBe(false);
 });
 
+test('a doctor record missing a required tool lists it as failing', () => {
+  const tools = Object.fromEntries(DOCTOR_TOOLS.map((t) => [t, { ok: true }]));
+  delete tools.parakeet;
+  const d = DoctorSchema.parse({ checked_at: '2026-10-09T17:00:00Z', tools, smoke_s: {} });
+  expect(failingTools(d)).toEqual(['parakeet']);
+});
+
 test('run paths are relative POSIX paths inside the run folder', () => {
-  for (const ok of ['input/nav.mp4', 'capture/clips/3.mp4', 'concept.md', './input/a.png'])
+  for (const ok of ['input/nav.mp4', 'capture/clips/3.mp4', 'concept.md'])
     expect(RunPathSchema.safeParse(ok).success).toBe(true);
   for (const bad of [
+    './input/a.png',
+    'input//a.mp4',
+    'input/a.mp4/',
     '',
     '..',
     '../x.mp4',

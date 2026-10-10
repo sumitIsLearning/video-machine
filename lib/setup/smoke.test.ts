@@ -122,6 +122,27 @@ test('smoke fails naming the align stage when the words do not come back', async
   expect((err as Error).message).toStartWith('smoke align');
 });
 
+// Windows refuses to delete a process's current folder, which is how a cleanup failure is made here.
+test.skipIf(process.platform !== 'win32')('smoke reports a temp folder it cannot remove through onWarn', async () => {
+  const w = world();
+  const home = process.cwd();
+  const sh = w.deps.sh;
+  w.deps.sh = async (cmd, opts) => {
+    const r = await sh(cmd, opts);
+    if (cmd.includes('init')) process.chdir(opts?.cwd ?? home);
+    return r;
+  };
+  const warnings: string[] = [];
+  try {
+    await runSmoke(w.deps, { onWarn: (line) => warnings.push(line) });
+  } finally {
+    process.chdir(home);
+    rmSync(w.cwds[0] ?? '', { recursive: true, force: true });
+  }
+  expect(warnings).toHaveLength(1);
+  expect(warnings[0]).toStartWith('[M0] could not remove');
+});
+
 test('smoke always removes its temp folder', async () => {
   const ok = world();
   await ok.run();

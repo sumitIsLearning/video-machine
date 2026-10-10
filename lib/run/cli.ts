@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { DoctorSchema } from '../contracts/types';
+import { DoctorSchema, failingTools } from '../contracts/types';
 import { runCli } from '../core/cli';
-import { type Deps, defaultDeps } from '../core/deps';
+import { loadConfig } from '../core/config';
 import { ContractError, InputError } from '../core/errors';
 import { readJson } from '../core/json';
 import { importFiles, newRun, writeBrief } from './intake';
@@ -26,15 +26,13 @@ const parse = (argv: string[]) => {
   }
 };
 
-type Io = { stdin?: () => Promise<Uint8Array>; cwd?: string; deps?: Deps };
+type Io = { stdin?: () => Promise<Uint8Array>; cwd?: string; vmHome?: string };
 
 /** The doctor summary for `status`: null when setup never ran, "unreadable" for any other read or parse failure. */
 const doctorSummary = (vmHome: string) => {
   try {
     const d = readJson(path.join(vmHome, 'doctor.json'), DoctorSchema);
-    const failing = Object.entries(d.tools)
-      .filter(([, t]) => !t.ok)
-      .map(([name]) => name);
+    const failing = failingTools(d);
     return { ok: failing.length === 0, failing, checked_at: d.checked_at };
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;
@@ -90,7 +88,7 @@ export const main = async (argv: string[], io: Io = {}): Promise<Record<string, 
   }
   if (command === 'where' && runDir) return { ...whereAmI(runDir) };
   if (command === 'status' && first === undefined)
-    return { runs: listRuns(runsDir), doctor: doctorSummary((io.deps ?? defaultDeps()).config.vmHome) };
+    return { runs: listRuns(runsDir), doctor: doctorSummary(io.vmHome ?? loadConfig().vmHome) };
   throw new InputError(USAGE);
 };
 

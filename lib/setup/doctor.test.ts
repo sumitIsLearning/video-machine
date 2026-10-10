@@ -3,12 +3,12 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { DoctorSchema } from '../contracts/types';
+import { DOCTOR_TOOLS, DoctorSchema, failingTools } from '../contracts/types';
 import { HF_CMD, loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { ToolError } from '../core/errors';
 import type { ShOptions } from '../core/sh';
-import { DOCTOR_TOOLS, failingTools, runDoctor } from './doctor';
+import { runDoctor } from './doctor';
 
 const temps: string[] = [];
 afterEach(() => {
@@ -97,6 +97,11 @@ test('a tool that is not installed fails as "not found" and the other checks sti
   const d = await world({ 'uv --version': 'missing' }).run();
   expect(d.tools.uv).toMatchObject({ ok: false, detail: 'not found' });
   expect(d.tools.ffmpeg?.ok).toBe(true);
+});
+
+test('uv that exits 0 with an unparseable version fails and shows the first line', async () => {
+  const d = await world({ 'uv --version': { stdout: 'something odd\nsecond line\n' } }).run();
+  expect(d.tools.uv).toEqual({ ok: false, detail: 'something odd' });
 });
 
 test('ffmpeg older than 6 fails; a git build whose version cannot be parsed passes', async () => {

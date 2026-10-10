@@ -6,15 +6,15 @@
 // 11. nothing was written under the plugin root
 // Everything runs against a fresh VM_HOME and a fresh creator workspace, both removed at the end.
 // Limits of "fresh": check 5 is fresh only for the venv and the aligner model; Chrome and Parakeet live in the shared
-// ~/.cache and may already be there. Check 2's lint runs against the real ~/.video-machine venv, not the fresh one.
+// ~/.cache and may already be there. Check 2's lint gets the plain process env, so ruff uses the repo .venv, not a VM_HOME venv.
 import { lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { DoctorSchema } from '../lib/contracts/types';
+import { DOCTOR_TOOLS, DoctorSchema } from '../lib/contracts/types';
 import { type Env, loadConfig, PLUGIN_ROOT } from '../lib/core/config';
 import { readJson } from '../lib/core/json';
 import { sh } from '../lib/core/sh';
-import { DOCTOR_TOOLS } from '../lib/setup/doctor';
+import { INSTALL_STEPS } from '../lib/setup/install';
 
 const WS = PLUGIN_ROOT;
 // Set inside the try below, so the cleanup covers whichever folders exist.
@@ -143,7 +143,7 @@ try {
   });
 
   await check('2. lint is clean', async () => {
-    await sh([bun, 'run', 'lint'], { cwd: WS, timeoutMs: 5 * MIN });
+    await sh([bun, 'run', 'lint'], { cwd: WS, env: { ...process.env }, timeoutMs: 5 * MIN });
     return 'tsc, Biome and ruff report nothing';
   });
 
@@ -185,7 +185,7 @@ try {
     const steps = out.steps as { step: string; ok: boolean; detail: string }[] | undefined;
     if (!steps) throw new Error(`no steps in the result: ${JSON.stringify(out)}`);
     const lines = steps.map((s) => `${s.ok ? 'ok  ' : 'FAIL'} ${s.step}: ${s.detail}`);
-    if (steps.length !== 4 || !steps.every((s) => s.ok)) throw new Error(lines.join('\n'));
+    if (steps.length !== INSTALL_STEPS.length || !steps.every((s) => s.ok)) throw new Error(lines.join('\n'));
     return lines.join('\n');
   });
 

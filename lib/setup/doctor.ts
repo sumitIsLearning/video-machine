@@ -9,19 +9,6 @@ import { HF_CMD, HYPERFRAMES_VERSION } from '../core/config';
 import { type Deps, defaultDeps } from '../core/deps';
 import { ToolError } from '../core/errors';
 
-export const DOCTOR_TOOLS = [
-  'node',
-  'ffmpeg',
-  'ffprobe',
-  'uv',
-  'hyperframes',
-  'chrome',
-  'kokoro',
-  'venv',
-  'aligner_model',
-  'parakeet',
-] as const;
-
 export type DoctorOptions = { now?: Date; home?: string; model?: ModelSpec };
 
 type Status = Doctor['tools'][string];
@@ -82,7 +69,7 @@ const checkUv = async (deps: Deps): Promise<Status> => {
   const r = await version(deps, ['uv', '--version']);
   if (r.fail) return r.fail;
   const m = /^uv (\S+)/.exec(r.line);
-  return { ok: r.code === 0 && !!m, version: m?.[1], ...(r.code === 0 ? {} : { detail: r.line }) };
+  return r.code === 0 && m ? { ok: true, version: m[1] } : { ok: false, detail: r.line };
 };
 
 /** One `hyperframes doctor --json` call answers three tools. */
@@ -133,7 +120,8 @@ const checkVenv = async (deps: Deps): Promise<Status> => {
   }
 };
 
-const checkModel = (model: ModelSpec): Status => {
+/** Check the aligner model file by size and sha256. Returns a status; a filesystem error becomes a failed status. */
+export const checkModel = (model: ModelSpec): Status => {
   try {
     const stat = statSync(model.path, { throwIfNoEntry: false });
     if (!stat) return { ok: false, detail: 'missing' };
@@ -179,6 +167,3 @@ export const runDoctor = async (deps: Deps = defaultDeps(), opts: DoctorOptions 
   };
   return { checked_at: now.toISOString(), tools, smoke_s: {} };
 };
-
-/** The names of the tools whose check failed, in `DOCTOR_TOOLS` order. A tool missing from `d` counts as failed. */
-export const failingTools = (d: Doctor): string[] => DOCTOR_TOOLS.filter((t) => !d.tools[t]?.ok);

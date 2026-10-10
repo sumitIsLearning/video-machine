@@ -149,6 +149,19 @@ test('listRuns reports a run with a broken brief.json as an error entry and stil
   expect(second).toMatchObject({ run_id: '2026-10-09-good', next: 'M5' });
 });
 
+test('listRuns reports a run whose brief.json cannot be read (a folder) as an error entry', () => {
+  const { runs } = runWith({}, null, '2026-10-10-folder');
+  mkdirSync(path.join(runs, '2026-10-10-folder', 'brief.json'));
+  const [entry] = listRuns(runs);
+  expect(entry).toMatchObject({ run_id: '2026-10-10-folder' });
+  expect(typeof (entry as { error: string }).error).toBe('string');
+});
+
+test.skipIf(process.platform !== 'win32')('the run id is the on-disk name, whatever casing the caller used', () => {
+  const { dir } = runWith({}, null, 'MixedCase');
+  expect(whereAmI(dir.toUpperCase()).run_id).toBe('MixedCase');
+});
+
 test('the single-run where still fails loudly on a broken brief.json', () => {
   const { dir } = runWith({}, null);
   writeFileSync(path.join(dir, 'brief.json'), '{bad');

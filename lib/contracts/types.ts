@@ -49,8 +49,10 @@ export const RunPathSchema = z
       !p.includes(':') && // drive letters and Windows alternate data streams (a.mp4:s)
       !p.startsWith('/') &&
       !p.split('/').includes('..') &&
-      path.posix.normalize(p).replace(/\/+$/, '') !== '.', // the run folder itself
-    'must be a run-relative POSIX path to a file (no "..", ":", NUL, leading "/", backslash, or the run folder itself)',
+      !p.endsWith('/') &&
+      path.posix.normalize(p) === p && // canonical: no ".", "./x", "a//b"; also rejects the run folder itself
+      p !== '.',
+    'must be a canonical run-relative POSIX path to a file (no "..", ":", NUL, leading "/", backslash, "./", "//", trailing "/", or the run folder itself)',
   );
 
 // Every schema for a file Claude writes is strict (z.strictObject): a misspelt key is an error, not silently dropped.
@@ -347,6 +349,23 @@ export const DoctorSchema = z.strictObject({
   smoke_s: z.record(z.string(), z.number().min(0)),
 });
 export type Doctor = z.infer<typeof DoctorSchema>;
+
+/** The tools the doctor must report on. */
+export const DOCTOR_TOOLS = [
+  'node',
+  'ffmpeg',
+  'ffprobe',
+  'uv',
+  'hyperframes',
+  'chrome',
+  'kokoro',
+  'venv',
+  'aligner_model',
+  'parakeet',
+] as const;
+
+/** The names of the tools whose check failed, in `DOCTOR_TOOLS` order. A tool missing from `d` counts as failed. */
+export const failingTools = (d: Doctor): string[] => DOCTOR_TOOLS.filter((t) => !d.tools[t]?.ok);
 
 // ------------------------------------------------------------------ test results
 export const TestResultsSchema = z.strictObject({

@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { alignerModel, type ModelSpec } from '../adapters/align/ctc-onnx';
 import { HF_CMD } from '../core/config';
 import { type Deps, defaultDeps } from '../core/deps';
 import { VideoMachineError } from '../core/errors';
+import { checkModel } from './doctor';
 
 export const INSTALL_STEPS = ['venv', 'model', 'browser', 'parakeet'] as const;
 export type InstallStep = (typeof INSTALL_STEPS)[number];
@@ -40,11 +41,6 @@ export const installVenv = async (deps: Deps = defaultDeps()): Promise<string> =
   return `venv synced at ${venvDir}`;
 };
 
-const isModelValid = (m: ModelSpec): boolean => {
-  const stat = statSync(m.path, { throwIfNoEntry: false });
-  return !!stat?.isFile() && stat.size === m.bytes && sha256Of(readFileSync(m.path)) === m.sha256;
-};
-
 /**
  * Run one model operation. A VideoMachineError passes through; any other failure (network, disk, permissions)
  * becomes one that names the operation, the model path and a hint, so `install()` can record it and carry on.
@@ -69,7 +65,7 @@ export const installModel = async (deps: Deps = defaultDeps(), opts: InstallOpti
   const model = opts.model ?? alignerModel(deps.config.vmHome);
   const step = <T>(what: string, hint: string, fn: () => T | Promise<T>) => modelStep(what, model.path, hint, fn);
   const close = 'Close anything using the model and run setup again.';
-  if (await step('checking the aligner model', close, () => isModelValid(model)))
+  if (await step('checking the aligner model', close, () => checkModel(model).ok))
     return `aligner model already at ${model.path}`;
   // The aligner only checks that the file exists, so a corrupt one must not outlive a failed download.
   await step('removing the invalid aligner model', close, () => rmSync(model.path, { force: true }));
@@ -89,6 +85,7 @@ export const installModel = async (deps: Deps = defaultDeps(), opts: InstallOpti
     throw new VideoMachineError(
       `aligner model from ${model.url} is wrong: got ${bytes.length} bytes, sha256 ${sha}; expected ${model.bytes} bytes, sha256 ${model.sha256}. Nothing was installed.`,
     );
+  // ponytail: a crash between the write and the rename can leave a `<model>.<pid>.download` file; sweep them if it ever matters.
   const tmp = `${model.path}.${process.pid}.download`;
   await step('writing the aligner model', close, () => {
     try {
