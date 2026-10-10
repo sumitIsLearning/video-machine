@@ -1,5 +1,19 @@
 # Handoff
 
+## Now (2026-10-10): Phase 2 merged; concept-only spike done; Phase 3 plan next
+
+- `master` was fast-forwarded to `phase-2-setup-intake` (`5bb3d8f`), with the user's "keep going". Nothing has been pushed.
+- Spike (R10): `runs/spike-concept/` (git-ignored).
+  - `uv-reel.mp4` is a 10.9 s reel from a concept only, rendered in 23 s.
+  - The findings are in `runs/spike-concept/FINDINGS.md` (12 items).
+  - The ones for the blueprint:
+    - word lookup must be scoped by line;
+    - a text-fit helper is needed;
+    - `check` also needs `--no-browser-gpu`;
+    - captured fonts are unicode-range subsets, so they get `license: unknown` until resolved;
+    - Openverse is the v1 free-media source (no key; Pexels only with a creator key).
+- Waiting on the user: approval of those blueprint additions. Then write `docs/superpowers/plans/phase-3-*.md`.
+
 ## Phase 2 done (2026-10-10): branch `phase-2-setup-intake`, awaiting the user's merge OK
 
 - 18 commits on `phase-2-setup-intake` (base `363c229`, head after this HANDOFF commit).
