@@ -7,17 +7,20 @@ lines.json: {"lines": [{"text": ...}, ...], "spoken_words"?: {"5.5.": ["FIVE", "
 Writes <run_dir>/data/timing.json (word times, the engine's lyrics format) and <run_dir>/data/audio.json
 (voice envelopes, word onsets, nominal beat grid). Prints the timing.json path.
 """
-import json, sys, tempfile
+
+import json
+import sys
+import tempfile
 from pathlib import Path
 
 ANALYSIS = Path(__file__).resolve().parent / "analysis"
 sys.path.insert(0, str(ANALYSIS))
-import align_vo  # noqa: E402  (module-level paths are overridden below; MODEL/VOCAB keep pointing at analysis/models)
+import align_vo  # module-level paths are overridden below; MODEL/VOCAB keep pointing at analysis/models
 
 
 def main(audio: Path, lines_file: Path, run_dir: Path) -> Path:
     spec = json.loads(lines_file.read_text(encoding="utf-8"))
-    texts = [l["text"] for l in spec["lines"]]
+    texts = [line["text"] for line in spec["lines"]]
     if not texts:
         sys.exit("align: no lines")
     data = run_dir / "data"
@@ -35,10 +38,23 @@ def main(audio: Path, lines_file: Path, run_dir: Path) -> Path:
     # audio_vo.py is a flat script with fixed paths: run its source with those paths swapped in.
     # ponytail: text swap of three path expressions; asserts fail loudly if the script changes
     src = (ANALYSIS / "audio_vo.py").read_text(encoding="utf-8")
-    for old, new in [('ROOT / "audio" / "voiceover.mp3"', "_AUDIO"), ('ROOT / "data" / "lyrics.json"', "_TIMING"), ('ROOT / "data" / "audio.json"', "_OUT")]:
+    for old, new in [
+        ('ROOT / "audio" / "voiceover.mp3"', "_AUDIO"),
+        ('ROOT / "data" / "lyrics.json"', "_TIMING"),
+        ('ROOT / "data" / "audio.json"', "_OUT"),
+    ]:
         assert old in src, f"audio_vo.py changed: {old!r} not found"
         src = src.replace(old, new)
-    exec(compile(src, str(ANALYSIS / "audio_vo.py"), "exec"), {"__name__": "__main__", "__file__": str(ANALYSIS / "audio_vo.py"), "_AUDIO": audio, "_TIMING": timing, "_OUT": audio_json})
+    exec(
+        compile(src, str(ANALYSIS / "audio_vo.py"), "exec"),
+        {
+            "__name__": "__main__",
+            "__file__": str(ANALYSIS / "audio_vo.py"),
+            "_AUDIO": audio,
+            "_TIMING": timing,
+            "_OUT": audio_json,
+        },
+    )
     return timing
 
 

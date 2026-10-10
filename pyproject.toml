@@ -6,3 +6,16 @@ dependencies = [
     "numpy>=2.5.3",
     "onnxruntime>=1.30.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff==0.16.10",
+]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["lib/adapters/align/ctc-onnx/analysis", "tests/fixture", "runs"]  # vendored aligner scripts stay as lifted
+
+[tool.ruff.lint.per-file-ignores]
+# audio_vo.py is a flat script: align.py runs its patched source on purpose (see the ponytail note there)
+"lib/adapters/align/ctc-onnx/align.py" = ["S102"]
