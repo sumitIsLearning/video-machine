@@ -2,7 +2,7 @@
 
 ## Phase 2 done (2026-10-10): branch `phase-2-setup-intake`, awaiting the user's merge OK
 
-- 19 commits on `phase-2-setup-intake` (base `363c229`, head after this HANDOFF commit).
+- 18 commits on `phase-2-setup-intake` (base `363c229`, head after this HANDOFF commit).
   - `bun tests/phase2.ts` 11/11 on a fresh `VM_HOME`.
   - `bun test` 218 pass, lint clean.
   - Opus whole-branch review: APPROVE after the Task 10/10b fix wave.
