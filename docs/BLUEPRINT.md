@@ -48,7 +48,7 @@ The main design goal. A machine that turns every concept into the same look is a
    randomness, no wall clock, no state that survives a seek. (HyperFrames enforces part of this: one paused timeline per
    scene; breaking it freezes frames silently, so the checks catch it.)
 2. **Timing comes from a timing source, found by content.** With a voiceover, scenes refer to words by text
-   (`wordOf(line, "create")`), never by hard-coded seconds. A new read re-times the whole video for free.
+   (`wordOf(line, "create")`), never by hard-coded seconds. A lookup is always scoped to a line (`wordOf(line, word, nth)`); text alone is ambiguous across lines (spike 2026-10-10: "pip?" in line 1 matched for "pip," in line 3). A new read re-times the whole video for free.
 3. **`plan.json` is the source of truth.** Feedback edits the plan first, then regenerates the affected scenes. Hand
    edits to scene code survive only through the plan's `overrides` field.
 4. **One scene, every aspect ratio.** A scene is written once and lays itself out for the frame it is given (per-format
@@ -89,7 +89,7 @@ and Claude installs everything. The first user is the project owner, making reel
 | Inputs (user ruling 2026-10-10) | **`concept.md` is the only required input** (one line up to a full script). Everything else is optional and listed in `brief.sources[]`: navigation videos, product URL, files, reference links. |
 | Navigation video (user ruling 2026-10-10, replaces "reference only") | Source material. It teaches the flow; clean captures come from replaying it (M3). Its frames/clips may be rendered **only as a fallback** for a step replay can't capture (asset `origin: nav_video`, `usage` flipped to `render`). |
 | Research (user ruling 2026-10-10) | **Always runs, right after intake (M5).** Claude Code's WebSearch / WebFetch are part of the toolset, plus `hyperframes capture` of public pages. Output `research.md` with cited URLs. Any fact or number in the script carries its source (`cite`). |
-| Resources (user ruling 2026-10-10) | Claude makes and finds its own: graphics drawn in code (SVG/HTML/CSS within the look), captures of public pages, free-licence media (source picked after a Phase 3 probe), product captures. Every asset records `origin` and `license`; unknown licence never renders. **Paid AI image/video generation: Future**, behind the cost gate. |
+| Resources (user ruling 2026-10-10) | Claude makes and finds its own: graphics drawn in code (SVG/HTML/CSS within the look), captures of public pages, free-licence media (**Openverse** in v1, user ruling 2026-10-10: no key, licence + attribution per result; Pexels only if the creator adds a key), product captures. Every asset records `origin` and `license`; unknown licence never renders. **Paid AI image/video generation: Future**, behind the cost gate. |
 | Voice | **Kokoro via `hyperframes tts`** by default. Chatterbox (voice clone) later. ElevenLabs only behind the cost gate. |
 | Alignment | Existing **ctc-onnx** forced aligner (M10). `hyperframes transcribe` (Parakeet engine) only when there's no script. |
 | Avatar | Optional, built last (Phase 8). Local audio-driven (SadTalker / Wav2Lip / MuseTalk), HeyGen (paid), or a supplied clip. Background removed with `hyperframes remove-background`. |
@@ -162,14 +162,14 @@ Verify each call against the **installed** version before a phase plan uses it. 
 
 | Integration | Calls used | Where |
 |---|---|---|
-| HyperFrames CLI | `doctor --json`, `browser ensure`, `models install parakeet --json`, `init <name> --example blank --resolution portrait --non-interactive` (smoke test only), `capture <url> -o <dir> --skip-vision --json`, `transcribe <f> -d <dir> --json`, `tts <text> -o <wav> -v <voice> --json`, `remove-background <f> -o <out> --json`, `lint --json <dir>`, `check --json <dir>`, `snapshot <dir> --at t1,t2 --no-end --describe false -o <dir>`, `render <dir> --quality draft\|delivery --no-browser-gpu -o <f>` (+ `--format webm\|mov\|png-sequence` for alpha) | M0, M2, M5, M9, M11, M13, M17 |
+| HyperFrames CLI | `doctor --json`, `browser ensure`, `models install parakeet --json`, `init <name> --example blank --resolution portrait --non-interactive` (smoke test only), `capture <url> -o <dir> --skip-vision --json`, `transcribe <f> -d <dir> --json`, `tts <text> -o <wav> -v <voice> --json`, `remove-background <f> -o <out> --json`, `lint --json <dir>`, `check --json --no-browser-gpu <dir>`, `snapshot <dir> --at t1,t2 --no-end --describe false -o <dir>`, `render <dir> --quality draft\|delivery --no-browser-gpu -o <f>` (+ `--format webm\|mov\|png-sequence` for alpha) | M0, M2, M5, M9, M11, M13, M17 |
 | HyperFrames probe results (0.8.143) | `doctor --json` exits 0 with top-level `ok:false` when optional tools are missing: read `checks[]`. `lint`/`check --json` → `{ok, errorCount, warningCount, findings[{code, severity, message, selector, time}]}`, exit 1 on error; a lint error makes `check` skip its browser stages (`browserSkipped`). `check` reports contrast as an error (with `suggestedColor`) but off-canvas only as info (`panel_out_of_canvas`), so `layout.safe_area` stays ours. `snapshot` writes `frame-NN-at-Xs.png` + `contact-sheet.jpg`. Transparent background works in WebM (VP9 alpha) and MOV (ProRes 4444, exact colour) → AE gets layers. Frames are identical run to run in GPU and in software mode, but differ between the two modes. 30 s draft: 15 s GPU / 33 s software (simple scene). `tts` needs Python `kokoro-onnx` + `soundfile` (via `HYPERFRAMES_PYTHON`), outputs 24 kHz mono, warm ≈ 5 s per line. `transcribe`: whisper-cpp has no Windows install path, Parakeet works (640 MB), output `<dir>/transcript.json` = `[{id, text, start, end}]`. `capture` → `extracted/tokens.json` (colors, fonts, cssVariables), `visible-text.txt`, `screenshots/`. `remove-background` runs on CPU only here (≈ 0.6 s/frame). | M0–M17 |
 | HyperFrames composition contract | root `data-composition-id` + `data-start="0"` + `data-width/height`, `data-duration`; one `gsap.timeline({paused:true})` registered at `window.__timelines[id]`, built synchronously; `<video>`/`<audio>` playback owned by the framework. GSAP (3.14.2, as `init` scaffolds) is vendored into the run folder, never loaded from the CDN | M12 |
 | Playwright | `chromium.launchPersistentContext(profileDir, {viewport, recordVideo})`, `getByRole` / `getByText`, `boundingBox()`, `innerText('body')` | M3 |
 | ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists). Model: `Xenova/wav2vec2-base-960h` @ `a19f851b3d42865797e410752b4c570c871e4825`, `onnx/model_quantized.onnx`, 95 286 046 bytes, sha256 `cd5040c1…60a3`, fetched by setup into `<VM_HOME>/models/` | M0, M10 |
 | ffmpeg / ffprobe | `select='gt(scene,0.3)'`, segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
 | Claude Code WebSearch / WebFetch | Called by Claude from the skills (not from `lib/`); every used fact keeps its URL | M5, M8 |
-| Free-licence media source | Candidates: Openverse API (no key), Pexels API (free key). Probed before the Phase 3 plan; licence + attribution stored per asset | M5, M8 |
+| Free-licence media source | **Openverse API** (`api.openverse.org/v1/images|audio`, no key; anonymous 20/min, 200/day; each result has `license`, `license_version`, `license_url`, `attribution`, `creator`, `foreign_landing_url`). Pexels (free key in `.env`) only if Openverse coverage proves thin | M5, M8 |
 | HeyGen (optional, paid) | avatar generation, ~$1/min | M11, behind the cost gate |
 
 ## 2.4 Data models
@@ -359,7 +359,7 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - `whereAmI` (skips parts whose input is absent) + `/video-machine:status`.
 
 ### Phase 3 — Research and sources (M5, M2, M3, M4)
-- Probe first: WebSearch / WebFetch behaviour inside a skill, Openverse vs Pexels (licence fields, rate limits, keys).
+- Probed before this plan (spike 2026-10-10, `runs/spike-concept/FINDINGS.md`): WebSearch returns links plus a model summary and WebFetch returns a model answer, so `research.md` keeps the exact quote + URL per fact; Openverse is the media source. Captured fonts are unicode-range subsets: recorded as `font` assets with `license: unknown` until resolved (they never render).
 - Research skill: WebSearch / WebFetch with cited URLs, `hyperframes capture` of public pages (brand tokens, screenshots), free-licence media search → `research.md`, `capture/brand/`, found assets.
 - Video reader (only with a nav video): ffmpeg scene frames + 2 s fallback frames, numbered contact sheet, `hyperframes transcribe`, vision → `steps.json`.
 - Playwright replay (only with steps + product URL) with persistent profile, per-step shots / focus crops / page text / log, clip split at 30 fps all-intra; a step replay can't capture falls back to nav-video frames (asset flipped to `render`).
@@ -374,11 +374,11 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 
 ### Phase 5 — Voice and timing (M9, M10)
 - `voice/hf-tts` adapter (per-line synth, 0.25 s gaps, 48 kHz), `voice/supplied`; cost gate plumbing.
-- Wire the existing ctc-onnx aligner to the run folder; low-confidence lines fail loudly by name.
+- Wire the existing ctc-onnx aligner to the run folder; low-confidence lines fail loudly by name. The timing lookup in `lib/core` takes a line id (`wordOf(line, word, nth)`).
 - Acceptance: changing one script word re-times every scene.
 
 ### Phase 6 — Scenes, render, checks (M12, M13, M14)
-- `scene-writer` agent + HyperFrames composition rules; root `index.html`; per-format CSS variables; labels from timing.
+- `scene-writer` agent + HyperFrames composition rules; root `index.html`; per-format CSS variables; labels from timing. A `text-fit` helper in `lib/core` sizes text to its box per format (spike: a fixed size wrapped and crowded the frame).
 - `render/hyperframes` adapter: lint, check, snapshot sheet, draft render.
 - Checks HyperFrames lacks: safe area, min text size, beats on cues, no dead spans, determinism, reference-only, licensed, facts cited, captions match; 3-round auto-fix.
 - Acceptance: concept alone → draft reel MP4 with no scene edited by hand; a deliberately broken scene fails exactly the right checks.
