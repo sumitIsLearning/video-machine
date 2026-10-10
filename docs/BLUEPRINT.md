@@ -1,6 +1,6 @@
 # Video Machine — Project Blueprint
 
-> **Status:** Spec v1. **Last updated:** 2026-10-09
+> **Status:** Spec v1.1 (concept-first, any sources, reel first). **Last updated:** 2026-10-10
 > **Companion docs:** [AGENT_PROMPT.md](AGENT_PROMPT.md) (coding standard)
 > **Visual version:** https://claude.ai/artifact/CWKbFBDQDDUtzTjLy7j8nS (flowchart, per-part pseudocode, TTS and renderer comparisons)
 > **History:** supersedes the pdoom-era blueprint of 2026-10-06 (commit `2f13bff`, which restructured
@@ -13,13 +13,18 @@ Part ids `M0`–`M18` are used everywhere: in plans, tests, commit messages and 
 # Part 1 — Product Requirements (PRD)
 
 ## 1.1 Summary
-A Claude Code **plugin** that turns a **concept script** plus a **screen recording of someone using a product** into a short
-motion-graphics video for Instagram Reels / YouTube Shorts (1080×1920, 15–30 s), with an optional talking avatar.
-Claude researches, captures the product in a real browser, writes the script, makes storyboards from real frames, renders
-with HyperFrames, checks the result, and delivers MP4 + SRT (+ an After Effects handoff). The creator reviews at four gates.
+A Claude Code **plugin** that turns a **concept** (a one-line idea up to a full script) plus **any source material** the
+creator has (navigation videos, a product URL, files, reference links, or nothing) into a motion-graphics video, with an
+optional talking avatar. Claude researches on the web, gathers and makes its own assets (captures of public pages,
+free-licence media, graphics drawn in code, clean product captures in a real browser), writes the script, makes
+storyboards from real frames, renders with HyperFrames, checks the result, and delivers MP4 + SRT (+ an After Effects
+handoff). The creator reviews at four gates.
+
+**v1 builds the reel first** (Instagram Reels / YouTube Shorts, 1080×1920, 15–30 s). Nothing in the contracts is tied to
+one format or length: long-form 16:9 with chapters is its own later phase (Phase 9) on the same pipeline.
 
 ## 1.2 Problem
-Making a product reel means scripting, screen-recording clean footage, designing motion graphics, voicing, timing,
+Making a product video means researching, scripting, screen-recording clean footage, designing motion graphics, voicing, timing,
 captioning and exporting. That's days of work across several tools. Generic AI video tools produce template-looking output,
 and you can't edit what they make.
 
@@ -57,17 +62,21 @@ The main design goal. A machine that turns every concept into the same look is a
 
 ## 1.4 Users
 Creators who use Claude Code (or are willing to install it). They don't need to be developers: they say "set it up for me"
-and Claude installs everything. The first user is the project owner, making reels about software products.
+and Claude installs everything. The first user is the project owner, making reels (later long videos) about software products.
 
 ## 1.5 User stories
 1. As a creator, I say "set it up for me" on a fresh machine and Claude installs and verifies every dependency.
-2. I hand over a concept script, a navigation video and a product URL; Claude asks at most three questions.
-3. I see an assets panel of clean captures from my product and can drop or pin assets.
-4. I review the script as a table before any visuals are made.
-5. I review real storyboard frames, scene by scene, and my notes stick when scenes are regenerated.
-6. I watch a draft reel and give plain-language notes; only the affected scenes change.
-7. I get an MP4 ready to post, an SRT, and optionally an After Effects package.
-8. I can add an avatar that delivers some lines, layered over the motion graphics.
+2. I hand over a concept (one line or a full script) and whatever else I have (navigation videos, product URL, files,
+   links), or nothing else; Claude asks at most three questions.
+3. Claude researches the topic on the web and shows me what it found, with sources.
+4. I see an assets panel of everything gathered or made (my files, product captures, page captures, found media, drawn
+   graphics), each with its origin and licence, and can drop or pin assets.
+5. I review the script as a table before any visuals are made; every fact or number in it links to its source.
+6. I review real storyboard frames, scene by scene, and my notes stick when scenes are regenerated.
+7. I watch a draft and give plain-language notes; only the affected scenes change.
+8. I get an MP4 ready to post, an SRT, and optionally an After Effects package.
+9. I can add an avatar that delivers some lines, layered over the motion graphics.
+10. (Phase 9) I can ask for a long 16:9 video with chapters from the same kind of inputs.
 
 ## 1.6 Scope decisions (locked)
 | Decision | Resolution |
@@ -77,12 +86,15 @@ and Claude installs everything. The first user is the project owner, making reel
 | Review gates | **Four:** script (G1), storyboard per scene (G2), draft (G3), delivery formats (G4). Spend always asks too. |
 | Art directions (user ruling 2026-10-09) | Two directions, **three boards each** (hook, one product scene, ending) at G1→G2, so the creator judges each look on more than one frame. |
 | Product capture | **Playwright** with a persistent profile per product; the creator logs in once by hand. Claude never types passwords. |
-| Navigation video | `reference_only`: it teaches the flow and never appears in a render. |
+| Inputs (user ruling 2026-10-10) | **`concept.md` is the only required input** (one line up to a full script). Everything else is optional and listed in `brief.sources[]`: navigation videos, product URL, files, reference links. |
+| Navigation video (user ruling 2026-10-10, replaces "reference only") | Source material. It teaches the flow; clean captures come from replaying it (M3). Its frames/clips may be rendered **only as a fallback** for a step replay can't capture (asset `origin: nav_video`, `usage` flipped to `render`). |
+| Research (user ruling 2026-10-10) | **Always runs, right after intake (M5).** Claude Code's WebSearch / WebFetch are part of the toolset, plus `hyperframes capture` of public pages. Output `research.md` with cited URLs. Any fact or number in the script carries its source (`cite`). |
+| Resources (user ruling 2026-10-10) | Claude makes and finds its own: graphics drawn in code (SVG/HTML/CSS within the look), captures of public pages, free-licence media (source picked after a Phase 3 probe), product captures. Every asset records `origin` and `license`; unknown licence never renders. **Paid AI image/video generation: Future**, behind the cost gate. |
 | Voice | **Kokoro via `hyperframes tts`** by default. Chatterbox (voice clone) later. ElevenLabs only behind the cost gate. |
 | Alignment | Existing **ctc-onnx** forced aligner (M10). `hyperframes transcribe` (Parakeet engine) only when there's no script. |
 | Avatar | Optional, built last (Phase 8). Local audio-driven (SadTalker / Wav2Lip / MuseTalk), HeyGen (paid), or a supplied clip. Background removed with `hyperframes remove-background`. |
 | Language (user ruling 2026-10-09) | **English only in v1.** Another language (e.g. Hindi) later needs three things: Whisper through a prebuilt whisper.cpp `whisper-cli` + `HYPERFRAMES_WHISPER_PATH` (Parakeet covers European languages only), a multilingual aligner model (wav2vec2-base-960h is English-only), and a Kokoro voice for that language. |
-| Formats v1 | `reel` only. 16:9 later from the same scenes (layout via per-format CSS variables). |
+| Formats v1 (user ruling 2026-10-10) | **Reel built first**, end to end. Contracts stay format- and length-agnostic (`formats`, `duration_target_s` without a cap, optional `sections` for chapters). Long-form 16:9 is Phase 9, from the same pipeline (layout via per-format CSS variables). |
 | After Effects | Handoff only (layers or flattened scenes + `build_comp.jsx` with word markers). No editable keyframes. |
 | Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(User ruling 2026-10-09: off inside Video Machine; the machine-wide HyperFrames setting is left alone for now.)* |
 | Resolution | 1080p formats. 4K only as an opt-in, never the default. |
@@ -90,12 +102,12 @@ and Claude installs everything. The first user is the project owner, making reel
 | pdoom engine (kept from 2026-10-05/06 rulings) | Applies only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
 | Tooling (ruling 2026-10-06, kept) | `bun test`, `tsc --noEmit`, Biome (lint + format), ruff via uv. `engine/` and `tests/fixture/` are excluded from lint and format. |
 | Build team (ruling 2026-10-09, replaces 2026-10-06) | Orchestrator + `lib-builder`, `plugin-builder` + `spec-reviewer` + `code-reviewer`. A `visual-reviewer` joins in Phase 4. The old `skill-builder` / `look-builder` / `engine-builder` split assumed pdoom plates. |
-| Phase numbering (2026-10-09) | Phases 1–9 in Part 5 replace the old spec phases 1–5. The old "Phase 0 finish" items (canvas default, tooling) move into Phase 1. |
-| Out of scope | Web UI, server, database, accounts, template catalog, auto-posting, 4K by default, vlog/raw-footage editing (future). |
+| Phase numbering (2026-10-09; 2026-10-10 adds Phase 9 Long-form, Polish becomes 10) | Phases 1–10 in Part 5 replace the old spec phases 1–5. The old "Phase 0 finish" items (canvas default, tooling) move into Phase 1. |
+| Out of scope | Web UI, server, database, accounts, template catalog, auto-posting, 4K by default, vlog/raw-footage editing (future), paid AI media generation (future). |
 
 ## 1.7 Success metrics
 - Fresh Windows machine → passing smoke test from one "set it up for me", with no manual steps except approving installs and installing Claude Code.
-- Concept + navigation video → approved reel with every blocking check passing at delivery.
+- Concept alone → approved reel with every blocking check passing at delivery. Same with a concept + navigation video.
 - A 30 s draft renders in under 2 minutes on the reference laptop (RTX 3050 4 GB, Ryzen 7 7435HS).
 - A single-scene note ("make scene 3 slower") changes only that scene's file.
 
@@ -106,15 +118,15 @@ Claude (driven by the plugin's skills) runs small CLIs and writes validated file
 files and writes one checked file. Agents never pass state in memory.
 
 ```
-concept.md + input/nav.mp4 + url
-   │ M1 intake ─────────────► brief.json
-   │ M2 video reader ───────► capture/steps.json          (ffmpeg scenes + hyperframes transcribe + Claude vision)
-   │ M3 replay + capture ───► capture/shots|clips|text|log.json   (Playwright, persistent profile)
-   │ M4 assets panel ───────► assets.json                  (creator drops / pins)
-   │ M5 research ───────────► research.md, capture/brand/  (hyperframes capture for public pages)
-   │ M6 script ─────────────► script.json ── G1 ──┐
+concept.md (required) + input/* (any mix of nav videos, files) + URLs/links (optional)
+   │ M1 intake ─────────────► brief.json (sources[])
+   │ M5 research (always) ──► research.md (cited), capture/brand/, found media   (WebSearch/WebFetch, hyperframes capture)
+   │ M2 video reader ───────► capture/steps.json          only with a nav video (ffmpeg scenes + transcribe + vision)
+   │ M3 replay + capture ───► capture/shots|clips|text|log.json   only with steps + product URL (Playwright)
+   │ M4 assets panel ───────► assets.json                  one pool, origin + licence per asset (creator drops / pins)
+   │ M6 script ─────────────► script.json ── G1 ──┐        (facts carry `cite`)
    │ M7 looks ──────────────► directions/A|B       │
-   │ M8 storyboard ─────────► plan.json, boards/ ── G2 ──┐
+   │ M8 storyboard ─────────► plan.json, boards/ ── G2 ──┐  (may add gap assets: found or drawn)
    │ M9 voice ──────────────► audio/vo.wav               │  (hyperframes tts = Kokoro)
    │ M10 align ─────────────► data/timing.json           │  (ctc-onnx, exists)
    │ M11 avatar (optional) ─► avatar/<seg>.webm          │
@@ -125,6 +137,9 @@ concept.md + input/nav.mp4 + url
    └ M17 export ── G4 ──────► out/deliver/*
 M0 setup/doctor runs once per machine → ~/.video-machine/doctor.json.  M18 = run folder + Zod contracts under all of it.
 ```
+
+Part ids keep their numbers; the order above is the run order (research M5 runs before M2–M4). Parts whose input is
+absent (no nav video → M2, M3) are skipped and `whereAmI` moves on.
 
 Feedback routing (M15): words → M9 onward; what/when → plan → M12; one scene / look / one format → M12 for the affected scenes only.
 
@@ -153,6 +168,8 @@ Verify each call against the **installed** version before a phase plan uses it. 
 | Playwright | `chromium.launchPersistentContext(profileDir, {viewport, recordVideo})`, `getByRole` / `getByText`, `boundingBox()`, `innerText('body')` | M3 |
 | ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists) | M10 |
 | ffmpeg / ffprobe | `select='gt(scene,0.3)'`, segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
+| Claude Code WebSearch / WebFetch | Called by Claude from the skills (not from `lib/`); every used fact keeps its URL | M5, M8 |
+| Free-licence media source | Candidates: Openverse API (no key), Pexels API (free key). Probed before the Phase 3 plan; licence + attribution stored per asset | M5, M8 |
 | HeyGen (optional, paid) | avatar generation, ~$1/min | M11, behind the cost gate |
 
 ## 2.4 Data models
@@ -162,9 +179,11 @@ Changes and additions:
 
 | Model | Change |
 |---|---|
-| `Script.lines[]` | add `delivery: "voiceover" \| "avatar"` (default `"voiceover"`) |
-| `PlatePlan` → `ScenePlan` | rename (`plate_id` → `scene_id`); `Plan.visuals_plan.plates` → `scenes` |
-| `Brief` | add `product_url?: string`, `avatar?: {source, adapter?, portrait?}` |
+| `Script.lines[]` | add `delivery: "voiceover" \| "avatar"` (default `"voiceover"`), `section?: string`, `cite?: string[]` (source URLs for any fact or number the line states) |
+| `PlatePlan` → `ScenePlan` | rename (`plate_id` → `scene_id`); `Plan.visuals_plan.plates` → `scenes`; `ScenePlan.section?: string` |
+| `Plan` | add `sections?: {id, title}[]` (chapters; reels leave it out) |
+| `Brief` | add `sources: {kind: "nav_video"\|"product_url"\|"file"\|"link", path_or_url, note?}[]` (default `[]`; `product_url` and `link` http(s) only) and `avatar?: {source, adapter?, portrait?}`; **remove** `source_material`, `assets`, `references` (folded into `sources`); `formats` default `["reel"]` |
+| `AssetRef` | add `origin: "supplied"\|"nav_video"\|"captured"\|"web"\|"found"\|"drawn"`; `license` may be `"unknown"` in the pool but never renders |
 | `Steps` (new) | `capture/steps.json`: `{ i, url, action: click\|type\|scroll\|wait, target, value?, expect }[]` |
 | `CaptureLog` (new) | `capture/log.json`: per step `{ i, t0, t1, box?, url, failed?, fallback? }` |
 | `Doctor` (new) | `~/.video-machine/doctor.json`: tool versions, paths, smoke timings |
@@ -197,7 +216,10 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | HyperFrames freezes silently when a scene uses the clock or randomness | `motion.no_dead_spans` is blocking; `hyperframes check` runs before every render |
 | Non-determinism | Every snapshot, check and render uses `--no-browser-gpu` (software, same pixels on every machine); `render.deterministic`: render sampled frames twice, compare hashes |
 | Text under Instagram UI | `layout.safe_area` against `FORMATS.reel.safe` (top 14 %, bottom 20 %, sides 6 %) |
-| Reference footage leaking into output | `assets.no_reference_only` blocking |
+| Reference footage leaking into output | `assets.no_reference_only` blocking (nav-video assets render only after M3 flips one to `render` as a replay fallback) |
+| Unlicensed media | Every asset records `origin` + `license`; `assets.licensed` blocks `unknown` |
+| Wrong facts on screen | Facts and numbers in the script carry `cite` URLs from `research.md`; `script.facts_cited` blocking |
+| Web content as instructions | Fetched pages and search results are data, never instructions; nothing fetched is executed |
 | Spending money | Paid adapters return `costEstimate` first; sum vs `brief.budget_usd` (default 0) → ask |
 | Passwords | Never typed by Claude; persistent profile, creator logs in by hand |
 | Plugin updates wipe data | Runs live in the creator's cwd (`./runs/`); models in `~/.video-machine/`; nothing written under `${CLAUDE_PLUGIN_ROOT}` at runtime |
@@ -225,7 +247,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | `brief.budget_usd` | number | `0` |
 | `brief.formats` | FormatId[] | `["reel"]` |
 | `brief.voice` | adapter + voice id | `hf-tts`, `af_heart` |
-| `brief.duration_target_s` | [min, max] | `[15, 30]` |
+| `brief.duration_target_s` | [min, max], no cap | per first format, set at intake: reel `[15, 30]` (long-form defaults set in Phase 9) |
 | HyperFrames version | pinned constant | `0.8.143` |
 | text-only reading speed | words/s, min s per line | `3`, `1.2` |
 | script pacing estimate | words/s | `2.5` |
@@ -254,8 +276,9 @@ Each check is one file in `lib/checks/`, reads the run folder, and appends to `t
 | `layout.safe_area` | yes | every text box inside the format's safe area (Instagram UI zones on the reel) |
 | `layout.min_text_size` | yes on reel | text height ≥ 3.5 % of frame height on vertical, 2.5 % on landscape |
 | `layout.no_overflow` | yes | HF: no text box leaves the frame or overlaps another |
-| `assets.no_reference_only` | yes | no `reference_only` path (e.g. the navigation video) in any scene or render input |
-| `assets.licensed` | yes | every used asset and font has a non-empty `license` |
+| `assets.no_reference_only` | yes | no `reference_only` path (e.g. a nav video not flipped to fallback) in any scene or render input |
+| `assets.licensed` | yes | every used asset and font has a non-empty `license` other than `unknown` |
+| `script.facts_cited` | yes | every line whose spoken or on-screen text contains a digit has ≥ 1 `cite`; every `cite` URL appears in `research.md` (other facts: Claude adds `cite`, the creator reviews at G1) |
 | `audio.loudness` | yes on final | integrated −14 LUFS ±1, true peak ≤ −1 dBTP (ffmpeg `ebur128`) |
 | `captions.match` | yes if burned | caption text equals the script; each word visible during its spoken time |
 | `deliver.files` | yes on final | every deliverable exists, plays (ffprobe), right size, fps and duration |
@@ -280,8 +303,9 @@ video-machine/                      # repo = the plugin and its own marketplace
     plugin.json                     # plugin manifest
     marketplace.json                # makes the repo installable with /plugin marketplace add
   skills/                           # SHIPPED skills (the product's procedure)
-    make-reel/SKILL.md              # M1–M17 procedure, < 150 lines, points to the others
+    make-video/SKILL.md             # M1–M17 procedure, < 150 lines, points to the others
     setup/SKILL.md                  # M0
+    research/SKILL.md               # M5 (web research, page captures, found media)
     capture/SKILL.md                # M2–M4
     storyboard/SKILL.md             # M7–M8
     review/SKILL.md                 # M15 routing rules
@@ -320,29 +344,31 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 
 ### Phase 1 — Foundation and spike (Step 0)
 - Move contracts and adapters to `lib/`; fix imports and the align adapter's workspace path; Phase 0 test still passes.
-- Plugin manifest + marketplace; `claude --plugin-dir .` loads a placeholder `make-reel` skill.
+- Plugin manifest + marketplace; `claude --plugin-dir .` loads a placeholder `make-video` skill.
 - Tooling (old "Phase 0 finish"): `tsconfig.json`, Biome, ruff, `bun run lint` / `bun run format` scripts, `bun test` with one unit test.
 - pdoom canvas default (old "Phase 0 finish"): software Canvas2D by default in `render/pdoom`; make `tests/phase0.ts` match.
 - `lib/core`: `config.ts` (only env reader), `errors.ts` (`VideoMachineError` + subclasses), `sh.ts` (timeout + Windows tree kill).
-- Contract changes from 2.4 (`delivery`, `ScenePlan` rename, `product_url`, `Steps`, `CaptureLog`, `Doctor`).
+- Contract changes from 2.4 (`delivery`, `section`, `cite`, `ScenePlan` rename, `Plan.sections`, `Brief.sources`, `AssetRef.origin`, `Steps`, `CaptureLog`, `Doctor`).
 - ~~Probe HyperFrames 0.8.143~~ done 2026-10-09 (results in 2.3).
-- **Spike (orchestrator + user, throwaway, `runs/spike-*`):** one 15 s reel by hand from real inputs with HyperFrames directly. Findings update this blueprint.
+- **Spike (orchestrator + user, throwaway, `runs/spike-*`):** one 15 s reel by hand from a **concept only** (web research, page captures, drawn graphics) with HyperFrames directly; a nav video is used if the user has one. Findings update this blueprint.
 
 ### Phase 2 — Setup and intake (M0, M1)
 - `setup` skill + `doctor` CLI (install via winget/brew/apt with approval, pinned HyperFrames, `doctor`, `skills check`, Kokoro packages in the uv venv, `models install parakeet`, aligner model fetch with sha256, smoke test).
-- `make-reel` intake: run folder, verbatim inputs, ≤ 3 blocking questions with defaults, `brief.json`.
-- `whereAmI` + `/video-machine:status`.
+- `make-video` intake: run folder, verbatim inputs, `sources[]` from whatever was handed over, ≤ 3 blocking questions with defaults, `brief.json`.
+- `whereAmI` (skips parts whose input is absent) + `/video-machine:status`.
 
-### Phase 3 — Capture (M2, M3, M4)
-- Video reader: ffmpeg scene frames + 2 s fallback frames, numbered contact sheet, `hyperframes transcribe`, vision → `steps.json`.
-- Playwright replay with persistent profile, per-step shots / focus crops / page text / log, clip split at 30 fps all-intra, fallback to nav-video frames.
-- Assets panel page + `assets.json`; drop/pin marks applied.
-- Acceptance: a public product's navigation video → steps, clips and panel, with failed steps named. Then one logged-in product.
+### Phase 3 — Research and sources (M5, M2, M3, M4)
+- Probe first: WebSearch / WebFetch behaviour inside a skill, Openverse vs Pexels (licence fields, rate limits, keys).
+- Research skill: WebSearch / WebFetch with cited URLs, `hyperframes capture` of public pages (brand tokens, screenshots), free-licence media search → `research.md`, `capture/brand/`, found assets.
+- Video reader (only with a nav video): ffmpeg scene frames + 2 s fallback frames, numbered contact sheet, `hyperframes transcribe`, vision → `steps.json`.
+- Playwright replay (only with steps + product URL) with persistent profile, per-step shots / focus crops / page text / log, clip split at 30 fps all-intra; a step replay can't capture falls back to nav-video frames (asset flipped to `render`).
+- Assets panel page + `assets.json` (one pool, origin + licence shown); drop/pin marks applied.
+- Acceptance: a concept alone → cited `research.md` + asset pool with origins and licences. Then a public product's nav video → steps, clips and panel, with failed steps named. Then one logged-in product.
 
-### Phase 4 — Write and design (M5, M6, M7, M8)
-- Research (page text first, `hyperframes capture` brand tokens, web check), script with `spoken` / `on_screen` / `delivery`.
+### Phase 4 — Write and design (M6, M7, M8)
+- Script with `spoken` / `on_screen` / `delivery` / `cite`.
 - Two look directions (differ in ≥ 2 of palette, type, motion, motifs), three boards each (hook, product scene, ending) + `look.directions_differ`.
-- Storyboard: `plan.json` with coverage check, scenes drafted with estimated timing, snapshots → board page; G2 notes → `overrides`.
+- Storyboard: `plan.json` with coverage check, scenes drafted with estimated timing, snapshots → board page; G2 notes → `overrides`. Gaps in the pool are filled here (found media, or graphics drawn in code).
 - Add a `visual-reviewer` agent (from the ui-reviewer template) for boards and contact sheets.
 
 ### Phase 5 — Voice and timing (M9, M10)
@@ -353,8 +379,8 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 ### Phase 6 — Scenes, render, checks (M12, M13, M14)
 - `scene-writer` agent + HyperFrames composition rules; root `index.html`; per-format CSS variables; labels from timing.
 - `render/hyperframes` adapter: lint, check, snapshot sheet, draft render.
-- Checks HyperFrames lacks: safe area, min text size, beats on cues, no dead spans, determinism, reference-only, captions match; 3-round auto-fix.
-- Acceptance: concept → draft reel MP4 with no scene edited by hand; a deliberately broken scene fails exactly the right checks.
+- Checks HyperFrames lacks: safe area, min text size, beats on cues, no dead spans, determinism, reference-only, licensed, facts cited, captions match; 3-round auto-fix.
+- Acceptance: concept alone → draft reel MP4 with no scene edited by hand; a deliberately broken scene fails exactly the right checks.
 
 ### Phase 7 — Revise, sound, deliver (M15, M16, M17)
 - Feedback router + `history/` snapshots + `input_hash` partial regeneration.
@@ -366,9 +392,14 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - `avatar-director` agent; one local audio-driven adapter (pick after a GPU test on the reference laptop), `supplied`, HeyGen behind the cost gate.
 - `hyperframes remove-background` → transparent `.webm`; placement per scene.
 
-### Phase 9 — Polish
+### Phase 9 — Long-form (16:9 with chapters)
+- `landscape_1080p` end to end; `Plan.sections` / `Script.lines[].section` as chapters; chapter cards; long-form duration
+  defaults; scene writing and checks that scale to multi-minute timelines (render time and memory measured first).
+- Acceptance: a 2–3 min 16:9 video with chapters from a concept alone, every blocking check passing.
+
+### Phase 10 — Polish
 - README, install guide, marketplace publish, licence check, end-to-end run on a second machine.
 
-### Future (not v1)
-16:9 YouTube format, Chatterbox voice-clone adapter, vlog / raw-footage editing, square and portrait-feed formats,
-second art-direction pack library growth, HeyGen Cloud rendering.
+### Future
+Paid AI image / video generation (behind the cost gate), Chatterbox voice-clone adapter, vlog / raw-footage editing,
+square and portrait-feed formats, second art-direction pack library growth, HeyGen Cloud rendering.

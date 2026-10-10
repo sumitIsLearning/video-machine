@@ -28,7 +28,7 @@ Do not scan the repo, read other plans, or read `.env`. If the task is unclear o
 
 ## How to work
 - Test first (superpowers:writing-skills): run the task's baseline scenario without the skill change, record what goes wrong, then write the skill and run the scenario again. Report both runs.
-- Skills stay short: `make-reel/SKILL.md` under 150 lines; detail goes into the other skills it points to.
+- Skills stay short: `make-video/SKILL.md` under 150 lines; detail goes into the other skills it points to.
 - Skills name adapters by role, never a specific engine, except inside that adapter's own instructions.
 - Refer to plugin files through `${CLAUDE_PLUGIN_ROOT}`; runs go in the creator's `./runs/`. Never tell Claude to write under the plugin root at runtime.
 - Every gate (G1–G4) and every paid call must stop and ask the creator.
