@@ -1,5 +1,27 @@
 # Handoff
 
+## Phase 1 done (2026-10-10): branch `phase-1-foundation`, awaiting the user's merge OK
+
+- 17 commits on `phase-1-foundation` (master at `a4d1e8b`). `bun tests/phase1.ts` 7/7, `bun test` 79 pass, lint clean
+  (`biome --error-on-warnings`), phase0 2/2. Opus whole-branch review: APPROVE after Task 10 fix wave.
+- **pdoom retired** (user ruling): `engine/`, `render/pdoom`, `tests/baseline/`, pdoom fixture scenes deleted. The aligner's
+  Python + model now live in `lib/adapters/align/ctc-onnx/analysis/` (model git-ignored, copy by hand on a new machine).
+- **Phase 2 plan must include** (from the Opus review):
+  - uv venv at `<vmHome>/venv` (`UV_PROJECT_ENVIRONMENT` in toolEnv) and `uv run --frozen`; nothing written under the
+    plugin root at run time (BLUEPRINT 2.6).
+  - Aligner model under `vmHome` (doctor fetches it with sha256), passed to `align.py` (override `align_vo.MODEL`/`VOCAB`),
+    existence checked before `uv` starts.
+  - `runPath` schema (relative, no `..`, no drive letter or backslash) on every run-folder path field
+    (`sources[].path_or_url` for nav_video/file, voice/music path, avatar.portrait, brand logo/fonts, `AssetRef.path`).
+  - `InputError` subclass for bad creator inputs (CLI JSON needs a meaningful error name).
+- **Phase 3 plan:** resolve `file`/`nav_video` paths inside the run folder when opened.
+- **Before Phase 4/5:** the aligner takes `text` + a `spokenWords` map; M10 callers build it from `spoken` (types.ts comment).
+- **Before Phase 8:** a paid adapter that needs an API key adds an allowlist to `sh` (it strips `*_KEY` etc.).
+- Deferred minors (accepted): POSIX tree-kill untested; taskkill fallback untested; uncapped stdout (text only); an
+  exited child whose grandchild holds the pipes waits `timeoutMs` + 2 s; no adapter-imports-adapter scan; check 4
+  passes on a report with no `manifest`; `audio/` folder check is case-sensitive; phase0 ignores extra syllables.
+- Visual blueprint artifact still shows the v1 pipeline: refresh it.
+
 ## Now (2026-10-10): blueprint v1.1, Phase 1 running on branch `phase-1-foundation`
 
 - **User rulings 2026-10-10 (BLUEPRINT v1.1, `e293e48`):** concept is the only required input; everything else is
