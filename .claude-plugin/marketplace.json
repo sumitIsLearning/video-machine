@@ -1,0 +1,12 @@
+{
+  "name": "video-machine",
+  "description": "Marketplace for the Video Machine Claude Code plugin.",
+  "owner": { "name": "Sumit Chakraborty" },
+  "plugins": [
+    {
+      "name": "video-machine",
+      "source": "./",
+      "description": "Concept + any source material to a motion-graphics video (reels first)."
+    }
+  ]
+}
