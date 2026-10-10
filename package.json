@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "tsc --noEmit && biome check . && uv run ruff check",
+    "lint": "tsc --noEmit && biome check --error-on-warnings . && uv run ruff check",
     "format": "biome check --write . && uv run ruff format"
   },
   "devDependencies": {
