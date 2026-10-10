@@ -6,9 +6,9 @@
 // 4. video-testing's file list and sizes (excluding app/node_modules) match the listing taken before Phase 0
 import path from 'node:path';
 import { readFileSync, readdirSync, statSync, rmSync, mkdirSync, copyFileSync } from 'node:fs';
-import { pdoom } from '../.claude/skills/video-machine/adapters/render/pdoom';
-import { align } from '../.claude/skills/video-machine/adapters/align/ctc-onnx';
-import { readJson, TimingSchema } from '../.claude/skills/video-machine/contracts/types';
+import { pdoom } from '../lib/adapters/render/pdoom';
+import { align } from '../lib/adapters/align/ctc-onnx';
+import { readJson, TimingSchema } from '../lib/contracts/types';
 
 const WS = path.resolve(import.meta.dir, '..');
 const FIXTURE = path.join(WS, 'tests/fixture');

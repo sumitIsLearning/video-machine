@@ -10,7 +10,7 @@ Writes <run_dir>/data/timing.json (word times, the engine's lyrics format) and <
 import json, sys, tempfile
 from pathlib import Path
 
-ANALYSIS = Path(__file__).resolve().parents[6] / "engine" / "analysis"
+ANALYSIS = Path(__file__).resolve().parents[4] / "engine" / "analysis"
 sys.path.insert(0, str(ANALYSIS))
 import align_vo  # noqa: E402  (module-level paths are overridden below; MODEL/VOCAB keep pointing at engine/analysis/models)
 

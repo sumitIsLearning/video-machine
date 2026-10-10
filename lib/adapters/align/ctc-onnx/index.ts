@@ -4,7 +4,7 @@ import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { readJson, TimingSchema, type AlignAdapter, type Script } from '../../../contracts/types';
 
-const WORKSPACE = path.resolve(import.meta.dir, '../../../../../..');
+const WORKSPACE = path.resolve(import.meta.dir, '../../../..');
 
 /**
  * Align `audioPath` (inside <run>/audio/) against `lines`; writes <run>/data/timing.json and audio.json.

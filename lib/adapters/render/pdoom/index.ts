@@ -3,7 +3,7 @@
 import path from 'node:path';
 import { FORMATS, type FormatId, type LayerPass, type RenderAdapter } from '../../../contracts/types';
 
-const WORKSPACE = path.resolve(import.meta.dir, '../../../../../..');
+const WORKSPACE = path.resolve(import.meta.dir, '../../../..');
 const ENGINE = path.join(WORKSPACE, 'engine');
 // pinned bun: bun 1.3.x on Windows cannot launch Chrome through Playwright's pipe
 const BUN = path.join(WORKSPACE, 'node_modules/.bin', process.platform === 'win32' ? 'bun.exe' : 'bun');
