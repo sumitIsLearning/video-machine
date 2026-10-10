@@ -101,7 +101,9 @@ test.skipIf(process.platform !== 'win32')(
   'on Windows the timeout kills the whole process tree, not just the child',
   async () => {
     const pidFile = path.join(mkdtempSync(path.join(tmpdir(), 'vm-')), 'gc.pid').replaceAll('\\', '/');
-    const script = `require('fs').writeFileSync('${pidFile}', String(process.pid)); setInterval(() => {}, 1e6)`;
+    // cmd reads > < | & ^ as redirects and operators, so none may reach it: "=>" would create a file named "{}".
+    const script = `require('fs').writeFileSync('${pidFile}', String(process.pid)); setInterval(Object, 1e6)`;
+    expect(script).not.toMatch(/[<>|&^]/);
     const e = await sh(['cmd', '/c', process.execPath, '-e', script], { timeoutMs: 2000 }).catch((x: unknown) => x);
     expect((e as ToolError).timedOut).toBe(true);
     expect(existsSync(pidFile)).toBe(true); // the grandchild really started

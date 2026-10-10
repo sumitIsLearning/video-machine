@@ -1,6 +1,7 @@
 // Data contracts for the Video Machine (spec §3) and adapter contracts (§4).
 // Every JSON file the skill writes goes through writeJson/readJson: a failed parse is an error, never a warning.
 
+import path from 'node:path';
 import { z } from 'zod';
 
 // ------------------------------------------------------------------ formats
@@ -24,6 +25,10 @@ export const frameOf = (f: FormatId): Frame => {
   return { w, h, safe, aspect: w > h ? 'landscape' : w < h ? 'vertical' : 'square' };
 };
 
+/** Intake fills `duration_target_s` from the first format when the creator gives none (BLUEPRINT 2.7). */
+// ponytail: reel only; long-form defaults come with Phase 9.
+export const DURATION_DEFAULTS: Partial<Record<FormatId, [number, number]>> = { reel: [15, 30] };
+
 const formatRecord = <T extends z.ZodType>(v: T) => z.partialRecord(FormatIdSchema, v);
 // No credentials in URLs: they would leak into run folders and logs.
 const httpUrl = z.url({ protocol: /^https?$/ }).refine((u) => {
@@ -32,6 +37,21 @@ const httpUrl = z.url({ protocol: /^https?$/ }).refine((u) => {
   const { username, password } = new URL(u);
   return !username && !password;
 }, 'URL must not contain a username or password');
+
+// Paths inside run-folder JSON are run-relative POSIX paths (AGENT_PROMPT §9): never absolute, never climbing out.
+export const RunPathSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (p) =>
+      !p.includes('\\') &&
+      !p.includes('\0') &&
+      !p.includes(':') && // drive letters and Windows alternate data streams (a.mp4:s)
+      !p.startsWith('/') &&
+      !p.split('/').includes('..') &&
+      path.posix.normalize(p).replace(/\/+$/, '') !== '.', // the run folder itself
+    'must be a run-relative POSIX path to a file (no "..", ":", NUL, leading "/", backslash, or the run folder itself)',
+  );
 
 // Every schema for a file Claude writes is strict (z.strictObject): a misspelt key is an error, not silently dropped.
 const addDuplicateIssues = (ids: string[], label: string, ctx: z.core.$RefinementCtx, path: (string | number)[]) => {
@@ -52,7 +72,7 @@ export type Deliverable = z.infer<typeof DeliverableSchema>;
 
 // brief.sources: whatever the creator handed over besides concept.md (BLUEPRINT 1.6 Inputs). Empty = concept only.
 export const SourceSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.enum(['nav_video', 'file']), path_or_url: z.string().min(1), note: z.string().optional() }),
+  z.strictObject({ kind: z.enum(['nav_video', 'file']), path_or_url: RunPathSchema, note: z.string().optional() }),
   z.strictObject({ kind: z.enum(['product_url', 'link']), path_or_url: httpUrl, note: z.string().optional() }),
 ]);
 export type Source = z.infer<typeof SourceSchema>;
@@ -67,13 +87,13 @@ export const BriefSchema = z.strictObject({
   timing_source: z.enum(['voiceover', 'music', 'text_only']),
   voice: z
     .discriminatedUnion('source', [
-      z.strictObject({ source: z.literal('supplied'), path: z.string() }),
+      z.strictObject({ source: z.literal('supplied'), path: RunPathSchema }),
       z.strictObject({ source: z.literal('tts'), adapter: z.string(), voice_id: z.string() }),
     ])
     .optional(),
   music: z
     .discriminatedUnion('source', [
-      z.strictObject({ source: z.literal('supplied'), path: z.string() }),
+      z.strictObject({ source: z.literal('supplied'), path: RunPathSchema }),
       z.strictObject({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
     ])
     .optional(),
@@ -85,13 +105,13 @@ export const BriefSchema = z.strictObject({
     .strictObject({
       source: z.enum(['adapter', 'supplied']),
       adapter: z.string().optional(),
-      portrait: z.string().optional(),
+      portrait: RunPathSchema.optional(),
     })
     .optional(),
   look_hint: z.string().optional(),
   brand: z
     .strictObject({
-      logo: z.string().optional(),
+      logo: RunPathSchema.optional(),
       colors: z
         .array(
           z.strictObject({
@@ -101,7 +121,7 @@ export const BriefSchema = z.strictObject({
         )
         .optional(),
       fonts: z
-        .array(z.strictObject({ family: z.string(), path: z.string().optional(), license: z.string().min(1) }))
+        .array(z.strictObject({ family: z.string(), path: RunPathSchema.optional(), license: z.string().min(1) }))
         .optional(),
     })
     .optional(),
@@ -111,6 +131,9 @@ export const BriefSchema = z.strictObject({
   budget_usd: z.number().min(0).default(0),
 });
 export type Brief = z.infer<typeof BriefSchema>;
+
+/** The default voice when the timing source is a voiceover (BLUEPRINT 2.7): Kokoro through HyperFrames. */
+export const DEFAULT_VOICE = { source: 'tts', adapter: 'hf-tts', voice_id: 'af_heart' } as const;
 
 // ------------------------------------------------------------------ script
 export const ScriptSchema = z
@@ -246,7 +269,7 @@ export type Plan = z.infer<typeof PlanSchema>;
 export const AssetRefSchema = z.strictObject({
   asset_id: z.string(),
   kind: z.enum(['image', 'video', 'audio', 'font', 'svg', 'data']),
-  path: z.string(),
+  path: RunPathSchema,
   source: z.string(),
   license: z.string(),
   usage: z.enum(['render', 'reference_only']),
@@ -303,7 +326,7 @@ export const CaptureLogSchema = z.array(
         .optional(),
       url: z.string(),
       failed: z.string().optional(), // why the step failed, in words
-      fallback: z.string().optional(), // run-relative path of the nav-video frame used instead
+      fallback: RunPathSchema.optional(), // run-relative path of the nav-video frame used instead
     })
     .refine((e) => e.t1 >= e.t0, { message: 't1 is before t0', path: ['t1'] }),
 );

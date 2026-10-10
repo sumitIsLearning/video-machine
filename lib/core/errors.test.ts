@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { ContractError, ToolError, UnsupportedError, VideoMachineError } from './errors';
+import { ContractError, InputError, ToolError, UnsupportedError, VideoMachineError } from './errors';
 
 test('subclasses are VideoMachineErrors and carry their own name', () => {
   for (const e of [new ContractError('x'), new UnsupportedError('y')]) {
@@ -25,6 +25,13 @@ test('ToolError keeps the command, exit code and only the last 2 KB of stderr', 
   expect(e.stderrTail.endsWith('END')).toBe(true);
   expect(e.message).toContain('ffmpeg -i x.mp4');
   expect(e.message).toContain('exit 3');
+});
+
+test('InputError is a VideoMachineError named InputError', () => {
+  const e = new InputError('concept is empty');
+  expect(e).toBeInstanceOf(VideoMachineError);
+  expect(e.name).toBe('InputError');
+  expect(e.message).toBe('concept is empty');
 });
 
 test('ToolError says when the command timed out', () => {

@@ -3,9 +3,12 @@ import {
   AssetRefSchema,
   BriefSchema,
   CaptureLogSchema,
+  DEFAULT_VOICE,
   DoctorSchema,
+  DURATION_DEFAULTS,
   frameOf,
   PlanSchema,
+  RunPathSchema,
   ScenePlanSchema,
   ScriptSchema,
   StepsSchema,
@@ -258,4 +261,66 @@ test('doctor.json records tool versions, paths and smoke timings', () => {
   });
   expect(d.tools.hyperframes?.version).toBe('0.8.143');
   expect(DoctorSchema.safeParse({ checked_at: 'yesterday', tools: {}, smoke_s: {} }).success).toBe(false);
+});
+
+test('run paths are relative POSIX paths inside the run folder', () => {
+  for (const ok of ['input/nav.mp4', 'capture/clips/3.mp4', 'concept.md', './input/a.png'])
+    expect(RunPathSchema.safeParse(ok).success).toBe(true);
+  for (const bad of [
+    '',
+    '..',
+    '../x.mp4',
+    'input/../../x.mp4',
+    'C:/Users/me/a.mp4',
+    'c:a.mp4',
+    '/etc/passwd',
+    'input\\a.mp4',
+    'C:\\a.mp4',
+    '.',
+    './',
+    'a/..',
+    'input/\0x',
+    'input/a.mp4:s',
+  ])
+    expect(RunPathSchema.safeParse(bad).success).toBe(false);
+});
+
+const abs = 'C:/Users/me/x.mp4';
+test.each([
+  ['sources nav_video', { sources: [{ kind: 'nav_video', path_or_url: abs }] }],
+  ['sources file', { sources: [{ kind: 'file', path_or_url: '../x.png' }] }],
+  ['voice.path', { voice: { source: 'supplied', path: abs } }],
+  ['music.path', { music: { source: 'supplied', path: '/music.wav' } }],
+  ['avatar.portrait', { avatar: { source: 'supplied', portrait: abs } }],
+  ['brand.logo', { brand: { logo: abs } }],
+  ['brand.fonts[].path', { brand: { fonts: [{ family: 'Inter', path: '..\\Inter.ttf', license: 'OFL' }] } }],
+])('a brief refuses a non-run path in %s', (_field, extra) => {
+  expect(BriefSchema.safeParse({ ...brief, ...extra }).success).toBe(false);
+});
+
+test('a brief with a run path in every creator-file field is valid', () => {
+  const good = {
+    ...brief,
+    sources: [{ kind: 'nav_video', path_or_url: 'input/nav.mp4' }],
+    voice: { source: 'supplied', path: 'input/vo.wav' },
+    music: { source: 'supplied', path: 'input/m.wav' },
+    avatar: { source: 'supplied', portrait: 'input/me.png' },
+    brand: { logo: 'input/logo.svg', fonts: [{ family: 'Inter', path: 'input/Inter.ttf', license: 'OFL' }] },
+  };
+  expect(BriefSchema.safeParse(good).success).toBe(true);
+});
+
+test('asset paths and capture fallbacks are run paths', () => {
+  expect(AssetRefSchema.safeParse({ ...asset, origin: 'captured', path: 'C:/shots/1.png' }).success).toBe(false);
+  expect(CaptureLogSchema.safeParse([{ ...entry, fallback: '../nav/0012.png' }]).success).toBe(false);
+});
+
+test('intake defaults: a reel runs 15 to 30 s with the Kokoro af_heart voice', () => {
+  expect(DURATION_DEFAULTS.reel).toEqual([15, 30]);
+  expect(DURATION_DEFAULTS.landscape_1080p).toBeUndefined();
+  expect(BriefSchema.parse({ ...brief, voice: DEFAULT_VOICE }).voice).toEqual({
+    source: 'tts',
+    adapter: 'hf-tts',
+    voice_id: 'af_heart',
+  });
 });
