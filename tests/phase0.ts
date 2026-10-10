@@ -38,7 +38,7 @@ check('1. fixture alignment within 10 ms', () => {
   const got = readJson(
     align(
       path.join(run, 'audio/voiceover.mp3'),
-      want.lines.map((l, i) => ({ id: `l${i}`, text: l.text })),
+      want.lines.map((l, i) => ({ id: `l${i}`, text: l.text, delivery: 'voiceover' as const })),
       spoken,
     ),
     TimingSchema,

@@ -24,6 +24,13 @@ export const frameOf = (f: FormatId): Frame => {
 };
 
 const formatRecord = <T extends z.ZodType>(v: T) => z.partialRecord(FormatIdSchema, v);
+// No credentials in URLs: they would leak into run folders and logs.
+const httpUrl = z.url({ protocol: /^https?$/ }).refine((u) => {
+  // zod runs this even when the url check failed, so unparseable input must pass through to that error
+  if (!URL.canParse(u)) return true;
+  const { username, password } = new URL(u);
+  return !username && !password;
+}, 'URL must not contain a username or password');
 
 // ------------------------------------------------------------------ brief
 export const DeliverableSchema = z.object({
@@ -32,6 +39,13 @@ export const DeliverableSchema = z.object({
   captions: z.enum(['burned', 'separate', 'none']),
 });
 export type Deliverable = z.infer<typeof DeliverableSchema>;
+
+// brief.sources: whatever the creator handed over besides concept.md (BLUEPRINT 1.6 Inputs). Empty = concept only.
+export const SourceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.enum(['nav_video', 'file']), path_or_url: z.string().min(1), note: z.string().optional() }),
+  z.object({ kind: z.enum(['product_url', 'link']), path_or_url: httpUrl, note: z.string().optional() }),
+]);
+export type Source = z.infer<typeof SourceSchema>;
 
 export const BriefSchema = z.object({
   run_id: z.string().min(1),
@@ -53,9 +67,17 @@ export const BriefSchema = z.object({
       z.object({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
     ])
     .optional(),
-  formats: z.array(FormatIdSchema).min(1).default(['landscape_1080p', 'reel']),
+  formats: z.array(FormatIdSchema).min(1).default(['reel']),
   deliverables: z.array(DeliverableSchema).default([]),
-  references: z.array(z.object({ path_or_url: z.string(), use: z.literal('study_only') })).optional(),
+  sources: z.array(SourceSchema).default([]),
+  // ponytail: Phase 8 decides where a supplied avatar clip's path lives; only the portrait is modelled now.
+  avatar: z
+    .object({
+      source: z.enum(['adapter', 'supplied']),
+      adapter: z.string().optional(),
+      portrait: z.string().optional(),
+    })
+    .optional(),
   look_hint: z.string().optional(),
   brand: z
     .object({
@@ -73,8 +95,6 @@ export const BriefSchema = z.object({
         .optional(),
     })
     .optional(),
-  assets: z.array(z.string()).optional(),
-  source_material: z.array(z.string()).optional(),
   cta: z.object({ text: z.string(), url_or_handle: z.string().optional() }).optional(),
   must_include: z.array(z.string()).optional(),
   must_avoid: z.array(z.string()).optional(),
@@ -93,6 +113,9 @@ export const ScriptSchema = z.object({
         text: z.string().min(1), // what is said (or shown, if text_only)
         spoken: z.string().optional(), // how TTS/aligner should read it ("5.5" → "five point five")
         on_screen: z.string().optional(),
+        delivery: z.enum(['voiceover', 'avatar']).default('voiceover'),
+        section: z.string().min(1).optional(),
+        cite: z.array(httpUrl).min(1).optional(),
       }),
     )
     .min(1),
@@ -136,8 +159,9 @@ export const LookSchema = z.object({
 export type Look = z.infer<typeof LookSchema>;
 
 // ------------------------------------------------------------------ plan
-export const PlatePlanSchema = z.object({
-  plate_id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
+export const ScenePlanSchema = z.object({
+  scene_id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
+  section: z.string().optional(),
   lines: z.array(z.string()).min(1),
   cut_in: z.object({ anchor: z.string(), rule: z.enum(['pause_before', 'on_word', 'on_beat']) }),
   intent: z.string(),
@@ -156,16 +180,33 @@ export const PlatePlanSchema = z.object({
   overrides: z.string().optional(),
   input_hash: z.string(),
 });
-export type PlatePlan = z.infer<typeof PlatePlanSchema>;
+export type ScenePlan = z.infer<typeof ScenePlanSchema>;
 
-export const PlanSchema = z.object({
-  run_id: z.string(),
-  version: z.number().int().min(1),
-  look_id: z.string(),
-  visuals_plan: z.object({ plates: z.array(PlatePlanSchema).min(1) }),
-  asset_ids: z.array(z.string()),
-  formats: z.array(FormatIdSchema).min(1),
-});
+export const PlanSchema = z
+  .object({
+    run_id: z.string(),
+    version: z.number().int().min(1),
+    look_id: z.string(),
+    // Long-form (Phase 9) fills sections; reels leave them out.
+    sections: z
+      .array(z.object({ id: z.string().regex(/^[a-z][a-z0-9_-]*$/), title: z.string().min(1) }))
+      .min(1)
+      .optional(),
+    visuals_plan: z.object({ scenes: z.array(ScenePlanSchema).min(1) }),
+    asset_ids: z.array(z.string()),
+    formats: z.array(FormatIdSchema).min(1),
+  })
+  .superRefine((plan, ctx) => {
+    const known = new Set(plan.sections?.map((s) => s.id));
+    plan.visuals_plan.scenes.forEach((s, k) => {
+      if (s.section === undefined || known.has(s.section)) return;
+      ctx.addIssue({
+        code: 'custom',
+        message: `scene "${s.scene_id}" names unknown section "${s.section}"`,
+        path: ['visuals_plan', 'scenes', k, 'section'],
+      });
+    });
+  });
 export type Plan = z.infer<typeof PlanSchema>;
 
 // ------------------------------------------------------------------ assets
@@ -176,6 +217,7 @@ export const AssetRefSchema = z.object({
   source: z.string(),
   license: z.string(),
   usage: z.enum(['render', 'reference_only']),
+  origin: z.enum(['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn']),
 });
 export type AssetRef = z.infer<typeof AssetRefSchema>;
 
@@ -194,6 +236,58 @@ export const TimingSchema = z.object({
   beats: z.array(z.number()).optional(),
 });
 export type Timing = z.infer<typeof TimingSchema>;
+
+// ------------------------------------------------------------------ capture
+// capture/steps.json: the replay script for the product walk-through.
+const StepSchema = z
+  .object({
+    i: z.number().int().min(0),
+    url: httpUrl, // the replay opens it
+    action: z.enum(['click', 'type', 'scroll', 'wait']),
+    target: z.string(),
+    value: z.string().optional(),
+    expect: z.string(),
+  })
+  .refine((s) => s.action !== 'type' || s.value !== undefined, {
+    message: 'a type step needs a value',
+    path: ['value'],
+  });
+export const StepsSchema = z
+  .array(StepSchema)
+  .refine((steps) => steps.every((s, k) => k === 0 || s.i > (steps[k - 1]?.i ?? -1)), 'step numbers must go up');
+export type Steps = z.infer<typeof StepsSchema>;
+
+// capture/log.json: what the replay did for each step, with times on the nav-video timeline.
+export const CaptureLogSchema = z.array(
+  z
+    .object({
+      i: z.number().int().min(0),
+      t0: z.number().min(0),
+      t1: z.number().min(0),
+      box: z.object({ x: z.number(), y: z.number(), w: z.number().positive(), h: z.number().positive() }).optional(),
+      url: z.string(),
+      failed: z.string().optional(), // why the step failed, in words
+      fallback: z.string().optional(), // run-relative path of the nav-video frame used instead
+    })
+    .refine((e) => e.t1 >= e.t0, { message: 't1 is before t0', path: ['t1'] }),
+);
+export type CaptureLog = z.infer<typeof CaptureLogSchema>;
+
+// ~/.video-machine/doctor.json (VM_HOME, never in a run folder): tool versions and smoke-render timings.
+export const DoctorSchema = z.object({
+  checked_at: z.iso.datetime(),
+  tools: z.record(
+    z.string(),
+    z.object({
+      ok: z.boolean(),
+      version: z.string().optional(),
+      path: z.string().optional(),
+      detail: z.string().optional(),
+    }),
+  ),
+  smoke_s: z.record(z.string(), z.number().min(0)),
+});
+export type Doctor = z.infer<typeof DoctorSchema>;
 
 // ------------------------------------------------------------------ test results
 export const TestResultsSchema = z.object({
@@ -215,7 +309,7 @@ export const TestResultsSchema = z.object({
       detail: z.string(),
       annotations: z.array(
         z.object({
-          plate_id: z.string().optional(),
+          scene_id: z.string().optional(),
           t: z.number().optional(),
           problem: z.string(),
           suggested_fix: z.string(),
@@ -228,7 +322,7 @@ export const TestResultsSchema = z.object({
 export type TestResults = z.infer<typeof TestResultsSchema>;
 
 // ------------------------------------------------------------------ adapter contracts (§4)
-export type Issue = { severity: 'error' | 'warning'; plate_id?: string; message: string };
+export type Issue = { severity: 'error' | 'warning'; scene_id?: string; message: string };
 export type LayerPass = 'bg' | 'graphics' | 'type' | 'captions' | 'fx';
 
 export interface RenderAdapter {
