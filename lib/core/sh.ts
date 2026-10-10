@@ -2,7 +2,13 @@ import { type Env, loadConfig, toToolEnv } from './config';
 import { ToolError } from './errors';
 
 export type ShResult = { code: number; stdout: string; stderr: string };
-export type ShOptions = { cwd?: string; env?: Env; timeoutMs?: number; allowFail?: boolean };
+export type ShOptions = {
+  cwd?: string;
+  env?: Env;
+  timeoutMs?: number;
+  allowFail?: boolean;
+  stdin?: string | Uint8Array<ArrayBuffer>;
+};
 export type Sh = (cmd: string[], opts?: ShOptions) => Promise<ShResult>;
 
 export const DEFAULT_TIMEOUT_MS = 600_000;
@@ -41,6 +47,7 @@ const drain = (stream: ReadableStream<Uint8Array>) => {
  * Throws ToolError when the command cannot start, times out (after killing its process tree and giving up on
  * pipes that stay open), or exits non-zero (unless `allowFail`). The child gets the tool env
  * (`toToolEnv`: no API keys, telemetry off), built from `opts.env` or from the process environment.
+ * `opts.stdin` (text or bytes) is sent to the child as its whole stdin; without it the child gets no stdin.
  */
 export const sh: Sh = async (cmd, opts = {}) => {
   const { cwd, timeoutMs = DEFAULT_TIMEOUT_MS, allowFail = false } = opts;
@@ -48,7 +55,13 @@ export const sh: Sh = async (cmd, opts = {}) => {
   if (cmd.length === 0) throw new ToolError({ cmd, code: null, stderr: 'empty command' });
   let proc: Bun.Subprocess<'ignore', 'pipe', 'pipe'>;
   try {
-    proc = Bun.spawn(cmd, { cwd, env, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' });
+    proc = Bun.spawn(cmd, {
+      cwd,
+      env,
+      stdin: opts.stdin === undefined ? 'ignore' : new Blob([opts.stdin]),
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
   } catch (cause) {
     throw new ToolError({ cmd, code: null, stderr: (cause as Error).message }, { cause });
   }

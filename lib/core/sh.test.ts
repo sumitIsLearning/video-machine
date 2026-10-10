@@ -25,6 +25,14 @@ test('allowFail returns a failed result instead of throwing', async () => {
   expect(r).toEqual({ code: 1, stdout: '{}', stderr: '' });
 });
 
+test('stdin reaches the child byte for byte, BOM, CRLF and emoji included', async () => {
+  const input = '\u{FEFF}Why async\r\nFull script 🎬\r\n';
+  // hex out, because a text decoder may drop a leading BOM
+  const echo = "process.stdout.write(Buffer.from(await Bun.stdin.arrayBuffer()).toString('hex'))";
+  const r = await sh(js(echo), { stdin: input });
+  expect(r.stdout).toBe(Buffer.from(input, 'utf8').toString('hex'));
+});
+
 test('a missing executable is a ToolError', async () => {
   await expect(sh(['vm-no-such-tool-xyz'])).rejects.toBeInstanceOf(ToolError);
 });
