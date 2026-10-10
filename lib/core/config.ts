@@ -20,25 +20,34 @@ const SECRETS = new Set<string>(SECRET_ENV);
 const SECRET_PATTERN = /(_API_KEY|_TOKEN|_SECRET)$/i;
 
 /**
- * Read settings from `env` (default: the process environment).
- * Returns the plugin root, the user data folder, the pinned bun and the env for child processes
- * (parent env without API keys, telemetry and skill installs off, UTF-8 Python).
+ * Copy of `env` without API keys.
+ * Returns a new env; the input is not changed.
  */
-export const loadConfig = (env: Env = process.env): Config => {
+export const stripSecrets = (env: Env): Env =>
   // ponytail: known list + name pattern; add an allowlist if a tool ever needs a token.
   // Windows env names ignore case, so match keys upper-cased.
-  const toolEnv: Env = Object.fromEntries(
-    Object.entries(env).filter(([k]) => !SECRETS.has(k.toUpperCase()) && !SECRET_PATTERN.test(k)),
-  );
+  Object.fromEntries(Object.entries(env).filter(([k]) => !SECRETS.has(k.toUpperCase()) && !SECRET_PATTERN.test(k)));
+
+/**
+ * The env for a child process: `env` without API keys, telemetry and skill installs off, UTF-8 Python.
+ * Returns a new env; the input is not changed.
+ */
+export const toToolEnv = (env: Env): Env => ({
+  ...stripSecrets(env),
   // Set last so the parent cannot override them.
-  toolEnv.HYPERFRAMES_NO_TELEMETRY = '1';
-  toolEnv.HYPERFRAMES_SKIP_SKILLS = '1';
-  toolEnv.PYTHONUTF8 = '1';
-  return {
-    pluginRoot: PLUGIN_ROOT,
-    vmHome: path.resolve(env.VM_HOME ?? path.join(homedir(), '.video-machine')),
-    // The global bun (1.3.5) cannot launch Chrome; use the pinned one.
-    bun: path.join(PLUGIN_ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'bun.exe' : 'bun'),
-    toolEnv,
-  };
-};
+  HYPERFRAMES_NO_TELEMETRY: '1',
+  HYPERFRAMES_SKIP_SKILLS: '1',
+  PYTHONUTF8: '1',
+});
+
+/**
+ * Read settings from `env` (default: the process environment).
+ * Returns the plugin root, the user data folder, the pinned bun and the env for child processes (`toToolEnv`).
+ */
+export const loadConfig = (env: Env = process.env): Config => ({
+  pluginRoot: PLUGIN_ROOT,
+  vmHome: path.resolve(env.VM_HOME ?? path.join(homedir(), '.video-machine')),
+  // The global bun (1.3.5) cannot launch Chrome; use the pinned one.
+  bun: path.join(PLUGIN_ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'bun.exe' : 'bun'),
+  toolEnv: toToolEnv(env),
+});
