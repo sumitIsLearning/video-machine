@@ -150,7 +150,7 @@ Feedback routing (M15): words → M9 onward; what/when → plan → M12; one sce
 | TS runtime | bun **1.4.2** (pinned, `node_modules/.bin/bun`) | Global bun 1.3.5 can't launch Chrome on Windows (Phase 0) |
 | Contracts | zod ^4.1 | `lib/contracts/types.ts` |
 | Renderer | **hyperframes 0.8.143** (pinned), Node ≥ 22 | Needs Chrome + ffmpeg. Phase 1 probes the CLI flags on this exact version |
-| Browser capture | Playwright (version pinned in Phase 3 after probing) | Persistent context + `recordVideo` |
+| Browser capture | **playwright 1.63.0** (pinned 2026-10-10; user ruling R2) driving the **system Chrome** (`channel: 'chrome'`), else Playwright's Chromium installed by setup | Persistent context + `recordVideo` (VP8 25 fps; clips re-encoded to 30 fps all-intra) |
 | Aligner | Python 3.13 via `uv`, onnxruntime ≥ 1.30, numpy | wav2vec2-base-960h quantized ONNX, 95 MB, in the per-user cache |
 | Media | ffmpeg ≥ 6 with libx264 | Scene detection, splitting, loudness, muxing |
 | Lint / format | `tsc --noEmit` + Biome (added in Phase 1) | |
@@ -167,7 +167,7 @@ Verify each call against the **installed** version before a phase plan uses it. 
 | HyperFrames composition contract | root `data-composition-id` + `data-start="0"` + `data-width/height`, `data-duration`; one `gsap.timeline({paused:true})` registered at `window.__timelines[id]`, built synchronously; `<video>`/`<audio>` playback owned by the framework. GSAP (3.14.2, as `init` scaffolds) is vendored into the run folder, never loaded from the CDN | M12 |
 | Playwright | `chromium.launchPersistentContext(profileDir, {viewport, recordVideo})`, `getByRole` / `getByText`, `boundingBox()`, `innerText('body')` | M3 |
 | ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists). Model: `Xenova/wav2vec2-base-960h` @ `a19f851b3d42865797e410752b4c570c871e4825`, `onnx/model_quantized.onnx`, 95 286 046 bytes, sha256 `cd5040c1…60a3`, fetched by setup into `<VM_HOME>/models/` | M0, M10 |
-| ffmpeg / ffprobe | `select='gt(scene,0.3)'`, segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
+| ffmpeg / ffprobe | `select='gte(scene,0)'` scores, frames at score > **0.05** plus every 2 s (user ruling R1: UI navigations score 0.06–0.09, so 0.3 finds nothing), segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
 | Claude Code WebSearch / WebFetch | Called by Claude from the skills (not from `lib/`); every used fact keeps its URL | M5, M8 |
 | Free-licence media source | **Openverse API** (`api.openverse.org/v1/images\|audio`, no key; anonymous 20/min, 200/day; each result has `license`, `license_version`, `license_url`, `attribution`, `creator`, `foreign_landing_url`). Pexels (free key in `.env`) only if Openverse coverage proves thin | M5, M8 |
 | HeyGen (optional, paid) | avatar generation, ~$1/min | M11, behind the cost gate |
@@ -183,9 +183,9 @@ Changes and additions:
 | `PlatePlan` → `ScenePlan` | rename (`plate_id` → `scene_id`); `Plan.visuals_plan.plates` → `scenes`; `ScenePlan.section?: string` |
 | `Plan` | add `sections?: {id, title}[]` (chapters; reels leave it out) |
 | `Brief` | add `sources: {kind: "nav_video"\|"product_url"\|"file"\|"link", path_or_url, note?}[]` (default `[]`; `product_url` and `link` http(s) only) and `avatar?: {source, adapter?, portrait?}`; **remove** `source_material`, `assets`, `references` (folded into `sources`); `formats` default `["reel"]` |
-| `AssetRef` | add `origin: "supplied"\|"nav_video"\|"captured"\|"web"\|"found"\|"drawn"`; `license` may be `"unknown"` in the pool but never renders |
-| `Steps` (new) | `capture/steps.json`: `{ i, url, action: click\|type\|scroll\|wait, target, value?, expect }[]` |
-| `CaptureLog` (new) | `capture/log.json`: per step `{ i, t0, t1, box?, url, failed?, fallback? }` |
+| `AssetRef` | add `origin: "supplied"\|"nav_video"\|"captured"\|"web"\|"found"\|"drawn"`; `license` may be `"unknown"` in the pool but never renders; `status: pool\|pinned\|dropped` (default pool), `attribution?`, `title?` (user ruling R3). `assets.json` = `{ run_id, assets: AssetRef[] }`, unique ids |
+| `Steps` (new) | `capture/steps.json`: `{ i, url, action: click\|type\|scroll\|wait, target, value?, expect, frame? }[]` (`frame`: the nav-video frame the step was read from, the fallback when replay fails) |
+| `CaptureLog` (new) | `capture/log.json`: per step `{ i, t0, t1, box?, url, failed?, fallback? }`; times are on the replay recording (`capture/replay.webm`), which the clips are cut from |
 | `Doctor` (new) | `~/.video-machine/doctor.json`: tool versions, paths, smoke timings |
 
 Run folder layout: `concept.md, brief.json, input/, capture/, assets.json, research.md, script.json, directions/A|B/,
@@ -319,6 +319,9 @@ video-machine/                      # repo = the plugin and its own marketplace
     core/                           # config.ts, errors.ts, sh.ts, cli.ts, json.ts, timing lookup
     setup/                          # M0: doctor, install steps, smoke test, cli.ts (may import adapters)
     run/                            # M1 intake, whereAmI, cli.ts (may import adapters)
+    research/                       # M5: page capture, research.md, cli.ts
+    capture/                        # M2-M3: nav-video reader, steps, cli.ts (replay is adapters/capture/playwright)
+    assets/                         # M4: pool, panel, cli.ts
     adapters/
       render/hyperframes/           # primary renderer (Phase 6)
       align/ctc-onnx/               # Phase 0; analysis/ = vendored align_vo.py, audio_vo.py, model
