@@ -843,7 +843,7 @@ test('a launch failure surfaces as CaptureError naming the profile', async () =>
   2. **Nav videos and their frames:**
      - Each brief `nav_video` gives one asset: `origin: 'nav_video'`, `kind: video`, `usage: 'reference_only'`, `license: 'creator-supplied'`, `source: 'creator'`.
      - Each frame in `capture/nav/*/frames.json` gives an image asset: `origin: 'nav_video'`, `reference_only`. The usage becomes **`render`** when any `capture/log.json` entry's `fallback` equals that frame's path.
-  3. **Replay output:** `capture/shots/*.png`, `capture/crops/*.png` and `capture/clips/*.mp4` give `origin: 'captured'`, `license: 'own capture of <step url from log>'`, `source: <step url>`, `usage: 'render'`.
+  3. **Replay output:** `capture/shots/*.png` (except `*-before.png`, which only feed the crops), `capture/crops/*.png` and `capture/clips/*.mp4` give `origin: 'captured'`, `license: 'own capture of <step url from log>'`, `source: <step url>`, `usage: 'render'`.
   4. **Page captures:** each `capture/pages/*.json` gives its screenshots and logos as `origin: 'web'`, `license: 'page capture of <url>'`, `source: <url>`, `usage: 'render'`. Its fonts get `kind: font`, `license: 'unknown'`, `usage: 'reference_only'`, `title: <family>`.
   5. **Found media:** everything in `found/index.json`, as is (`origin: 'found'`).
 - `markAsset(runDir, id, status: 'pinned' | 'dropped' | 'pool'): Assets`. An unknown id gives `InputError`. Pinning an asset whose `license` is `'unknown'` gives `InputError('cannot pin <id>: its licence is unknown')`.
