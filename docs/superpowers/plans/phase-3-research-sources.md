@@ -104,7 +104,7 @@ Unlicensed media, Passwords, Reference footage rows). Spike findings: `runs/spik
 - `CaptureLogSchema`: unchanged fields. The comment becomes: times are seconds on the replay recording (`capture/replay.webm`), and `fallback` is the nav frame used instead.
 - `NavFramesSchema = z.strictObject({ source: RunPathSchema, has_audio: z.boolean(), frames: z.array(z.strictObject({ i: z.number().int().min(0), t: z.number().min(0), path: RunPathSchema })).min(1), sheets: z.array(RunPathSchema).min(1), transcript: RunPathSchema.optional() })`, with `type NavFrames`.
 - `PageCaptureSchema = z.strictObject({ url: httpUrl, title: z.string(), dir: RunPathSchema, screenshots: z.array(RunPathSchema), logos: z.array(RunPathSchema), fonts: z.array(z.strictObject({ family: z.string(), path: RunPathSchema })), palette: z.array(z.strictObject({ hex: z.string().regex(/^#[0-9a-fA-F]{6}$/), bg: z.number().int().min(0), text: z.number().int().min(0) })) })`, with `type PageCapture`.
-- `DOCTOR_TOOLS` gains `'capture_browser'` (last).
+- *(Moved to Task 7, ruling 2026-10-11: adding the tool before its check turns the suite red.)*
 - `AssetAdapter` becomes `{ find(runDir: string, query: string, kind: 'image' | 'audio', n: number): Promise<AssetRef[]> }`. Remove `make?` and `costEstimate?`: nothing uses them, and paid generation is Future.
 - New `interface CaptureAdapter { replay(runDir: string, steps: Steps, profile: string): Promise<string> }`, which returns the `log.json` path.
 
@@ -163,9 +163,6 @@ test('a page capture lists screenshots, logos, fonts and palette by run path', (
   expect(PageCaptureSchema.safeParse({ ...page, url: 'file:///x' }).success).toBe(false);
 });
 
-test('doctor checks the capture browser too', () => {
-  expect(DOCTOR_TOOLS).toContain('capture_browser');
-});
 ```
 
 (Import `AssetsSchema`, `NavFramesSchema`, `PageCaptureSchema` and `DOCTOR_TOOLS`. `step` is the existing helper in that file.)
@@ -792,6 +789,7 @@ test('a launch failure surfaces as CaptureError naming the profile', async () =>
 **Files:**
 - Create: `lib/capture/cli.ts`, `lib/capture/cli.test.ts`
 - Modify: `lib/setup/doctor.ts`, `doctor.test.ts`, `install.ts`, `install.test.ts`, `cli.ts`
+- Modify: `lib/contracts/types.ts`, `lib/contracts/types.test.ts` (`DOCTOR_TOOLS`)
 
 **Interfaces:**
 - `lib/capture/cli.ts` `main(argv, io?)` has four commands:
@@ -799,6 +797,7 @@ test('a launch failure surfaces as CaptureError naming the profile', async () =>
   - `steps <run_dir>` reads a JSON draft on stdin and returns `{ steps: <path>, count }`.
   - `replay <run_dir>` reads `capture/steps.json`, picks the profile from the first step's URL host, and returns `{ log, ok_steps, failed: [{ i, failed, fallback? }] }`.
   - `login <url>` opens a **headed** persistent context on `profileDirOf(vmHome, url)` at `url` and resolves when the creator closes the window. It returns `{ profile }`. Use `launch({ headless: false })` and wait for the page to close.
+- `lib/contracts/types.ts`: `DOCTOR_TOOLS` gains `'capture_browser'` (last), with the test `expect(DOCTOR_TOOLS).toContain('capture_browser')` in `types.test.ts` (moved here from Task 1).
 - Doctor: `checkCaptureBrowser(deps, opts)` is OK when `browserChannel()` is not null, with detail `system Chrome` or `Playwright Chromium`. It is injectable through `DoctorOptions.captureBrowser?: () => Promise<'chrome' | 'chromium' | null>`.
 - Install: the new step `capture_browser`:
   - If `browserChannel()` is not null, it returns `capture browser ready (<which>)`.
