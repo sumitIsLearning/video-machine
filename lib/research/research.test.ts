@@ -55,6 +55,14 @@ test('bullets under another heading are not checked as facts', () => {
   expect(r.facts).toHaveLength(1);
 });
 
+test.each([
+  ['under Facts', `## Facts\n${GOOD}\n- ${'a'.repeat(8200)}\n`, /line 3 is longer than 8 KB/],
+  ['under another heading', `## Facts\n${GOOD}\n\n## Notes\n${'a'.repeat(8200)}\n`, /line 5 is longer than 8 KB/],
+])('a line over 8 KB %s is refused before the fact pattern runs', (_name, md, message) => {
+  expect(() => parseResearch(md)).toThrow(InputError);
+  expect(() => parseResearch(md)).toThrow(message);
+});
+
 test('a Facts heading with no fact under it is refused', () => {
   expect(() => parseResearch('## Facts\n\n## Notes\n- a note\n')).toThrow(/Facts/);
 });
