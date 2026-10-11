@@ -166,41 +166,23 @@ test('capturePage refuses a non-http URL before running anything', async () => {
   expect(calls).toHaveLength(0);
 });
 
+// The full list of refused and allowed hosts is tested in lib/core/url.test.ts.
 test.each([
   'not a url',
-  'ftp://example.com/x',
   'https://user:pw@example.com/',
-  'https://user@example.com/',
-  'http://localhost/',
-  'http://LOCALHOST:3000/',
-  'http://app.localhost/',
   'http://127.0.0.1/',
-  'http://127.9.9.9:8080/',
-  'http://[::1]/',
-  'http://10.1.2.3/',
-  'http://172.16.0.1/',
-  'http://172.31.255.255/',
-  'http://192.168.1.1/',
-  'http://[fc00::1]/',
-  'http://[fd12:3456::1]/',
   'http://169.254.169.254/latest/meta-data',
-  'http://[fe80::1]/',
-  'http://[febf::1]/',
-  'http://2130706433/', // 127.0.0.1 written as one number
 ])('refuses %s before running anything', async (url) => {
   const { deps, calls } = fakeCapture();
   await expect(capturePage(deps, runDir(), url)).rejects.toBeInstanceOf(InputError);
   expect(calls).toHaveLength(0);
 });
 
-test.each(['http://172.32.0.1/', 'http://192.169.0.1/', 'http://11.0.0.1/', 'http://[2001:db8::1]/'])(
-  'allows the public address %s',
-  async (url) => {
-    const { deps, calls } = fakeCapture();
-    await capturePage(deps, runDir(), url);
-    expect(calls).toHaveLength(1);
-  },
-);
+test('allows a public address', async () => {
+  const { deps, calls } = fakeCapture();
+  await capturePage(deps, runDir(), 'http://11.0.0.1/');
+  expect(calls).toHaveLength(1);
+});
 
 test('a refused URL with a password does not echo the password', async () => {
   const err = await capturePage(fakeCapture().deps, runDir(), 'https://user:hunter2@example.com/').catch((e) => e);

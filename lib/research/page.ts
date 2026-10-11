@@ -5,8 +5,9 @@ import { z } from 'zod';
 import { type PageCapture, PageCaptureSchema } from '../contracts/types';
 import { HF_CMD } from '../core/config';
 import type { Deps } from '../core/deps';
-import { InputError, ToolError } from '../core/errors';
+import { ToolError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
+import { assertPublicHttpUrl } from '../core/url';
 import { assertRunDir, slugOf } from '../run/intake';
 
 const CAPTURE_TIMEOUT_MS = 5 * 60_000;
@@ -42,47 +43,6 @@ const titleOf = (stdout: string): string | undefined => {
   return typeof object?.title === 'string' && object.title !== '' ? object.title : undefined;
 };
 
-/** True for a host that points inside the machine or its network (see the ponytail note at the call). */
-const isPrivateHost = (hostname: string): boolean => {
-  const h = hostname
-    .replace(/^\[|\]$/g, '')
-    .replace(/\.$/, '')
-    .toLowerCase();
-  if (h === 'localhost' || h.endsWith('.localhost')) return true;
-  const v4 = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(h);
-  if (v4) {
-    const [a, b] = [Number(v4[1]), Number(v4[2])];
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 169 && b === 254)
-    );
-  }
-  if (!h.includes(':')) return false;
-  if (h === '::' || h === '::1') return true;
-  const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h); // URL writes ::ffff:127.0.0.1 this way
-  if (mapped) {
-    const [hi, lo] = [Number.parseInt(mapped[1] ?? '', 16), Number.parseInt(mapped[2] ?? '', 16)];
-    return isPrivateHost(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
-  }
-  const first = Number.parseInt(h.split(':')[0] || '0', 16);
-  return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80; // fc00::/7, fe80::/10
-};
-
-/** Parse the URL and refuse what a page capture must not visit. Throws InputError; never echoes a password. */
-const assertCapturableUrl = (url: string): URL => {
-  if (!URL.canParse(url)) throw new InputError(`page capture needs an http(s) URL: ${url}`);
-  const u = new URL(url);
-  if (u.username || u.password) throw new InputError('page capture refuses a URL with a username or password');
-  if (!/^https?:$/.test(u.protocol)) throw new InputError(`page capture needs an http(s) URL, not ${u.protocol}`);
-  // ponytail: literal-host check only; a public name resolving to a private IP is not caught (DNS rebinding) — resolve and recheck if captures ever run unattended
-  if (isPrivateHost(u.hostname)) throw new InputError(`page capture refuses a local or private address: ${u.host}`);
-  return u;
-};
-
 /**
  * Capture a web page with HyperFrames into `capture/pages/<slug>/` and record what was kept in `capture/pages/<slug>.json`.
  * The slug is readable text plus a hash of the URL (without its fragment), so different pages never share a folder.
@@ -92,7 +52,7 @@ const assertCapturableUrl = (url: string): URL => {
  */
 export async function capturePage(deps: Deps, runDir: string, url: string): Promise<PageCapture> {
   assertRunDir(runDir);
-  const { host, pathname, href } = assertCapturableUrl(url);
+  const { host, pathname, href } = assertPublicHttpUrl(url, 'page capture');
   const noFragment = new URL(href);
   noFragment.hash = '';
   const hash = createHash('sha1').update(noFragment.href).digest('hex').slice(0, 8);
