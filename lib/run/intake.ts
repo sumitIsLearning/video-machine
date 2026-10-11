@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { type Brief, BriefSchema, DEFAULT_VOICE, DURATION_DEFAULTS, FormatIdSchema } from '../contracts/types';
 import { ContractError, InputError } from '../core/errors';
 import { writeJson } from '../core/json';
+import { relInside, runFileOf } from '../core/paths';
 
 const stripBom = (s: string) => s.replace(/^\u{FEFF}/u, '');
 
@@ -57,12 +58,6 @@ export function newRun(o: { runsDir: string; concept: Uint8Array; now?: Date }):
     return { run_id, runDir };
   }
 }
-
-// The path of `target` relative to `base`, or undefined when it is outside. Both must be real paths.
-const relInside = (base: string, target: string): string | undefined => {
-  const rel = path.relative(base, target);
-  return rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel) ? undefined : rel;
-};
 
 /** Check that the folder is a run. Throws InputError when it has no concept.md. */
 export function assertRunDir(runDir: string): void {
@@ -165,13 +160,6 @@ export function writeBrief(runDir: string, draft: unknown): Brief {
   if (!r.success)
     throw new ContractError(`brief draft for ${runDir} does not match the brief schema:\n${z.prettifyError(r.error)}`);
 
-  const realRun = realpathSync.native(runDir);
-  for (const p of briefPaths(r.data)) {
-    const file = path.join(runDir, p);
-    if (!existsSync(file) || !statSync(file).isFile())
-      throw new InputError(`the brief names ${p}, which is not in the run folder; import it first`);
-    if (relInside(realRun, realpathSync.native(file)) === undefined)
-      throw new InputError(`the brief names ${p}, which resolves outside the run folder`);
-  }
+  for (const p of briefPaths(r.data)) runFileOf(runDir, p, 'import it first');
   return writeJson(path.join(runDir, 'brief.json'), BriefSchema, r.data);
 }
