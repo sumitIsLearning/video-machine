@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import {
   AssetRefSchema,
+  AssetsSchema,
   BriefSchema,
   CaptureLogSchema,
   DEFAULT_VOICE,
@@ -9,6 +10,8 @@ import {
   DURATION_DEFAULTS,
   failingTools,
   frameOf,
+  NavFramesSchema,
+  PageCaptureSchema,
   PlanSchema,
   RunPathSchema,
   ScenePlanSchema,
@@ -241,7 +244,14 @@ const entry = { i: 0, t0: 1.2, t1: 3.4, url: 'https://app.example.com' };
 test('capture log entries take an optional box, failure reason and fallback', () => {
   const log = CaptureLogSchema.parse([
     entry,
-    { ...entry, i: 1, t0: 3.4, t1: 3.4, failed: 'target "Export" not found', fallback: 'capture/nav-frames/0012.png' },
+    {
+      ...entry,
+      i: 1,
+      t0: 3.4,
+      t1: 3.4,
+      failed: 'target "Export" not found',
+      fallback: 'capture/nav/nav/frames/012.png',
+    },
     { ...entry, i: 2, box: { x: 10, y: 20, w: 300, h: 40 } },
   ]);
   expect(log[1]?.failed).toContain('Export');
@@ -335,4 +345,109 @@ test('intake defaults: a reel runs 15 to 30 s with the Kokoro af_heart voice', (
     adapter: 'hf-tts',
     voice_id: 'af_heart',
   });
+});
+
+test('an asset defaults to the pool and takes a pin or a drop, nothing else', () => {
+  expect(AssetRefSchema.parse({ ...asset, origin: 'found' }).status).toBe('pool');
+  for (const status of ['pinned', 'dropped'] as const)
+    expect(AssetRefSchema.parse({ ...asset, origin: 'found', status }).status).toBe(status);
+  expect(AssetRefSchema.safeParse({ ...asset, origin: 'found', status: 'maybe' }).success).toBe(false);
+});
+
+test('a found asset keeps its attribution', () => {
+  const a = AssetRefSchema.parse({
+    ...asset,
+    origin: 'found',
+    license: 'CC BY 2.0',
+    attribution: '"Tests" by L. Hardy',
+  });
+  expect(a.attribution).toContain('Hardy');
+});
+
+test('assets.json holds one pool with unique ids', () => {
+  const a = { ...asset, origin: 'found' };
+  expect(AssetsSchema.parse({ run_id: 'r', assets: [a] }).assets).toHaveLength(1);
+  const dup = AssetsSchema.safeParse({ run_id: 'r', assets: [a, a] });
+  expect(dup.success).toBe(false);
+  expect(JSON.stringify(dup.error?.issues)).toContain(`duplicate asset_id \\"${a.asset_id}\\"`);
+  expect(dup.error?.issues[0]?.path).toEqual(['assets', 1]);
+});
+
+test('a step may name the nav frame it was read from, as a run path', () => {
+  expect(StepsSchema.parse([step(0, { frame: 'capture/nav/nav/frames/003.png' })])[0]?.frame).toBe(
+    'capture/nav/nav/frames/003.png',
+  );
+  expect(StepsSchema.safeParse([step(0, { frame: 'C:/frames/3.png' })]).success).toBe(false);
+});
+
+const nav = {
+  source: 'input/nav.mp4',
+  has_audio: false,
+  frames: [
+    { i: 0, t: 0, path: 'capture/nav/nav/frames/000.png' },
+    { i: 1, t: 2, path: 'capture/nav/nav/frames/001.png' },
+  ],
+  sheets: ['capture/nav/nav/sheet-01.jpg'],
+};
+
+test('nav frames record the source, frames in order, sheets and an optional transcript', () => {
+  expect(NavFramesSchema.parse(nav).transcript).toBeUndefined();
+  expect(
+    NavFramesSchema.parse({ ...nav, has_audio: true, transcript: 'capture/nav/nav/transcript.json' }).transcript,
+  ).toBe('capture/nav/nav/transcript.json');
+  expect(NavFramesSchema.safeParse({ ...nav, frames: [] }).success).toBe(false);
+});
+
+test.each([
+  ['a repeated frame index', { frames: [nav.frames[0], { ...nav.frames[1], i: 0 }] }],
+  ['a frame index that skips', { frames: [nav.frames[0], { ...nav.frames[1], i: 2 }] }],
+  ['a falling frame time', { frames: [{ ...nav.frames[0], t: 3 }, nav.frames[1]] }],
+  ['a repeated frame time', { frames: [nav.frames[0], { ...nav.frames[1], t: 0 }] }],
+  ['a transcript with no audio', { transcript: 'capture/nav/nav/transcript.json' }],
+])('nav frames reject %s', (_label, change) => {
+  expect(NavFramesSchema.safeParse({ ...nav, ...change }).success).toBe(false);
+});
+
+const page = {
+  url: 'https://docs.astral.sh/uv/',
+  title: 'uv',
+  dir: 'capture/pages/docs-astral-sh-uv',
+  screenshots: ['capture/pages/docs-astral-sh-uv/screenshots/scroll-000.png'],
+  logos: ['capture/pages/docs-astral-sh-uv/assets/logo-4b5009c7.svg'],
+  fonts: [{ family: 'Roboto', path: 'capture/pages/docs-astral-sh-uv/assets/fonts/a.woff2' }],
+  palette: [{ hex: '#261230', bg: 1, text: 0 }],
+};
+
+test('a page capture lists screenshots, logos, fonts and palette by run path', () => {
+  expect(PageCaptureSchema.parse(page).palette[0]?.hex).toBe('#261230');
+  expect(PageCaptureSchema.safeParse({ ...page, url: 'file:///x' }).success).toBe(false);
+});
+
+test.each([
+  ['assets.json top level', AssetsSchema, { run_id: 'r', assets: [], extra: 1 }],
+  [
+    'an asset with the new fields',
+    AssetRefSchema,
+    { ...asset, origin: 'found', status: 'pool', attribution: 'a', title: 't', extra: 1 },
+  ],
+  ['nav frames top level', NavFramesSchema, { ...nav, extra: 1 }],
+  ['a nav frames entry', NavFramesSchema, { ...nav, frames: [{ ...nav.frames[0], extra: 1 }] }],
+  ['page capture top level', PageCaptureSchema, { ...page, extra: 1 }],
+  ['a page capture font', PageCaptureSchema, { ...page, fonts: [{ ...page.fonts[0], extra: 1 }] }],
+  ['a page capture palette entry', PageCaptureSchema, { ...page, palette: [{ ...page.palette[0], extra: 1 }] }],
+])('a misspelt key is rejected in %s', (_label, schema, value) => {
+  expect(schema.safeParse(value).success).toBe(false);
+});
+
+test.each([
+  ['nav source', NavFramesSchema, { ...nav, source: 'C:/x.png' }],
+  ['nav frame path', NavFramesSchema, { ...nav, frames: [{ ...nav.frames[0], path: '..\\x.png' }, nav.frames[1]] }],
+  ['nav sheet', NavFramesSchema, { ...nav, sheets: ['C:/x.png'] }],
+  ['nav transcript', NavFramesSchema, { ...nav, has_audio: true, transcript: '..\\x.json' }],
+  ['page dir', PageCaptureSchema, { ...page, dir: 'C:/x' }],
+  ['page screenshot', PageCaptureSchema, { ...page, screenshots: ['..\\x.png'] }],
+  ['page logo', PageCaptureSchema, { ...page, logos: ['C:/x.svg'] }],
+  ['page font path', PageCaptureSchema, { ...page, fonts: [{ family: 'Roboto', path: '..\\a.woff2' }] }],
+])('an absolute or escaping path is rejected in %s', (_label, schema, value) => {
+  expect(schema.safeParse(value).success).toBe(false);
 });

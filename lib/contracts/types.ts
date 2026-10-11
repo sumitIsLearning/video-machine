@@ -276,8 +276,24 @@ export const AssetRefSchema = z.strictObject({
   license: z.string(),
   usage: z.enum(['render', 'reference_only']),
   origin: z.enum(['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn']),
+  status: z.enum(['pool', 'pinned', 'dropped']).default('pool'),
+  attribution: z.string().min(1).optional(),
+  title: z.string().optional(),
 });
 export type AssetRef = z.infer<typeof AssetRefSchema>;
+
+// assets/assets.json: the one pool of everything gathered, with the creator's pin and drop marks.
+export const AssetsSchema = z
+  .strictObject({ run_id: z.string().min(1), assets: z.array(AssetRefSchema) })
+  .superRefine((pool, ctx) =>
+    addDuplicateIssues(
+      pool.assets.map((a) => a.asset_id),
+      'asset_id',
+      ctx,
+      ['assets'],
+    ),
+  );
+export type Assets = z.infer<typeof AssetsSchema>;
 
 // ------------------------------------------------------------------ timing
 // data/timing.json: the aligner's word-timed format (what align_vo.py writes as lyrics.json).
@@ -306,6 +322,7 @@ const StepSchema = z
     target: z.string(),
     value: z.string().optional(),
     expect: z.string(),
+    frame: RunPathSchema.optional(), // the nav-video frame this step was read from; the replay falls back to it
   })
   .refine((s) => s.action !== 'type' || s.value !== undefined, {
     message: 'a type step needs a value',
@@ -316,7 +333,48 @@ export const StepsSchema = z
   .refine((steps) => steps.every((s, k) => k === 0 || s.i > (steps[k - 1]?.i ?? -1)), 'step numbers must go up');
 export type Steps = z.infer<typeof StepsSchema>;
 
-// capture/log.json: what the replay did for each step, with times on the nav-video timeline.
+// capture/nav/<name>/frames.json: the nav video read into numbered frames and contact sheets (M2).
+export const NavFramesSchema = z
+  .strictObject({
+    source: RunPathSchema,
+    has_audio: z.boolean(),
+    frames: z.array(z.strictObject({ i: z.number().int().min(0), t: z.number().min(0), path: RunPathSchema })).min(1),
+    sheets: z.array(RunPathSchema).min(1),
+    transcript: RunPathSchema.optional(),
+  })
+  .superRefine((nav, ctx) => {
+    // `i` is the contact-sheet tile index, so it must equal the array position
+    nav.frames.forEach((f, k) => {
+      if (f.i !== k) ctx.addIssue({ code: 'custom', message: `frame ${k} has i ${f.i}`, path: ['frames', k, 'i'] });
+      if (k > 0 && f.t <= (nav.frames[k - 1]?.t ?? 0))
+        ctx.addIssue({ code: 'custom', message: `frame ${k} time does not rise`, path: ['frames', k, 't'] });
+    });
+    if (nav.transcript !== undefined && !nav.has_audio)
+      ctx.addIssue({ code: 'custom', message: 'a transcript needs has_audio', path: ['transcript'] });
+  });
+export type NavFrames = z.infer<typeof NavFramesSchema>;
+
+// capture/pages/<slug>.json: what a page capture (M5) kept of a web page. The folder capture/pages/<slug>/ beside it
+// is HyperFrames' own output.
+export const PageCaptureSchema = z.strictObject({
+  url: httpUrl,
+  title: z.string(),
+  dir: RunPathSchema,
+  screenshots: z.array(RunPathSchema),
+  logos: z.array(RunPathSchema),
+  fonts: z.array(z.strictObject({ family: z.string(), path: RunPathSchema })),
+  palette: z.array(
+    z.strictObject({
+      hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      bg: z.number().int().min(0),
+      text: z.number().int().min(0),
+    }),
+  ),
+});
+export type PageCapture = z.infer<typeof PageCaptureSchema>;
+
+// capture/log.json: what the replay did for each step. Times are seconds on the replay recording
+// (capture/replay.webm), which is what cuts the clips; `fallback` is the nav frame used instead of a failed step.
 export const CaptureLogSchema = z.array(
   z
     .strictObject({
@@ -425,9 +483,12 @@ export interface AlignAdapter {
   align(audioPath: string, lines: Script['lines'], spokenWords?: Record<string, string[]>): Promise<string>;
 }
 export interface AssetAdapter {
-  find(query: string, kind: AssetRef['kind']): Promise<AssetRef[]>;
-  make?(spec: string): Promise<AssetRef>;
-  costEstimate?(spec: string): number;
+  /** Searches, downloads into the run folder, and returns up to `n` assets. */
+  find(runDir: string, query: string, kind: 'image' | 'audio', n: number): Promise<AssetRef[]>;
+}
+export interface CaptureAdapter {
+  /** Replays the steps in the browser profile and resolves to the log.json path. */
+  replay(runDir: string, steps: Steps, profile: string): Promise<string>;
 }
 export interface ExportAdapter {
   kind: Deliverable['kind'];
