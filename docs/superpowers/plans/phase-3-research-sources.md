@@ -992,6 +992,7 @@ Checks. Each prints PASS/FAIL, its time and a detail line, and the summary is `N
    - `capture replay` → `failed` lists step 2 with that fallback.
    - Every successful step has a shot, a page text and a clip.
    - Each clip is `h264`, `r_frame_rate=30/1`, and its keyframe count equals its frame count (`ffprobe -select_streams v -show_entries stream=nb_frames` vs `-skip_frame nokey -count_frames`).
+   - **Clip alignment (R9, added 2026-10-11):** run the scene-score scan from Task 5 on `capture/replay.webm`. The highest-scoring change after step 1's `t0` must fall within ±0.5 s of step 1's `t1`; that change is the page navigation from the `Installation` click. Print the measured offset either way, so the R9 padding can be tuned.
 7. **Pool after capture:**
    - `assets build` includes `captured` assets and the fallback nav frame as `render`; all other nav frames are `reference_only`.
    - `assets mark <id> pin` survives a second `assets build`.
