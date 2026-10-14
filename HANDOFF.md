@@ -8,7 +8,7 @@
   and R2 (`lib/script`, `lib/look`, `lib/storyboard`). Dev agent `.claude/agents/visual-reviewer.md` added (R10).
 - Done: Task 1 `8b054db` (CheckResult, direction/board ids, `lib/core/estimate.ts`, gsap), Task 2 `d15f2ea`
   (`lib/checks/` facts-cited, directions-differ, coverage), Task 3 `c55c17b` (HyperFrames composition folders), Task 4
-  `1f481ef` (`lib/script/`), Task 5 `e718008` (`lib/look/`), Task 6 `f59216b` (`lib/storyboard/`, shared `renderBoard`), Task 7 `21a0653` (shipped `storyboard` skill; make-video runs to M8), Task 8 `94a3d59` (`tests/phase4.ts` 7/7 PASS, ~31 s). Next: whole-branch Opus review, fix, ask to merge. Ledger:
+  `1f481ef` (`lib/script/`), Task 5 `e718008` (`lib/look/`), Task 6 `f59216b` (`lib/storyboard/`, shared `renderBoard`), Task 7 `21a0653` (shipped `storyboard` skill; make-video runs to M8), Task 8 `94a3d59` (`tests/phase4.ts` 7/7 PASS, ~31 s). Branch review fixed `e52f687` (Opus APPROVE). Next: user OK to merge into master (no push), then Phase 5. Ledger:
   `.superpowers/sdd/phase-4-write-design/progress.md`.
 - Test run for later: `runs/2026-10-14-firecrawl-in-20-seconds-paste/` is at M6. It has research.md (14 facts), a
   logged-in replay of the Firecrawl playground scraping superteamai.com (10 clips; steps hand-written, no nav video),
