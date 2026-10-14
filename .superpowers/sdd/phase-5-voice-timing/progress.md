@@ -10,4 +10,7 @@ Task 2: done 7e1494e (haiku build, spec PASS, code APPROVE; builder added confs 
 Finding: tests/phase0.ts fails on this Mac on the base too (cbb585d): check 1 max deviation 80 ms at "shapes," (word 94) vs 10 ms; check 2 ENOENT C:/Work-data/video-testing (Windows path). Pre-existing, not Phase 5 — raise with user.
 Task 3: done c354ab8 (haiku build, spec PASS, code 🟠 tts temp dir in os.tmpdir → EXDEV on rename + 🟡 ok:true with no wav → raw ENOENT; one haiku fix round, both fixed with tests; supplied keeps its own SAMPLE_RATE, adapters don't import each other)
 Task 4: done 1e656ae (haiku build, spec PASS, code APPROVE; builder added: spoken words with empty text → InputError, fits uses 1e-6 tolerance and no no-target branch since duration_target_s is required, io.voice overrides adapter name)
-Next: Task 5 (plugin-builder: shipped skill voice; make-video continues to M10).
+Task 5: done faaa965 (haiku build, spec FAIL on intro "(M11)" (M11 is avatar), code APPROVE w/ 🟡 supplied synth result fields + 🔵 TTS-only re-voice; one haiku fix round for all three, verified by grep; kept builder extras: supplied re-record sentence, no-voiceover → where)
+Task 6: done 703f43d (haiku build, spec PASS, code 🟠×2 cwd writes when check 1 fails → guards in one haiku fix round; 5/5 PASS ~25 s)
+Rulings: R10 check 5 writes stand-in look/look.json + plan.json (where checks existence only); R11 check 6 (video-testing listing) dropped — no Phase 4 check, Phase 0 path is Windows.
+Next: phase-end opus review of the branch, one fix brief, scoped re-review; ask before merge.
