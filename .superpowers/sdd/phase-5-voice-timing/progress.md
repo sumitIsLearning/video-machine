@@ -5,3 +5,7 @@ Spec: docs/BLUEPRINT.md (R1/R2 in 2.5, R5 in 2.7 applied in the pre-step).
 Probes (2026-10-14): hf tts 0.8.143 → 24 kHz mono, ~5 s/line, error JSON on stdout exit 1, positional INPUT may be read as a .txt path (use --text-file); ffmpeg apad+concat+aresample=48000 ok; CTC conf: matching line mean ≈ 0.9, wrong text ≈ 0.23 → threshold 0.6.
 
 ## Tasks
+Task 1: done cbb585d (haiku build, spec PASS, code APPROVE w/ 🔵 NaN cost passed the guard — orchestrator fixed + test, 2 lines)
+Task 2: done 7e1494e (haiku build, spec PASS, code APPROVE; builder added confs = {} the brief omitted; 🔵 vendored conf comprehension repeats parts, skipped)
+Finding: tests/phase0.ts fails on this Mac on the base too (cbb585d): check 1 max deviation 80 ms at "shapes," (word 94) vs 10 ms; check 2 ENOENT C:/Work-data/video-testing (Windows path). Pre-existing, not Phase 5 — raise with user.
+Next: Task 3 (voice adapters hf-tts + supplied).
