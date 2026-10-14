@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { lintComposition, snapshotComposition, writeComposition } from '../adapters/render/hyperframes/compose';
+import { renderBoard } from '../adapters/render/hyperframes/compose';
 import { checkDirectionsDiffer } from '../checks/directions-differ';
 import {
   type BoardId,
@@ -52,14 +52,16 @@ export async function writeBoard(
 ): Promise<{ png: string; warnings: string[] }> {
   const base = `directions/${dir}`;
   if (!existsSync(path.join(runDir, base, 'look.json'))) throw new InputError(`write look ${dir} first`);
-  const comp = writeComposition(runDir, `${base}/boards/${board}`, html, assetIds);
-  const { errors, warnings } = await lintComposition(deps, comp.dir);
-  if (errors.length) throw new InputError(`board ${dir}/${board} has lint errors:\n- ${errors.join('\n- ')}`);
-  // snapshotComposition throws when HyperFrames wrote no frame, so the first one exists.
-  const frame = (await snapshotComposition(deps, comp.dir, [at]))[0] as string;
-  const png = `${base}/boards/${board}.png`;
-  copyFileSync(frame, path.join(runDir, png));
-  return { png, warnings };
+  return renderBoard(
+    deps,
+    runDir,
+    `${base}/boards/${board}`,
+    html,
+    assetIds,
+    at,
+    `board ${dir}/${board}`,
+    `${base}/boards/${board}.png`,
+  );
 }
 
 /**

@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { isUnknownLicence } from '../../../assets/pool';
-import { AssetsSchema } from '../../../contracts/types';
+import { type AssetRef, AssetsSchema } from '../../../contracts/types';
 import { HF_CMD, PLUGIN_ROOT } from '../../../core/config';
 import type { Deps } from '../../../core/deps';
 import { InputError, ToolError } from '../../../core/errors';
@@ -39,27 +39,31 @@ export function writeComposition(
   if (web)
     throw new InputError(`index.html loads ${web[1]} from the web; use vendor/gsap.min.js and files under assets/`);
 
-  const sources = assetIds.length ? checkedSources(runDir, assetIds) : new Map<string, { file: string; ext: string }>();
+  const refs = renderableAssets(runDir, assetIds);
 
   rmSync(path.join(dir, 'assets'), { recursive: true, force: true });
   mkdirSync(path.join(dir, 'vendor'), { recursive: true });
   mkdirSync(path.join(dir, 'assets'), { recursive: true });
   copyFileSync(GSAP_FILE, path.join(dir, 'vendor', 'gsap.min.js'));
   const assets: Record<string, string> = {};
-  for (const [id, { file, ext }] of sources) {
-    const name = `${id}${ext}`;
-    copyFileSync(file, path.join(dir, 'assets', name));
-    assets[id] = `assets/${name}`;
+  for (const a of refs) {
+    const name = `${a.asset_id}${path.extname(a.path)}`;
+    copyFileSync(runFileOf(runDir, a.path), path.join(dir, 'assets', name));
+    assets[a.asset_id] = `assets/${name}`;
   }
   writeFileSync(path.join(dir, 'index.html'), html);
   return { dir, assets };
 }
 
-/** Resolve each asset id to its file, or throw InputError naming the first one that can't render. */
-function checkedSources(runDir: string, assetIds: string[]): Map<string, { file: string; ext: string }> {
+/**
+ * Resolve each asset id to its pool entry, in the given order. Returns [] without reading assets.json when no ids are
+ * given. Throws InputError naming the first id that is unknown, dropped, reference-only, unlicensed, or whose file is
+ * not inside the run.
+ */
+export function renderableAssets(runDir: string, assetIds: string[]): AssetRef[] {
+  if (!assetIds.length) return [];
   const pool = readJson(path.join(runDir, 'assets.json'), AssetsSchema).assets;
-  const sources = new Map<string, { file: string; ext: string }>();
-  for (const id of assetIds) {
+  return assetIds.map((id) => {
     const a = pool.find((x) => x.asset_id === id);
     if (!a) throw new InputError(`unknown asset "${id}" in assets.json`);
     const reasons = [
@@ -68,9 +72,9 @@ function checkedSources(runDir: string, assetIds: string[]): Map<string, { file:
       isUnknownLicence(a.license) ? 'unknown licence' : '',
     ].filter(Boolean);
     if (reasons.length) throw new InputError(`asset "${id}" can't render (${reasons.join(', ')})`);
-    sources.set(id, { file: runFileOf(runDir, a.path), ext: path.extname(a.path) });
-  }
-  return sources;
+    runFileOf(runDir, a.path);
+    return a;
+  });
 }
 
 /**
@@ -123,4 +127,28 @@ export async function snapshotComposition(deps: Deps, dir: string, at: number[])
     .sort((a, b) => Number(a.index) - Number(b.index));
   if (!frames.length) throw new ToolError({ cmd, code: 0, stderr: 'snapshot wrote no frames' });
   return frames.map((f) => path.join(out, f.name));
+}
+
+/**
+ * Write a composition, lint it, snapshot it at `at` and copy the frame to `pngRel` in the run. The composition folder
+ * stays on disk for Claude to fix. Returns the png path and the lint warnings. Throws InputError (`label` names the
+ * board) when lint reports errors or an asset cannot render; ToolError when HyperFrames fails.
+ */
+export async function renderBoard(
+  deps: Deps,
+  runDir: string,
+  compRel: string,
+  html: string,
+  assetIds: string[],
+  at: number,
+  label: string,
+  pngRel: string,
+): Promise<{ png: string; warnings: string[] }> {
+  const comp = writeComposition(runDir, compRel, html, assetIds);
+  const { errors, warnings } = await lintComposition(deps, comp.dir);
+  if (errors.length) throw new InputError(`${label} has lint errors:\n- ${errors.join('\n- ')}`);
+  // snapshotComposition throws when HyperFrames wrote no frame, so the first one exists.
+  const frame = (await snapshotComposition(deps, comp.dir, [at]))[0] as string;
+  copyFileSync(frame, path.join(runDir, pngRel));
+  return { png: pngRel, warnings };
 }
