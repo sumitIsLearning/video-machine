@@ -3,6 +3,7 @@ import path from 'node:path';
 import { PlanSchema, ScriptSchema } from '../contracts/types';
 import { estimate } from '../core/estimate';
 import { readJson } from '../core/json';
+import { assertRunDir } from '../core/paths';
 import { type SceneTiming, sceneTimes } from './plan';
 
 const esc = (v: string): string =>
@@ -44,6 +45,7 @@ ${overrides}</section>`;
  * the scene ids whose board is not rendered yet. Throws the fs or contract error when a file cannot be read or written.
  */
 export function writeStoryboardPage(runDir: string): { page: string; missing_boards: string[] } {
+  assertRunDir(runDir);
   const plan = readJson(path.join(runDir, 'plan.json'), PlanSchema);
   const script = readJson(path.join(runDir, 'script.json'), ScriptSchema);
   const times = sceneTimes(plan.visuals_plan.scenes, estimate(script).lines);

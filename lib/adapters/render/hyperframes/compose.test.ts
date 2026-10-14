@@ -7,7 +7,7 @@ import { HF_CMD, loadConfig } from '../../../core/config';
 import type { Deps } from '../../../core/deps';
 import { InputError, ToolError } from '../../../core/errors';
 import { writeJson } from '../../../core/json';
-import { lintComposition, snapshotComposition, writeComposition } from './compose';
+import { lintComposition, renderBoard, snapshotComposition, writeComposition } from './compose';
 
 const temps: string[] = [];
 afterEach(() => {
@@ -97,6 +97,18 @@ const fakeDeps = (handler: (cmd: string[]) => { code: number; stdout: string; st
   };
   return { deps, calls };
 };
+
+test('a board that fails lint leaves no PNG from an earlier render', async () => {
+  const d = run();
+  mkdirSync(path.join(d, 'boards'), { recursive: true });
+  writeFileSync(path.join(d, 'boards', 'hook.png'), 'old');
+  const stdout = JSON.stringify({ findings: [{ code: 'bad', severity: 'error', message: 'broken' }] });
+  const { deps } = fakeDeps(() => ({ code: 1, stdout }));
+  await expect(
+    renderBoard(deps, d, 'boards/hook', '<html></html>', [], 1, 'board hook', 'boards/hook.png'),
+  ).rejects.toThrow('board hook has lint errors');
+  expect(existsSync(path.join(d, 'boards', 'hook.png'))).toBe(false);
+});
 
 test('lint maps findings into errors and warnings', async () => {
   const stdout = JSON.stringify({

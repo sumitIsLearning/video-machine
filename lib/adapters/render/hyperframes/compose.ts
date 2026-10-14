@@ -131,7 +131,7 @@ export async function snapshotComposition(deps: Deps, dir: string, at: number[])
 
 /**
  * Write a composition, lint it, snapshot it at `at` and copy the frame to `pngRel` in the run. The composition folder
- * stays on disk for Claude to fix. Returns the png path and the lint warnings. Throws InputError (`label` names the
+ * stays on disk for Claude to fix. Any PNG already at `pngRel` is deleted first, so a failed render leaves none. Returns the png path and the lint warnings. Throws InputError (`label` names the
  * board) when lint reports errors or an asset cannot render; ToolError when HyperFrames fails.
  */
 export async function renderBoard(
@@ -144,6 +144,8 @@ export async function renderBoard(
   label: string,
   pngRel: string,
 ): Promise<{ png: string; warnings: string[] }> {
+  // A failed render must not leave the previous PNG looking current.
+  rmSync(path.join(runDir, pngRel), { force: true });
   const comp = writeComposition(runDir, compRel, html, assetIds);
   const { errors, warnings } = await lintComposition(deps, comp.dir);
   if (errors.length) throw new InputError(`${label} has lint errors:\n- ${errors.join('\n- ')}`);

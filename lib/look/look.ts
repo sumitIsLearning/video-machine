@@ -15,6 +15,7 @@ import {
 import type { Deps } from '../core/deps';
 import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
+import { assertRunDir } from '../core/paths';
 import { writeLooksPage } from './page';
 
 const DIRECTIONS: DirectionId[] = ['A', 'B'];
@@ -28,6 +29,7 @@ const brandFixed = (brand: Brief['brand']): boolean =>
  * for a bad look (writeJson validates first).
  */
 export function writeLook(runDir: string, dir: DirectionId, input: unknown): { look: string; md: string } {
+  assertRunDir(runDir);
   const { look, md } = (input ?? {}) as Partial<{ look: Look; md: string }>;
   if (typeof md !== 'string' || md.trim() === '') throw new InputError('LOOK.md text is empty');
   const base = `directions/${dir}`;
@@ -70,6 +72,7 @@ export async function writeBoard(
  * the page is written first either way.
  */
 export function compareLooks(runDir: string): { check: CheckResult; missing_boards: string[]; page: string } {
+  assertRunDir(runDir);
   const aFile = path.join(runDir, 'directions/A/look.json');
   const bFile = path.join(runDir, 'directions/B/look.json');
   if (!existsSync(aFile) || !existsSync(bFile)) throw new InputError('write look A and look B first');
@@ -92,6 +95,7 @@ export function compareLooks(runDir: string): { check: CheckResult; missing_boar
  * direction's three boards are not all rendered. Returns the run-relative look path and the look id.
  */
 export function pickLook(runDir: string, dir: DirectionId): { look: string; id: string } {
+  assertRunDir(runDir);
   compareLooks(runDir);
   const missing = BoardIdSchema.options.filter((board) => !existsSync(boardPng(runDir, dir, board)));
   if (missing.length) throw new InputError(`direction ${dir} is missing boards: ${missing.join(', ')}`);

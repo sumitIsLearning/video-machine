@@ -38,7 +38,7 @@ From the research and the captured brand (palette and fonts in `capture/pages/*.
 differ in at least two of palette, type, motion and motifs. When the brief fixes brand colours or fonts, they differ
 only in motion and motifs.
 
-Fonts must have a known licence: system fonts or OFL Google fonts that the board loads from `assets/`. Never plan a
+Fonts must have a known licence: boards use system fonts only (there is no way yet to add a licensed font file). Never plan a
 captured font, and never ship one. Each `type` entry needs a `license`.
 
 Write each direction with a JSON object holding `look` and `md` (the LOOK.md text). The look object:
@@ -61,7 +61,7 @@ Do the same for `B`. `LOOK.md` says the idea, palette roles, type, motion and mo
 ## 3. Boards
 
 For each direction (A, then B), three boards: `hook`, `product`, `ending`. Each board is one HTML file, a 1080×1920
-HyperFrames composition:
+HyperFrames composition. Boards are drawn at reel size (1080×1920) in this version, whatever the brief's formats. The rules:
 
 - root: `<div id="root" data-composition-id="main" data-start="0" data-duration="3" data-width="1080" data-height="1920">`
 - `<script src="vendor/gsap.min.js"></script>`
@@ -76,6 +76,8 @@ HyperFrames composition:
 <!doctype html> ...
 VM_BOARD_EOF
 ```
+
+`--at` is seconds inside the board's own composition (0 to its `data-duration`, default 1), not the scene's time in the reel.
 
 If the command names lint errors, fix them and send the HTML again. The result is `{png, warnings}`. Read `png` with
 the Read tool and check it before the next board.
@@ -120,6 +122,8 @@ scene's `asset_ids`. The result is `{png, warnings}`; read `png` with the Read t
 VM_SBOARD_EOF
 ```
 
+`--at` is seconds inside the board's own composition (0 to its `data-duration`, default 1), not the scene's time in the reel.
+
 Then build the page:
 
 ```bash
@@ -132,7 +136,7 @@ It returns `{page, missing_boards}`. Render any scene in `missing_boards` before
 
 Give the creator the page `out/storyboard.html` to open. Apply their notes: a note about one scene's look or
 wording goes into that scene (`intent`, `beats`, or `overrides` for a specific visual instruction). Then `storyboard
-write` the whole plan again, and re-render only the boards of the scenes that changed. Stop when the creator approves.
+write` the whole plan again. It returns `changed` (scene ids) and deletes their old boards; re-render exactly those, then run `page`. Stop when the creator approves.
 
 ## 7. Rules
 

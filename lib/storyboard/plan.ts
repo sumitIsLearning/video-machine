@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { renderableAssets, renderBoard } from '../adapters/render/hyperframes/compose';
 import { checkCoverage } from '../checks/coverage';
@@ -16,6 +16,7 @@ import type { Deps } from '../core/deps';
 import { InputError } from '../core/errors';
 import { estimate, type LineEstimate } from '../core/estimate';
 import { readJson, writeJson } from '../core/json';
+import { assertRunDir } from '../core/paths';
 
 type SceneInput = Omit<ScenePlan, 'input_hash'>;
 type PlanInput = {
@@ -24,9 +25,27 @@ type PlanInput = {
   asset_ids?: string[];
 };
 export type SceneTiming = { scene_id: string; lines: string[]; start_s: number; end_s: number };
-export type PlanWritten = { scenes: SceneTiming[]; est_s: number; target_s: [number, number]; fits: boolean };
+export type PlanWritten = {
+  scenes: SceneTiming[];
+  est_s: number;
+  target_s: [number, number];
+  fits: boolean;
+  changed: string[];
+};
 
 const unique = <T>(values: T[]): T[] => [...new Set(values)];
+
+/** The value with every object's keys sorted, so the same data always stringifies the same (R7 canonical JSON). */
+const canonical = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (typeof value !== 'object' || value === null) return value;
+  const v = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.keys(v)
+      .sort()
+      .map((k) => [k, canonical(v[k])]),
+  );
+};
 
 /**
  * The estimated start of each scene's first line and end of its last line. Returns data only; throws InputError when
@@ -45,15 +64,19 @@ export function sceneTimes(scenes: { scene_id: string; lines: string[] }[], line
 /**
  * Write plan.json from the scenes: each scene's input_hash (R7) and the plan's version (previous + 1). Checks the
  * script and look exist, the assets render, and every script line is in exactly one scene, in order. Throws InputError
- * for those failures and writes nothing. Returns the scenes' estimated timing and whether the estimate fits the brief's
- * duration target.
+ * for those failures and writes nothing. Returns the scenes' estimated timing, whether the estimate fits the brief's
+ * duration target, and `changed`: the scenes whose input_hash is new or different, whose boards/<id>.png it deletes
+ * after the write.
  */
 export function writePlan(runDir: string, input: unknown): PlanWritten {
+  assertRunDir(runDir);
   const { scenes, sections, asset_ids } = (input ?? {}) as Partial<PlanInput>;
   if (!Array.isArray(scenes) || scenes.length === 0)
     throw new InputError(
       'plan needs a non-empty "scenes" array; top-level keys are scenes, sections, asset_ids (visuals_plan is written by this command)',
     );
+  if (asset_ids !== undefined && !Array.isArray(asset_ids))
+    throw new InputError('asset_ids must be an array of asset ids');
   const scriptFile = path.join(runDir, 'script.json');
   if (!existsSync(scriptFile)) throw new InputError('script.json is missing: write the script (M6) first');
   const lookFile = path.join(runDir, 'look', 'look.json');
@@ -85,22 +108,27 @@ export function writePlan(runDir: string, input: unknown): PlanWritten {
       return [l.id, l.text, l.spoken, l.on_screen];
     });
     return createHash('sha256')
-      .update(JSON.stringify({ scene, lines, look_id: look.id }))
+      .update(JSON.stringify(canonical({ scene, lines, look })))
       .digest('hex')
       .slice(0, 16);
   };
 
   const planFile = path.join(runDir, 'plan.json');
-  const version = existsSync(planFile) ? readJson(planFile, PlanSchema).version + 1 : 1;
+  const previous = existsSync(planFile) ? readJson(planFile, PlanSchema) : undefined;
+  const previousHash = new Map(previous?.visuals_plan.scenes.map((s) => [s.scene_id, s.input_hash]));
+  const hashed = plain.map((s) => ({ ...s, input_hash: hashOf(s) }));
+  const changed = hashed.filter((s) => previousHash.get(s.scene_id) !== s.input_hash).map((s) => s.scene_id);
   writeJson(planFile, PlanSchema, {
     run_id: brief.run_id,
-    version,
+    version: (previous?.version ?? 0) + 1,
     look_id: look.id,
     sections,
-    visuals_plan: { scenes: plain.map((s) => ({ ...s, input_hash: hashOf(s) })) },
+    visuals_plan: { scenes: hashed },
     asset_ids: planAssets,
     formats: brief.formats,
   });
+  // The boards of changed scenes are stale now; the caller re-renders exactly these.
+  for (const id of changed) rmSync(path.join(runDir, 'boards', `${id}.png`), { force: true });
 
   const { lines, total_s } = estimate(script);
   const [lo, hi] = brief.duration_target_s;
@@ -109,6 +137,7 @@ export function writePlan(runDir: string, input: unknown): PlanWritten {
     est_s: total_s,
     target_s: brief.duration_target_s,
     fits: total_s >= lo && total_s <= hi,
+    changed,
   };
 }
 
@@ -124,6 +153,7 @@ export async function writeSceneBoard(
   html: string,
   at: number,
 ): Promise<{ png: string; warnings: string[] }> {
+  assertRunDir(runDir);
   const plan = readJson(path.join(runDir, 'plan.json'), PlanSchema);
   const scene = plan.visuals_plan.scenes.find((s) => s.scene_id === sceneId);
   if (!scene) throw new InputError(`plan.json has no scene "${sceneId}"`);

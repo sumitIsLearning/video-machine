@@ -7,6 +7,7 @@ import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
+import { writeLook } from '../look/look';
 import { writePlan, writeSceneBoard } from './plan';
 
 const temps: string[] = [];
@@ -111,6 +112,60 @@ test('input_hash changes with the scene, its lines or the look, and only then', 
   writeJson(path.join(d, 'look', 'look.json'), LookSchema, { ...LOOK, id: 'paper' });
   write('bigger hook');
   expect(hashes()[1]).not.toBe(d1);
+});
+
+test('input_hash changes when the look content changes under the same id', () => {
+  const d = run();
+  const hash = () => readJson(path.join(d, 'plan.json'), PlanSchema).visuals_plan.scenes[0]?.input_hash;
+  const scenes = () => [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])];
+  writePlan(d, { scenes: scenes() });
+  const before = hash();
+  writeJson(path.join(d, 'look', 'look.json'), LookSchema, { ...LOOK, idea: 'another idea' });
+  writePlan(d, { scenes: scenes() });
+  expect(hash()).not.toBe(before);
+});
+
+test('a scene with its keys in another order keeps its hash and is not changed', () => {
+  const d = run();
+  const reversed = (o: object) => Object.fromEntries(Object.entries(o).reverse());
+  writePlan(d, { scenes: [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])] });
+  const r = writePlan(d, { scenes: [reversed(scene('hook', ['l1'])), reversed(scene('demo', ['l2', 'l3']))] });
+  expect(r.changed).toEqual([]);
+});
+
+test('writePlan lists every scene as changed on the first write and none on a repeat', () => {
+  const d = run();
+  const scenes = () => [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])];
+  expect(writePlan(d, { scenes: scenes() }).changed).toEqual(['hook', 'demo']);
+  expect(writePlan(d, { scenes: scenes() }).changed).toEqual([]);
+});
+
+test('an edited scene is the only changed one, and only its board is deleted', () => {
+  const d = run();
+  writePlan(d, { scenes: [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])] });
+  mkdirSync(path.join(d, 'boards'), { recursive: true });
+  writeFileSync(path.join(d, 'boards', 'hook.png'), 'png');
+  writeFileSync(path.join(d, 'boards', 'demo.png'), 'png');
+  const r = writePlan(d, {
+    scenes: [scene('hook', ['l1'], { intent: 'bigger hook' }), scene('demo', ['l2', 'l3'])],
+  });
+  expect(r.changed).toEqual(['hook']);
+  expect(existsSync(path.join(d, 'boards', 'hook.png'))).toBe(false);
+  expect(existsSync(path.join(d, 'boards', 'demo.png'))).toBe(true);
+});
+
+test('asset_ids that is not an array is refused with an InputError', () => {
+  const d = run();
+  expect(() => writePlan(d, { scenes: [scene('a', ['l1', 'l2', 'l3'])], asset_ids: 'captured-aaaa1111' })).toThrow(
+    'asset_ids must be an array of asset ids',
+  );
+});
+
+test('a folder without concept.md is refused by writeLook and by writePlan', () => {
+  const d = mkdtempSync(path.join(tmpdir(), 'vm-'));
+  temps.push(d);
+  expect(() => writeLook(d, 'A', { look: LOOK, md: '# A' })).toThrow('is not a run folder');
+  expect(() => writePlan(d, { scenes: [scene('a', ['l1'])] })).toThrow('is not a run folder');
 });
 
 test('a coverage failure is refused and nothing is written', () => {
