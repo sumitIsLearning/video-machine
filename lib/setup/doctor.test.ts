@@ -70,7 +70,8 @@ const world = (over: Record<string, Reply> = {}, opts: { parakeet?: boolean; mod
     bytes: Buffer.byteLength(content),
     path: modelPath,
   };
-  const run = (m = model) => runDoctor(deps, { now: new Date('2026-10-10T09:00:00Z'), home, model: m });
+  const run = (m = model, captureBrowser: () => Promise<'chrome' | 'chromium' | null> = async () => 'chrome') =>
+    runDoctor(deps, { now: new Date('2026-10-10T09:00:00Z'), home, model: m, captureBrowser });
   return { deps, calls, run, model };
 };
 
@@ -85,6 +86,26 @@ test('a complete machine passes every check, with versions', async () => {
   expect(d.tools.uv?.version).toBe('0.11.6');
   expect(d.tools.hyperframes?.version).toBe('0.8.143');
   expect(d.smoke_s).toEqual({});
+});
+
+test('capture_browser is ok with system Chrome or Playwright Chromium', async () => {
+  const w = world();
+  expect((await w.run(w.model, async () => 'chrome')).tools.capture_browser).toEqual({
+    ok: true,
+    detail: 'system Chrome',
+  });
+  expect((await w.run(w.model, async () => 'chromium')).tools.capture_browser).toEqual({
+    ok: true,
+    detail: 'Playwright Chromium',
+  });
+});
+
+test('capture_browser fails when Playwright can start no browser', async () => {
+  const w = world();
+  const d = await w.run(w.model, async () => null);
+  expect(d.tools.capture_browser?.ok).toBe(false);
+  expect(d.tools.capture_browser?.detail).toContain('install');
+  expect(failingTools(d)).toEqual(['capture_browser']);
 });
 
 test('Node older than 22 fails and says what is needed', async () => {

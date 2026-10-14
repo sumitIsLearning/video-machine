@@ -420,6 +420,7 @@ export const DOCTOR_TOOLS = [
   'venv',
   'aligner_model',
   'parakeet',
+  'capture_browser',
 ] as const;
 
 /** The names of the tools whose check failed, in `DOCTOR_TOOLS` order. A tool missing from `d` counts as failed. */

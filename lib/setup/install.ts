@@ -2,15 +2,20 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { alignerModel, type ModelSpec } from '../adapters/align/ctc-onnx';
+import { browserChannel } from '../adapters/capture/playwright/browser';
 import { HF_CMD } from '../core/config';
 import { type Deps, defaultDeps } from '../core/deps';
 import { VideoMachineError } from '../core/errors';
 import { checkModel } from './doctor';
 
-export const INSTALL_STEPS = ['venv', 'model', 'browser', 'parakeet'] as const;
+export const INSTALL_STEPS = ['venv', 'model', 'browser', 'parakeet', 'capture_browser'] as const;
 export type InstallStep = (typeof INSTALL_STEPS)[number];
 export type StepResult = { step: InstallStep; ok: boolean; detail: string };
-export type InstallOptions = { fetch?: typeof fetch; model?: ModelSpec };
+export type InstallOptions = {
+  fetch?: typeof fetch;
+  model?: ModelSpec;
+  captureBrowser?: () => Promise<'chrome' | 'chromium' | null>;
+};
 
 const FIFTEEN_MIN = 15 * 60_000;
 
@@ -132,6 +137,20 @@ export const installParakeet = async (deps: Deps = defaultDeps()): Promise<strin
 };
 
 /**
+ * Make sure Playwright has a browser for the capture replay: the system Chrome is enough, else Chromium is fetched.
+ * Returns a detail line. Throws ToolError when the download fails.
+ */
+export const installCaptureBrowser = async (deps: Deps = defaultDeps(), opts: InstallOptions = {}): Promise<string> => {
+  const which = await (opts.captureBrowser ?? browserChannel)();
+  if (which !== null) return `capture browser ready (${which})`;
+  await deps.sh([deps.config.bun, 'x', 'playwright', 'install', 'chromium'], {
+    env: deps.config.toolEnv,
+    timeoutMs: FIFTEEN_MIN,
+  });
+  return 'capture browser installed (Playwright Chromium)';
+};
+
+/**
  * Run the install steps in order, continuing after a failure.
  * Returns one result per step. Only a VideoMachineError (including ToolError) is recorded; a bug still throws.
  */
@@ -145,6 +164,7 @@ export const install = async (
     model: () => installModel(deps, opts),
     browser: () => installBrowser(deps),
     parakeet: () => installParakeet(deps),
+    capture_browser: () => installCaptureBrowser(deps, opts),
   };
   const results: StepResult[] = [];
   for (const step of steps) {

@@ -6,7 +6,15 @@ import path from 'node:path';
 import { HF_CMD, loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { ToolError, VideoMachineError } from '../core/errors';
-import { INSTALL_STEPS, install, installBrowser, installModel, installParakeet, installVenv } from './install';
+import {
+  INSTALL_STEPS,
+  install,
+  installBrowser,
+  installCaptureBrowser,
+  installModel,
+  installParakeet,
+  installVenv,
+} from './install';
 
 const temps: string[] = [];
 afterEach(() => {
@@ -14,6 +22,7 @@ afterEach(() => {
 });
 
 const BODY = 'pretend onnx';
+const captureBrowser = async () => 'chrome' as const;
 const spec = (dir: string) => ({
   url: 'https://example.com/m.onnx',
   sha256: createHash('sha256').update(BODY).digest('hex'),
@@ -171,10 +180,10 @@ test('a directory in the model path is a VideoMachineError and leaves no .downlo
 test('a second install run with everything in place downloads and syncs nothing', async () => {
   const { vm, deps, calls } = world();
   const m = spec(vm);
-  await install(deps, INSTALL_STEPS, { fetch: fakeFetch(BODY).f, model: m });
+  await install(deps, INSTALL_STEPS, { fetch: fakeFetch(BODY).f, model: m, captureBrowser });
   calls.length = 0;
   const { f, urls } = fakeFetch('never');
-  const r = await install(deps, INSTALL_STEPS, { fetch: f, model: m });
+  const r = await install(deps, INSTALL_STEPS, { fetch: f, model: m, captureBrowser });
   expect(r.every((s) => s.ok)).toBe(true);
   expect(urls).toEqual([]);
   expect(calls.filter((c) => c.includes('sync') && !c.includes('--check'))).toEqual([]);
@@ -212,11 +221,24 @@ test('install keeps going after the model download fails', async () => {
   const f = (async () => {
     throw new TypeError('fetch failed');
   }) as unknown as typeof fetch;
-  const r = await install(deps, INSTALL_STEPS, { fetch: f, model: spec(vm) });
+  const r = await install(deps, INSTALL_STEPS, { fetch: f, model: spec(vm), captureBrowser });
   expect(r.map((s) => [s.step, s.ok])).toEqual([
     ['venv', true],
     ['model', false],
     ['browser', true],
     ['parakeet', true],
+    ['capture_browser', true],
   ]);
+});
+
+test('capture_browser: nothing to install when a browser exists', async () => {
+  const { deps, calls } = world();
+  expect(await installCaptureBrowser(deps, { captureBrowser })).toBe('capture browser ready (chrome)');
+  expect(calls).toEqual([]);
+});
+
+test('capture_browser: bun x playwright install chromium when none exists', async () => {
+  const { deps, calls } = world();
+  await installCaptureBrowser(deps, { captureBrowser: async () => null });
+  expect(calls).toEqual([[deps.config.bun, 'x', 'playwright', 'install', 'chromium']]);
 });

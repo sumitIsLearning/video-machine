@@ -8,6 +8,9 @@ import { runDoctor } from './doctor';
 import { INSTALL_STEPS, type InstallStep, install } from './install';
 import { runSmoke } from './smoke';
 
+/** Tests replace the browser probe; the real one starts Chrome. */
+type BrowserProbe = { captureBrowser?: () => Promise<'chrome' | 'chromium' | null> };
+
 const USAGE = `usage: cli.ts doctor | install | smoke (install takes optional steps: ${INSTALL_STEPS.join(', ')})`;
 
 /**
@@ -28,8 +31,13 @@ const readSaved = (file: string): Doctor | undefined => {
 };
 
 /** Run the doctor and save the result, keeping the earlier smoke timings. Returns the Doctor that was written. */
-const runAndSaveDoctor = async (deps: Deps, file: string, saved: Doctor | undefined): Promise<Doctor> => {
-  const d = await runDoctor(deps);
+const runAndSaveDoctor = async (
+  deps: Deps,
+  file: string,
+  saved: Doctor | undefined,
+  opts: BrowserProbe,
+): Promise<Doctor> => {
+  const d = await runDoctor(deps, opts);
   return writeJson(file, DoctorSchema, { ...d, smoke_s: saved?.smoke_s ?? {} });
 };
 
@@ -37,11 +45,15 @@ const runAndSaveDoctor = async (deps: Deps, file: string, saved: Doctor | undefi
  * Run one setup command: `doctor`, `install [step...]` or `smoke`.
  * Returns the fields of the CLI's JSON result. Throws InputError for an unknown command or install step.
  */
-export const main = async (argv: string[], deps: Deps = defaultDeps()): Promise<Record<string, unknown>> => {
+export const main = async (
+  argv: string[],
+  deps: Deps = defaultDeps(),
+  probe: BrowserProbe = {},
+): Promise<Record<string, unknown>> => {
   const file = path.join(deps.config.vmHome, 'doctor.json');
   const [command, ...rest] = argv;
   if (command === 'doctor') {
-    const d = await runAndSaveDoctor(deps, file, readSaved(file));
+    const d = await runAndSaveDoctor(deps, file, readSaved(file), probe);
     const failing = failingTools(d);
     // So the setup skill never has to read the file (its path arrives JSON-escaped).
     const details = Object.fromEntries(failing.map((t) => [t, d.tools[t]?.detail ?? 'missing from doctor.json']));
@@ -50,11 +62,11 @@ export const main = async (argv: string[], deps: Deps = defaultDeps()): Promise<
   if (command === 'install') {
     const unknown = rest.find((s) => !(INSTALL_STEPS as readonly string[]).includes(s));
     if (unknown) throw new InputError(`unknown install step "${unknown}"; steps: ${INSTALL_STEPS.join(', ')}`);
-    const steps = await install(deps, rest.length ? (rest as InstallStep[]) : INSTALL_STEPS);
+    const steps = await install(deps, rest.length ? (rest as InstallStep[]) : INSTALL_STEPS, probe);
     return { ok: steps.every((s) => s.ok), steps };
   }
   if (command === 'smoke') {
-    const before = readSaved(file) ?? (await runAndSaveDoctor(deps, file, undefined));
+    const before = readSaved(file) ?? (await runAndSaveDoctor(deps, file, undefined, probe));
     const smoke_s = await runSmoke(deps, { onWarn: (line) => process.stderr.write(`${line}\n`) });
     // The smoke takes ~25 s; a doctor run in that time must not be overwritten with the tools read before it.
     writeJson(file, DoctorSchema, { ...(readSaved(file) ?? before), smoke_s });

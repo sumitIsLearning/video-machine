@@ -94,11 +94,12 @@ const fakeLaunch: Launch = async ({ recordDir }) => {
     close: async () => {
       closes++;
       if (closeFails) throw new Error('close exploded');
-      mkdirSync(recordDir, { recursive: true });
-      const video = path.join(recordDir, 'rec.webm');
+      mkdirSync(recordDir ?? '', { recursive: true });
+      const video = path.join(recordDir ?? '', 'rec.webm');
       if (!missingRecording) writeFileSync(video, 'webm');
       return video;
     },
+    closed: async () => {},
   };
   return page;
 };

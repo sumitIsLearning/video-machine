@@ -282,6 +282,10 @@ test('a doctor record missing a required tool lists it as failing', () => {
   expect(failingTools(d)).toEqual(['parakeet']);
 });
 
+test('the doctor checks the capture browser', () => {
+  expect(DOCTOR_TOOLS).toContain('capture_browser');
+});
+
 test('run paths are relative POSIX paths inside the run folder', () => {
   for (const ok of ['input/nav.mp4', 'capture/clips/3.mp4', 'concept.md'])
     expect(RunPathSchema.safeParse(ok).success).toBe(true);

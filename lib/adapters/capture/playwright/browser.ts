@@ -1,5 +1,5 @@
 // The only file that imports `playwright`; everything else drives the browser through `ReplayPage`, so tests pass a fake.
-import { type BrowserContext, chromium, type Locator, type Page } from 'playwright';
+import { chromium, type Locator, type Page } from 'playwright';
 
 export type Box = { x: number; y: number; w: number; h: number };
 
@@ -18,8 +18,11 @@ export type ReplayPage = {
   text(): Promise<string>;
   url(): string;
   close(): Promise<string>;
+  /** Resolves once the creator closes the window (then closes the browser too). Used by `capture login`. */
+  closed(): Promise<void>;
 };
-export type Launch = (o: { profileDir: string; recordDir: string; headless: boolean }) => Promise<ReplayPage>;
+/** `recordDir` is left out for a login, so nothing the creator types is ever recorded. */
+export type Launch = (o: { profileDir: string; recordDir?: string; headless: boolean }) => Promise<ReplayPage>;
 
 const VIEWPORT = { width: 1280, height: 800 };
 const ACTION_TIMEOUT_MS = 5000;
@@ -87,8 +90,12 @@ const mustFind = async (page: Page, action: string, target: string, input: boole
   return found;
 };
 
-const openContext = async (profileDir: string, recordDir: string, headless: boolean): Promise<BrowserContext> => {
-  const options = { headless, viewport: VIEWPORT, recordVideo: { dir: recordDir, size: VIEWPORT } };
+const openContext = async (profileDir: string, recordDir: string | undefined, headless: boolean) => {
+  const options = {
+    headless,
+    viewport: VIEWPORT,
+    ...(recordDir !== undefined && { recordVideo: { dir: recordDir, size: VIEWPORT } }),
+  };
   try {
     return await chromium.launchPersistentContext(profileDir, { ...options, channel: 'chrome' });
   } catch (chromeError) {
@@ -146,6 +153,10 @@ export const launchPlaywright: Launch = async ({ profileDir, recordDir, headless
       await context.close(); // the recording is only complete after the context closes
       if (!video) throw new Error('the browser recorded no video');
       return video.path();
+    },
+    closed: async () => {
+      if (!page.isClosed()) await page.waitForEvent('close', { timeout: 0 });
+      await context.close();
     },
   };
 };

@@ -4,12 +4,18 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 import { alignerModel, type ModelSpec } from '../adapters/align/ctc-onnx';
+import { browserChannel } from '../adapters/capture/playwright/browser';
 import type { Doctor } from '../contracts/types';
 import { HF_CMD, HYPERFRAMES_VERSION } from '../core/config';
 import { type Deps, defaultDeps } from '../core/deps';
 import { ToolError } from '../core/errors';
 
-export type DoctorOptions = { now?: Date; home?: string; model?: ModelSpec };
+export type DoctorOptions = {
+  now?: Date;
+  home?: string;
+  model?: ModelSpec;
+  captureBrowser?: () => Promise<'chrome' | 'chromium' | null>;
+};
 
 type Status = Doctor['tools'][string];
 
@@ -146,6 +152,14 @@ const checkParakeet = (home: string): Status => {
   }
 };
 
+/** Whether Playwright can start a browser for the replay. Returns a status; the probe never throws. */
+export const checkCaptureBrowser = async (_deps: Deps, opts: DoctorOptions = {}): Promise<Status> => {
+  const which = await (opts.captureBrowser ?? browserChannel)();
+  if (which === null)
+    return { ok: false, detail: 'no browser for the capture replay; run setup install capture_browser' };
+  return { ok: true, detail: which === 'chrome' ? 'system Chrome' : 'Playwright Chromium' };
+};
+
 /**
  * Check every tool the Video Machine needs. Writes nothing except npm's own cache when the pinned HyperFrames
  * isn't cached yet (`npx --yes`).
@@ -164,6 +178,7 @@ export const runDoctor = async (deps: Deps = defaultDeps(), opts: DoctorOptions 
     venv: await checkVenv(deps),
     aligner_model: checkModel(model),
     parakeet: checkParakeet(home),
+    capture_browser: await checkCaptureBrowser(deps, opts),
   };
   return { checked_at: now.toISOString(), tools, smoke_s: {} };
 };

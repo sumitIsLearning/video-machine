@@ -7,7 +7,10 @@ import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { InputError, ToolError } from '../core/errors';
 import { readJson } from '../core/json';
-import { main } from './cli';
+import { main as setupMain } from './cli';
+
+/** The real probe would start Chrome; every test here has no capture browser. */
+const main = (argv: string[], deps: Deps) => setupMain(argv, deps, { captureBrowser: async () => null });
 
 const temps: string[] = [];
 afterEach(() => {
