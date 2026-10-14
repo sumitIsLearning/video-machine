@@ -14,3 +14,4 @@ Task 5: done faaa965 (haiku build, spec FAIL on intro "(M11)" (M11 is avatar), c
 Task 6: done 703f43d (haiku build, spec PASS, code 🟠×2 cwd writes when check 1 fails → guards in one haiku fix round; 5/5 PASS ~25 s)
 Rulings: R10 check 5 writes stand-in look/look.json + plan.json (where checks existence only); R11 check 6 (video-testing listing) dropped — no Phase 4 check, Phase 0 path is Windows.
 Next: phase-end opus review of the branch, one fix brief, scoped re-review; ask before merge.
+Fix-branch: done ce2f764 (opus review 🟠 spoken map global vs plain uses + 🟡×2 🔵×2; haiku lib+plugin builders, spec PASS, 644 pass, phase5 5/5). Next: ask user to merge.
