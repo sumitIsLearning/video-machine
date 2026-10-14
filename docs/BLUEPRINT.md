@@ -203,7 +203,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | `RenderAdapter.still` | `runDir, format, t[]` | PNG paths |
 | `RenderAdapter.contactSheet` | `runDir, format, perScene` | PNG path |
 | `RenderAdapter.render` | `runDir, format, "draft"\|"final", passes?` | MP4 path (passes unsupported → throw) |
-| `VoiceAdapter.synth` / `costEstimate` | `lines, voiceId` | WAV path / USD |
+| `VoiceAdapter.synth` / `costEstimate` | `runDir, lines, voiceId` (`voice/supplied` is `importSupplied(deps, runDir, runPath)`, ruling 2026-10-14) | `<run>/audio/vo.wav` path / USD |
 | `AlignAdapter.align` | `audioPath, lines, spokenWords?` | `timing.json` path |
 | `CaptureAdapter.replay` | `runDir, steps, profile` | `log.json` path |
 | `AvatarAdapter.make` / `costEstimate` | `portrait, audioPath` | video path / USD |
@@ -251,6 +251,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | HyperFrames version | pinned constant | `0.8.143` |
 | text-only reading speed | words/s, min s per line | `3`, `1.2` |
 | script pacing estimate | words/s | `2.5` |
+| align low-confidence line | mean word `conf` | `0.6` (below fails the align, naming the line) |
 | auto-fix rounds | number | `3` |
 | motion dead span | seconds | `1.5` |
 | beat tolerance | frames | `±2` |
