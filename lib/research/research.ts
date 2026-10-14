@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { InputError } from '../core/errors';
-import { assertRunDir } from '../run/intake';
+import { assertRunDir } from '../core/paths';
 
 export type ResearchFact = { fact: string; quote: string; url: string };
 

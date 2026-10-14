@@ -3,6 +3,12 @@ import path from 'node:path';
 import { RunPathSchema } from '../contracts/types';
 import { InputError } from './errors';
 
+/** Check that the folder is a run. Throws InputError when it has no concept.md. */
+export function assertRunDir(runDir: string): void {
+  if (!existsSync(path.join(runDir, 'concept.md')))
+    throw new InputError(`${runDir} is not a run folder (no concept.md)`);
+}
+
 /** The path of `realTarget` relative to `realRoot`, or undefined when it is outside. Both must be real paths. */
 export const relInside = (realRoot: string, realTarget: string): string | undefined => {
   const rel = path.relative(realRoot, realTarget);

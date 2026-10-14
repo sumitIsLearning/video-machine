@@ -14,8 +14,8 @@ import {
 import { assetIdOf } from '../core/asset-id';
 import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
-import { relInside, runFileOf } from '../core/paths';
-import { assertRunDir, runIdOf } from '../run/intake';
+import { assertRunDir, relInside, runFileOf } from '../core/paths';
+import { runIdOf } from '../run/intake';
 
 const ASSETS = 'assets.json';
 const ORIGINS: AssetRef['origin'][] = ['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn'];
@@ -46,18 +46,16 @@ export const isUnknownLicence = (license: string): boolean => ['', 'unknown'].in
 
 export type PoolOptions = { onWarn?: (line: string) => void };
 
-const warnToStderr = (line: string): void => void process.stderr.write(`${line}\n`);
-
 /**
  * Collect every asset of a run into `assets.json`, keeping the creator's pin and drop marks by asset id.
  * A file it cannot use (missing, outside the run, a folder, wrong extension, dangling link) is skipped with an
- * `[M4] skipped <path>: <reason>` line to `onWarn` (stderr by default); it never aborts the build.
+ * `[M4] skipped <path>: <reason>` line to `onWarn` (silent when none is given; the CLI passes stderr); it never aborts the build.
  * Returns the pool, sorted by origin then path. Throws InputError when the folder is not a run, ContractError for a
  * malformed record file.
  */
 export function buildPool(runDir: string, opts: PoolOptions = {}): Assets {
   assertRunDir(runDir);
-  const warn = opts.onWarn ?? warnToStderr;
+  const warn = opts.onWarn ?? (() => {});
   const skip = (rel: string, reason: string) => warn(`[M4] skipped ${rel}: ${reason}`);
   const lexical = (rel: string) => path.join(runDir, ...rel.split('/'));
   const realRun = realpathSync.native(runDir);

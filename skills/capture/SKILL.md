@@ -1,6 +1,6 @@
 ---
 name: capture
-description: "Use when a run has a navigation video or a product URL (M2-M4): reads the video into steps, replays them in a real browser for clean shots and clips, and builds the assets panel."
+description: "Use when a run has a navigation video or a product URL (M2-M4): reads the video into steps, replays them in a real browser for clean shots and clips, and builds the assets panel (M4) for every run, including a concept-only one."
 ---
 
 # Capture (M2, M3, M4)
@@ -53,10 +53,13 @@ it needs their yes. Passwords are never typed by automation, and never asked for
 creator: "A browser window opens. Log in yourself, then close the window. Nothing is recorded."
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/capture/cli.ts" login 'https://app.example.com/'
+"${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/capture/cli.ts" login runs/<run_id>
 ```
 
-The command returns `{ok, profile}` when the window closes; the replay reuses that profile. If the creator declines, or `login`
+`login` reads `product_url` from the run's brief and opens it; there is no URL argument. Login and replay both need a
+`product_url` in the brief (without one, M3 is skipped). The command returns `{ok, profile}` when the window closes; the
+replay reuses that browser profile, which is keyed by `product_url`. A step whose `url` is a private or local host other
+than the `product_url` host, or a link-local or metadata address, is refused. If the creator declines, or `login`
 returns `ok:false`, still run `replay` without it: steps behind the login fail and fall back to the nav frames, and
 `capture/log.json` is still written, so `where` moves on. Say this plainly to the creator.
 
@@ -93,6 +96,6 @@ target; offer to fix the step's `target` from the frame (rewrite the steps and r
 
 The last word is `pin`, `drop` or `pool` (back to the default). It returns `{ok, asset_id, status}`. An asset with an unknown
 licence can't be pinned (`InputError`): explain that the video may only use media with a known licence, and that fonts
-and anything from a page are reference only.
+(and any asset of unknown licence) are reference only. Page screenshots and logos can render and be pinned.
 
 Tell the creator what was made.

@@ -6,8 +6,8 @@ import { HF_CMD } from '../core/config';
 import type { Deps } from '../core/deps';
 import { InputError, ToolError } from '../core/errors';
 import { writeJson } from '../core/json';
-import { relInside, runFileOf } from '../core/paths';
-import { assertRunDir, slugOf } from '../run/intake';
+import { assertRunDir, relInside, runFileOf } from '../core/paths';
+import { slugOf } from '../run/intake';
 
 // A page navigation scores 0.06-0.09 on a real screen recording (probed), so the usual 0.3 finds nothing.
 export const NAV_SCENE_THRESHOLD = 0.05;

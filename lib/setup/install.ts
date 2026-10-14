@@ -143,7 +143,10 @@ export const installParakeet = async (deps: Deps = defaultDeps()): Promise<strin
 export const installCaptureBrowser = async (deps: Deps = defaultDeps(), opts: InstallOptions = {}): Promise<string> => {
   const which = await (opts.captureBrowser ?? browserChannel)();
   if (which !== null) return `capture browser ready (${which})`;
-  await deps.sh([deps.config.bun, 'x', 'playwright', 'install', 'chromium'], {
+  // The plugin's own pinned playwright, not whatever `bun x` would fetch from npm.
+  const cli = path.join(deps.config.pluginRoot, 'node_modules', 'playwright', 'cli.js');
+  await deps.sh([deps.config.bun, cli, 'install', 'chromium'], {
+    cwd: deps.config.pluginRoot,
     env: deps.config.toolEnv,
     timeoutMs: FIFTEEN_MIN,
   });

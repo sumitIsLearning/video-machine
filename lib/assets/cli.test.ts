@@ -58,3 +58,26 @@ test('a bad command or status is a usage error', async () => {
   await expect(main(['bogus', dir])).rejects.toThrow('usage:');
   await expect(main(['mark', dir, 'x', 'keep'])).rejects.toThrow('usage:');
 });
+
+test.each(['toString', 'constructor', '__proto__'])('an inherited name %p is not a status', async (mark) => {
+  const dir = run();
+  await expect(main(['mark', dir, 'x', mark])).rejects.toThrow('usage:');
+});
+
+test('build passes its warnings to the caller', async () => {
+  const dir = run();
+  writeFileSync(
+    path.join(dir, 'brief.json'),
+    JSON.stringify({
+      run_id: 'r',
+      concept: 'c',
+      goals: [],
+      duration_target_s: [10, 20],
+      timing_source: 'voiceover',
+      sources: [{ kind: 'file', path_or_url: 'missing.png' }],
+    }),
+  );
+  const warns: string[] = [];
+  await main(['build', dir], { onWarn: (l) => warns.push(l) });
+  expect(warns[0]).toStartWith('[M4] skipped missing.png');
+});

@@ -795,8 +795,8 @@ test('a launch failure surfaces as CaptureError naming the profile', async () =>
 - `lib/capture/cli.ts` `main(argv, io?)` has four commands:
   - `read <run_dir> <source>` returns `NavFrames`.
   - `steps <run_dir>` reads a JSON draft on stdin and returns `{ steps: <path>, count }`.
-  - `replay <run_dir>` reads `capture/steps.json`, picks the profile from the first step's URL host, and returns `{ log, ok_steps, failed: [{ i, failed, fallback? }] }`.
-  - `login <url>` opens a **headed** persistent context on `profileDirOf(vmHome, url)` at `url` and resolves when the creator closes the window. It returns `{ profile }`. Use `launch({ headless: false })` and wait for the page to close.
+  - `replay <run_dir>` reads `capture/steps.json`, picks the profile from the brief's `product_url` (which is also the only private host it may visit; branch-review ruling), and returns `{ log, ok_steps, failed: [{ i, failed, fallback? }] }`.
+  - `login <run_dir>` reads the brief's `product_url` and opens a **headed** persistent context on `profileDirOf(vmHome, product_url)` at that URL and resolves when the creator closes the window. It returns `{ profile }`. Use `launch({ headless: false })` and wait for the page to close.
 - `lib/contracts/types.ts`: `DOCTOR_TOOLS` gains `'capture_browser'` (last), with the test `expect(DOCTOR_TOOLS).toContain('capture_browser')` in `types.test.ts` (moved here from Task 1).
 - Doctor: `checkCaptureBrowser(deps, opts)` is OK when `browserChannel()` is not null, with detail `system Chrome` or `Playwright Chromium`. It is injectable through `DoctorOptions.captureBrowser?: () => Promise<'chrome' | 'chromium' | null>`.
 - Install: the new step `capture_browser`:
@@ -922,7 +922,7 @@ Required content:
    - Read the transcript if there is one.
    - Write the steps through `capture steps` (heredoc). Each step has `url`, `action`, `target` (the visible link or button text), `expect` and `frame` (the frame it came from).
 2. **M3** (only with steps and a `product_url`):
-   - **Logged-in products:** if the product needs a login, run `capture login <url>`. Tell the creator: "a browser window opens; log in yourself, then close it". **Never type a password; never ask for one.**
+   - **Logged-in products:** if the product needs a login, run `capture login <run_dir>`. Tell the creator: "a browser window opens; log in yourself, then close it". **Never type a password; never ask for one.**
    - Then run `capture replay`, and report `failed` steps by name with their fallback frames.
 3. **M4:**
    - Run `assets build`, then `assets panel`.

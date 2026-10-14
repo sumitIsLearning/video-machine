@@ -6,7 +6,7 @@ import type { Launch, ReplayPage } from '../adapters/capture/playwright/browser'
 import { profileDirOf } from '../adapters/capture/playwright/index';
 import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
-import { InputError } from '../core/errors';
+import { CaptureError, InputError } from '../core/errors';
 import { main } from './cli';
 
 const temps: string[] = [];
@@ -25,6 +25,22 @@ const run = () => {
   return d;
 };
 const NAV = 'capture/nav/nav-';
+const PRODUCT = 'https://example.com/app';
+
+/** Write a brief with the given sources into a run. */
+const briefWith = (dir: string, sources: object[]) =>
+  writeFileSync(
+    path.join(dir, 'brief.json'),
+    JSON.stringify({
+      run_id: 'r',
+      concept: 'c',
+      goals: [],
+      duration_target_s: [10, 20],
+      timing_source: 'voiceover',
+      sources,
+    }),
+  );
+const productBrief = (dir: string, url = PRODUCT) => briefWith(dir, [{ kind: 'product_url', path_or_url: url }]);
 
 /** A fake ffmpeg/ffprobe: a 3 s silent video with no scene changes, and it writes whatever file it is asked for. */
 const deps = (vmHome = temp()): Deps => ({
@@ -74,11 +90,13 @@ test('steps with a draft that is not JSON is an input error', async () => {
 
 /** A page where 'Nope' cannot be found; it records the profile and whether it was asked to record video. */
 const launches: Parameters<Launch>[0][] = [];
+const gotos: string[] = [];
 const fakeLaunch: Launch = async (o) => {
   launches.push(o);
   let url = '';
   const page: ReplayPage = {
     goto: async (u) => {
+      gotos.push(u);
       url = u;
     },
     click: async () => {},
@@ -101,8 +119,9 @@ const fakeLaunch: Launch = async (o) => {
   return page;
 };
 
-test('replay reports the failed step with its fallback and uses the profile of the first step host', async () => {
+test('replay reports the failed step with its fallback and uses the profile of the brief product_url', async () => {
   const dir = run();
+  productBrief(dir);
   const d = deps();
   const frame = `${NAV}12345678/frames/001.png`;
   mkdirSync(path.join(dir, path.dirname(frame)), { recursive: true });
@@ -119,24 +138,68 @@ test('replay reports the failed step with its fallback and uses the profile of t
 });
 
 test('replay with no steps file is an input error', async () => {
-  const err = await main(['replay', run()], { deps: deps(), launch: fakeLaunch }).catch((e: unknown) => e);
+  const dir = run();
+  productBrief(dir);
+  const err = await main(['replay', dir], { deps: deps(), launch: fakeLaunch }).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(InputError);
 });
 
-test('login opens a headed window with no recording and returns the profile', async () => {
+test('replay with no product_url in the brief is an input error', async () => {
+  const dir = run();
+  briefWith(dir, []);
+  await main(['steps', dir], {
+    deps: deps(),
+    stdin: async () => new TextEncoder().encode(JSON.stringify([step(0, 'Export')])),
+  });
+  const err = await main(['replay', dir], { deps: deps(), launch: fakeLaunch }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(InputError);
+  expect((err as Error).message).toContain('product_url');
+});
+
+test('replay refuses a first step at a private host that is not the product host, and uses the product profile', async () => {
+  const dir = run();
+  productBrief(dir);
+  const d = deps();
+  const draft = JSON.stringify([step(0, 'Export', { url: 'http://192.168.1.5/admin' })]);
+  await main(['steps', dir], { deps: d, stdin: async () => new TextEncoder().encode(draft) });
+  launches.length = 0;
+  const r = await main(['replay', dir], { deps: d, launch: fakeLaunch });
+  expect(r.failed).toEqual([{ i: 0, failed: 'refused 192.168.1.5: not the product host' }]);
+  expect(launches[0]?.profileDir).toBe(profileDirOf(d.config.vmHome, PRODUCT));
+});
+
+test('login reads product_url from the brief, opens it, and returns the same profile replay uses', async () => {
+  const dir = run();
+  productBrief(dir, 'https://example.com/signin');
   const d = deps();
   launches.length = 0;
-  const r = await main(['login', 'https://example.com/signin'], { deps: d, launch: fakeLaunch });
+  gotos.length = 0;
+  const r = await main(['login', dir], { deps: d, launch: fakeLaunch });
   expect(r).toEqual({ profile: profileDirOf(d.config.vmHome, 'https://example.com/signin') });
+  expect(gotos).toEqual(['https://example.com/signin']);
   expect(launches[0]?.headless).toBe(false);
   expect(launches[0]?.recordDir).toBeUndefined();
 });
 
-test('login refuses an address that is not http(s)', async () => {
-  const err = await main(['login', 'file:///etc/passwd'], { deps: deps(), launch: fakeLaunch }).catch(
-    (e: unknown) => e,
-  );
+test('login with no product_url in the brief is an input error', async () => {
+  const dir = run();
+  briefWith(dir, []);
+  const err = await main(['login', dir], { deps: deps(), launch: fakeLaunch }).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(InputError);
+});
+
+test.each([
+  ['Failed to launch: user data directory is already in use', 'is in use'],
+  ['Executable does not exist', 'run setup (capture_browser)'],
+])('login wraps a launch failure (%s) as a CaptureError', async (message, expected) => {
+  const dir = run();
+  productBrief(dir);
+  const broken: Launch = async () => {
+    throw new Error(message);
+  };
+  const err = await main(['login', dir], { deps: deps(), launch: broken }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(CaptureError);
+  expect((err as Error).message).toContain(expected);
 });
 
 test('an unknown command is a usage error', async () => {

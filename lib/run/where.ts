@@ -3,7 +3,8 @@ import path from 'node:path';
 import { type Brief, BriefSchema, type Script, ScriptSchema } from '../contracts/types';
 import { ContractError } from '../core/errors';
 import { readJson } from '../core/json';
-import { assertRunDir, runIdOf } from './intake';
+import { assertRunDir } from '../core/paths';
+import { runIdOf } from './intake';
 
 /** The parts in run order (BLUEPRINT 2.1): M5 research comes before M2 capture. */
 export const PART_ORDER = [

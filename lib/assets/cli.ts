@@ -11,11 +11,15 @@ const STATUS = { pin: 'pinned', drop: 'dropped', pool: 'pool' } as const;
  * Run one assets command: `build`, `mark` or `panel`.
  * Returns the fields of the CLI's JSON result. Throws InputError for a usage mistake or an unknown asset id.
  */
-export const main = async (argv: string[], io: { cwd?: string } = {}): Promise<Record<string, unknown>> => {
+export const main = async (
+  argv: string[],
+  io: { cwd?: string; onWarn?: (line: string) => void } = {},
+): Promise<Record<string, unknown>> => {
   const [command, first, ...rest] = argv;
   const runDir = first === undefined ? undefined : path.resolve(io.cwd ?? process.cwd(), first);
+  const onWarn = io.onWarn ?? ((line: string) => void process.stderr.write(`${line}\n`));
   if (command === 'build' && runDir && rest.length === 0) {
-    const { assets } = buildPool(runDir);
+    const { assets } = buildPool(runDir, { onWarn });
     const by_origin: Record<string, number> = {};
     for (const a of assets) by_origin[a.origin] = (by_origin[a.origin] ?? 0) + 1;
     return {
@@ -25,12 +29,12 @@ export const main = async (argv: string[], io: { cwd?: string } = {}): Promise<R
     };
   }
   const [id, mark] = rest;
-  if (command === 'mark' && runDir && id && mark && rest.length === 2 && mark in STATUS) {
+  if (command === 'mark' && runDir && id && mark && rest.length === 2 && Object.hasOwn(STATUS, mark)) {
     const status = STATUS[mark as keyof typeof STATUS];
     markAsset(runDir, id, status);
     return { asset_id: id, status };
   }
-  if (command === 'panel' && runDir && rest.length === 0) return { panel: writePanel(runDir) };
+  if (command === 'panel' && runDir && rest.length === 0) return { panel: writePanel(runDir, { onWarn }) };
   throw new InputError(USAGE);
 };
 

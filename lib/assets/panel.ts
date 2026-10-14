@@ -3,8 +3,7 @@ import path from 'node:path';
 import { type AssetRef, AssetsSchema } from '../contracts/types';
 import { InputError } from '../core/errors';
 import { readJson } from '../core/json';
-import { runFileOf } from '../core/paths';
-import { assertRunDir } from '../run/intake';
+import { assertRunDir, runFileOf } from '../core/paths';
 
 const esc = (v: string): string =>
   v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -48,11 +47,11 @@ ${a.attribution ? `<p>${esc(a.attribution)}</p>\n` : ''}<p>status: ${esc(a.statu
  * Write the read-only assets panel, a self-contained page with no scripts, to `out/assets-panel.html`.
  * Returns its absolute path. Throws InputError when the folder is not a run, and the fs error or ContractError when
  * `assets.json` is missing or malformed. An asset whose file no longer resolves inside the run is left out,
- * with an `[M4] skipped <path>: <reason>` line to `onWarn` (stderr by default).
+ * with an `[M4] skipped <path>: <reason>` line to `onWarn` (silent when none is given; the CLI passes stderr).
  */
 export function writePanel(runDir: string, opts: { onWarn?: (line: string) => void } = {}): string {
   assertRunDir(runDir);
-  const warn = opts.onWarn ?? ((line: string) => void process.stderr.write(`${line}\n`));
+  const warn = opts.onWarn ?? (() => {});
   const assets = readJson(path.join(runDir, 'assets.json'), AssetsSchema).assets.filter((a) => {
     try {
       runFileOf(runDir, a.path);

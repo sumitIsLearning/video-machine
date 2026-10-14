@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { type Steps, StepsSchema } from '../contracts/types';
 import { ContractError } from '../core/errors';
 import { writeJson } from '../core/json';
-import { runFileOf } from '../core/paths';
-import { assertRunDir } from '../run/intake';
+import { assertRunDir, runFileOf } from '../core/paths';
 
 /**
  * Validate Claude's replay steps and write `capture/steps.json`.

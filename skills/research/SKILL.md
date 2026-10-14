@@ -39,7 +39,7 @@ Write `research.md` through `research write` (quoted heredoc; pick another delim
 VM_RESEARCH_EOF
 ```
 
-Every number the script may use must be a fact line. A fact line without a quote and an https URL is refused
+Every number the script may use must be a fact line. A fact line without a quote and an http(s) URL is refused
 (`InputError`): fetch the page again for the quote. If the page cannot be fetched again, drop that fact; never invent a
 quote. It returns `{ok, facts, urls}` (the fact count and the URLs).
 

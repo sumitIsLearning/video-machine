@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
+import { buildPool, markAsset } from '../../../assets/pool';
 import { AssetRefSchema } from '../../../contracts/types';
 import { assetIdOf } from '../../../core/asset-id';
 import { loadConfig } from '../../../core/config';
@@ -186,7 +187,9 @@ test('a failed download is skipped with a warning and is absent from the index',
   expect(warns[0]).toStartWith('[M5]');
   expect(warns[0]).toContain('404');
   expect(indexOf(run).map((a) => a.title)).toEqual(['Laptop 2']);
-  expect(readdirSync(path.join(run, 'found')).sort()).toEqual([`${assets[0]?.asset_id}.jpg`, 'index.json'].sort());
+  expect(readdirSync(path.join(run, 'found')).sort()).toEqual(
+    [path.basename(assets[0]?.path ?? ''), 'index.json'].sort(),
+  );
 });
 
 test('a download that throws (a timeout, a dropped connection) is skipped with a warning', async () => {
@@ -219,9 +222,34 @@ test.each(['../../evil', 'jpg:s', 'a/b', 'toolong1', 'constructor'])(
   },
 );
 
-test('a real filetype is used for the extension', async () => {
-  const { assets } = await search([RESULT(1, { filetype: 'PNG' })]);
+test('a real filetype is used when the content-type has no known extension', async () => {
+  const { assets } = await search([RESULT(1, { filetype: 'PNG' })], {
+    download: () => new Response('x', { headers: { 'content-type': 'image/x-unknown' } }),
+  });
   expect(assets[0]?.path.endsWith('.png')).toBe(true);
+});
+
+test('the checked content-type beats a declared filetype: an SVG body declared jpg is .svg', async () => {
+  const { assets } = await search([RESULT(1, { filetype: 'jpg' })], {
+    download: () => new Response('<svg/>', { headers: { 'content-type': 'image/svg+xml' } }),
+  });
+  expect(assets[0]?.path.endsWith('.svg')).toBe(true);
+});
+
+test('an id printed by find can be marked after assets build', async () => {
+  const { assets, run } = await search([RESULT(1), RESULT(2)]);
+  buildPool(run);
+  for (const a of assets) {
+    expect(assetIdOf('found', a.path)).toBe(a.asset_id);
+    expect(markAsset(run, a.asset_id, 'pinned').assets.find((x) => x.asset_id === a.asset_id)?.status).toBe('pinned');
+  }
+});
+
+test.each(['2.0"><script>', '', 'v2', '2.', '1.0 beta'])('licence version %p is skipped with a warning', async (v) => {
+  const { assets, warns, downloads } = await search([RESULT(1, { license_version: v })]);
+  expect(assets).toHaveLength(0);
+  expect(warns).toHaveLength(1);
+  expect(downloads()).toHaveLength(0);
 });
 
 test('the extension falls back to the response content-type', async () => {

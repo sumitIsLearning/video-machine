@@ -1,5 +1,13 @@
 import { InputError } from './errors';
 
+/** The dotted IPv4 inside an IPv6 literal written `::ffff:`, `::` (IPv4-compatible) or `64:ff9b::` (NAT64) + two groups; the URL parser writes them in hex. */
+const embeddedV4 = (h: string): string | undefined => {
+  const m = /^(?:::ffff:|::|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h);
+  if (!m) return undefined;
+  const [hi, lo] = [Number.parseInt(m[1] ?? '', 16), Number.parseInt(m[2] ?? '', 16)];
+  return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+};
+
 /**
  * True for a host that points inside the machine or its network (see the ponytail note at `assertPublicHttpUrl`).
  * Takes a URL hostname (IPv6 in brackets is fine); returns a boolean and throws nothing.
@@ -19,16 +27,14 @@ export const isPrivateHost = (hostname: string): boolean => {
       a === 127 ||
       (a === 172 && b >= 16 && b <= 31) ||
       (a === 192 && b === 168) ||
-      (a === 169 && b === 254)
+      (a === 169 && b === 254) ||
+      (a === 100 && b >= 64 && b <= 127) // carrier-grade NAT
     );
   }
   if (!h.includes(':')) return false;
   if (h === '::' || h === '::1') return true;
-  const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h); // URL writes ::ffff:127.0.0.1 this way
-  if (mapped) {
-    const [hi, lo] = [Number.parseInt(mapped[1] ?? '', 16), Number.parseInt(mapped[2] ?? '', 16)];
-    return isPrivateHost(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
-  }
+  const embedded = embeddedV4(h);
+  if (embedded) return isPrivateHost(embedded);
   const first = Number.parseInt(h.split(':')[0] || '0', 16);
   return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80; // fc00::/7, fe80::/10
 };
@@ -42,10 +48,10 @@ export const isLinkLocalHost = (hostname: string): boolean => {
     .replace(/^\[|\]$/g, '')
     .replace(/\.$/, '')
     .toLowerCase();
-  if (/^169\.254\.\d+\.\d+$/.test(h)) return true;
+  if (/^169\.254\.\d+\.\d+$/.test(h) || h === '100.100.100.200') return true; // the latter is Alibaba's metadata address
   if (!h.includes(':')) return false;
-  const mapped = /^::ffff:([0-9a-f]{1,4}):[0-9a-f]{1,4}$/.exec(h); // URL writes ::ffff:169.254.1.1 this way
-  if (mapped) return Number.parseInt(mapped[1] ?? '', 16) === 0xa9fe;
+  const embedded = embeddedV4(h);
+  if (embedded) return isLinkLocalHost(embedded);
   return (Number.parseInt(h.split(':')[0] || '0', 16) & 0xffc0) === 0xfe80;
 };
 

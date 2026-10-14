@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { type Brief, BriefSchema, DEFAULT_VOICE, DURATION_DEFAULTS, FormatIdSchema } from '../contracts/types';
 import { ContractError, InputError } from '../core/errors';
 import { writeJson } from '../core/json';
-import { relInside, runFileOf } from '../core/paths';
+import { assertRunDir, relInside, runFileOf } from '../core/paths';
 
 const stripBom = (s: string) => s.replace(/^\u{FEFF}/u, '');
 
@@ -57,12 +57,6 @@ export function newRun(o: { runsDir: string; concept: Uint8Array; now?: Date }):
     }
     return { run_id, runDir };
   }
-}
-
-/** Check that the folder is a run. Throws InputError when it has no concept.md. */
-export function assertRunDir(runDir: string): void {
-  if (!existsSync(path.join(runDir, 'concept.md')))
-    throw new InputError(`${runDir} is not a run folder (no concept.md)`);
 }
 
 /** The run id of a run folder: its on-disk name, so the casing a caller typed on Windows never counts. */

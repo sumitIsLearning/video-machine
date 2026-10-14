@@ -237,8 +237,17 @@ test('capture_browser: nothing to install when a browser exists', async () => {
   expect(calls).toEqual([]);
 });
 
-test('capture_browser: bun x playwright install chromium when none exists', async () => {
+test('capture_browser: the plugin-pinned playwright installs chromium when none exists', async () => {
   const { deps, calls } = world();
+  const cwds: (string | undefined)[] = [];
+  const inner = deps.sh;
+  deps.sh = (cmd, opts) => {
+    cwds.push(opts?.cwd);
+    return inner(cmd, opts);
+  };
   await installCaptureBrowser(deps, { captureBrowser: async () => null });
-  expect(calls).toEqual([[deps.config.bun, 'x', 'playwright', 'install', 'chromium']]);
+  expect(cwds).toEqual([deps.config.pluginRoot]);
+  expect(calls).toEqual([
+    [deps.config.bun, path.join(deps.config.pluginRoot, 'node_modules', 'playwright', 'cli.js'), 'install', 'chromium'],
+  ]);
 });

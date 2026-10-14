@@ -8,6 +8,11 @@ test.each([
   ['[fe80::1]', true],
   ['[febf::1]', true],
   ['[::ffff:169.254.169.254]', true],
+  ['[::169.254.169.254]', true], // IPv4-compatible
+  ['[64:ff9b::169.254.169.254]', true], // NAT64
+  ['100.100.100.200', true], // Alibaba metadata
+  ['[::ffff:100.100.100.200]', true],
+  ['100.100.100.201', false],
   ['127.0.0.1', false], // private, but not link-local
   ['localhost', false],
   ['169.255.0.1', false],
@@ -61,6 +66,25 @@ test('the refusal names what was being fetched and never echoes a password', () 
   expect(err?.message).toContain('page capture');
   expect(err?.message).not.toContain('hunter2');
 });
+
+test.each([
+  'http://100.64.0.1/',
+  'http://100.127.255.255/',
+  'http://[::127.0.0.1]/',
+  'http://[::7f00:1]/',
+  'http://[64:ff9b::127.0.0.1]/',
+  'http://[64:ff9b::a00:1]/',
+  'http://[::10.0.0.1]/',
+])('assertPublicHttpUrl refuses %s', (url) => {
+  expect(() => assertPublicHttpUrl(url, 'download')).toThrow(InputError);
+});
+
+test.each(['http://100.63.255.255/', 'http://100.128.0.1/', 'http://[64:ff9b::808:808]/'])(
+  'assertPublicHttpUrl allows the public address %s',
+  (url) => {
+    expect(assertPublicHttpUrl(url, 'download').href).toBe(url);
+  },
+);
 
 test('isPrivateHost tells loopback from public hosts', () => {
   expect(isPrivateHost('127.0.0.1')).toBe(true);

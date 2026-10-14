@@ -7,8 +7,9 @@ import { HF_CMD } from '../core/config';
 import type { Deps } from '../core/deps';
 import { ToolError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
+import { assertRunDir } from '../core/paths';
 import { assertPublicHttpUrl } from '../core/url';
-import { assertRunDir, slugOf } from '../run/intake';
+import { slugOf } from '../run/intake';
 
 const CAPTURE_TIMEOUT_MS = 5 * 60_000;
 const MAX_PALETTE = 12;

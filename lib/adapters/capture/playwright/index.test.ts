@@ -34,8 +34,10 @@ let onClick: (target: string) => void;
 let redirect: (url: string) => string;
 let closeFails: boolean;
 let missingRecording: boolean;
+let productUrl: string;
 
 beforeEach(() => {
+  productUrl = DOCS;
   run = mkdtempSync(path.join(tmpdir(), 'vm-'));
   profile = path.join(run, 'profile');
   mkdirSync(path.join(run, 'capture/nav/nav/frames'), { recursive: true });
@@ -109,7 +111,7 @@ const counting = () => {
   return () => t++;
 };
 const capture = (launch: Launch = fakeLaunch, clock: () => number = counting(), d: Deps = deps()) =>
-  playwrightCapture(d, { launch, clock, onWarn: (l) => void warnings.push(l) });
+  playwrightCapture(d, { launch, clock, productUrl, onWarn: (l) => void warnings.push(l) });
 const replayLog = async (steps: Steps, clock?: () => number) =>
   readJson(await capture(fakeLaunch, clock).replay(run, steps, profile), CaptureLogSchema);
 const mp4Calls = () => shCalls.filter((c) => c.some((a) => a.endsWith('.mp4')));
@@ -271,8 +273,27 @@ test('a private host other than the product host is refused', async () => {
   expect(log[1]?.failed).toBe('refused 192.168.1.5: not the product host');
 });
 
+test('steps that start at a private host that is not the product host are refused from the first step', async () => {
+  const log = await replayLog([{ ...STEPS[0], url: 'http://192.168.1.5/admin' } as Steps[number], withUrl(DOCS)]);
+  expect(log.map((e) => e.failed)).toEqual(['refused 192.168.1.5: not the product host', undefined]);
+  expect(pageCalls.some((c) => c[0] === 'goto' && String(c[1]).includes('192.168'))).toBe(false);
+});
+
+test('with no product url no private host is visited', async () => {
+  const log = await readJson(
+    await playwrightCapture(deps(), { launch: fakeLaunch, clock: counting() }).replay(
+      run,
+      [{ ...STEPS[0], url: 'http://localhost:3000/' } as Steps[number]],
+      profile,
+    ),
+    CaptureLogSchema,
+  );
+  expect(log[0]?.failed).toBe('refused localhost:3000: not the product host');
+});
+
 test('a localhost product host is allowed, and another localhost port is not', async () => {
   const product = 'http://localhost:3000/app';
+  productUrl = product;
   const log = await replayLog([
     { ...STEPS[0], url: product } as Steps[number],
     withUrl('http://localhost:3000/other'),

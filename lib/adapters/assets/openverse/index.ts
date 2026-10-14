@@ -6,8 +6,8 @@ import { assetIdOf } from '../../../core/asset-id';
 import { type Deps, defaultDeps } from '../../../core/deps';
 import { InputError, VideoMachineError } from '../../../core/errors';
 import { readJson, writeJson } from '../../../core/json';
+import { assertRunDir } from '../../../core/paths';
 import { assertPublicHttpUrl } from '../../../core/url';
-import { assertRunDir } from '../../../run/intake';
 
 const API = 'https://api.openverse.org/v1';
 const USER_AGENT = 'video-machine/0.1 (+https://github.com/)'; // Wikimedia answers 429 to clients without one
@@ -15,6 +15,7 @@ const SEARCH_TIMEOUT_MS = 15_000;
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 const MAX_BYTES = { image: 25 * 1024 * 1024, audio: 50 * 1024 * 1024 };
 const SAFE_EXT = /^[a-z0-9]{1,5}$/;
+const SAFE_VERSION = /^\d+(\.\d+)*$/;
 const SAFE_LICENSES = new Set(['by', 'by-sa', 'cc0', 'pdm']); // commercial use and modification allowed
 
 // Only the fields we use; the API sends many more and often null for the optional ones.
@@ -56,12 +57,12 @@ export const openverseLicense = (license: string, version: string | null): strin
   return version ? `${name} ${version}` : name;
 };
 
-/** The first extension from filetype, the URL path, then the content-type that is plain letters and digits; else `bin`. */
+/** The first extension from the checked content-type, then filetype, then the URL path that is plain letters and digits; else `bin`. */
 const extOf = (filetype: string | null | undefined, url: URL, contentType: string): string => {
   const candidates = [
+    EXT_BY_CONTENT_TYPE.get(contentType),
     filetype?.toLowerCase(),
     path.extname(url.pathname).slice(1).toLowerCase(),
-    EXT_BY_CONTENT_TYPE.get(contentType),
   ];
   return candidates.find((e): e is string => e !== undefined && SAFE_EXT.test(e)) ?? 'bin';
 };
@@ -129,12 +130,15 @@ export const openverse = (
   };
 
   /** Check one result and download it into `found/`. Throws (InputError or VideoMachineError) to say why it is skipped. */
-  const take = async (runDir: string, r: Result, kind: 'image' | 'audio', assetId: string): Promise<AssetRef> => {
+  const take = async (runDir: string, r: Result, kind: 'image' | 'audio', stem: string): Promise<AssetRef> => {
     const license = r.license.toLowerCase();
     if (!SAFE_LICENSES.has(license))
       throw new VideoMachineError(`licence "${r.license}" is not free for commercial reuse`);
     if ((license === 'by' || license === 'by-sa') && !r.license_version)
       throw new VideoMachineError(`licence "${r.license}" has no version`);
+    // The version lands in the credit line and the licence name, so only a plain number is let through.
+    if (r.license_version && !SAFE_VERSION.test(r.license_version))
+      throw new VideoMachineError(`licence version "${r.license_version.slice(0, 20)}" is not a number`);
     const source = isHttpUrl(r.foreign_landing_url) ? r.foreign_landing_url : r.url;
     const licenseName = openverseLicense(license, r.license_version ?? null);
     const attribution = attributionOf(r, source, licenseName);
@@ -156,7 +160,7 @@ export const openverse = (
     const body = await readCapped(res, cap);
     if (body.byteLength === 0) throw new VideoMachineError('the file is empty');
 
-    const rel = `found/${assetId}.${extOf(r.filetype, url, contentType)}`;
+    const rel = `found/${stem}.${extOf(r.filetype, url, contentType)}`;
     RunPathSchema.parse(rel);
     mkdirSync(path.join(runDir, 'found'), { recursive: true });
     try {
@@ -166,7 +170,7 @@ export const openverse = (
       throw cause;
     }
     return {
-      asset_id: assetId,
+      asset_id: assetIdOf('found', rel), // the rule buildPool applies, so `assets mark` finds this id after a build
       kind,
       path: rel,
       source,
@@ -185,16 +189,16 @@ export const openverse = (
       const results = await search(query, kind, n);
       const indexFile = path.join(runDir, 'found', 'index.json');
       const existing = existsSync(indexFile) ? readJson(indexFile, z.array(AssetRefSchema)) : [];
-      const known = new Set(existing.map((a) => a.asset_id));
+      const known = new Set(existing.map((a) => path.parse(a.path).name));
       const added: AssetRef[] = [];
 
       for (const r of results.slice(0, n)) {
-        // Hash the result id, not the path, so the asset id does not depend on the extension.
-        const assetId = assetIdOf('found', `found/${r.id}`);
-        if (known.has(assetId)) continue;
+        // The file name hashes the result id, so it is stable and unique before the extension is known.
+        const stem = assetIdOf('found', `found/${r.id}`);
+        if (known.has(stem)) continue;
         try {
-          added.push(await take(runDir, r, kind, assetId));
-          known.add(assetId);
+          added.push(await take(runDir, r, kind, stem));
+          known.add(stem);
         } catch (e) {
           // A bad result costs that result only; the creator hears why through onWarn.
           if (!(e instanceof Error)) throw e;

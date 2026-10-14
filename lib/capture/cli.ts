@@ -1,22 +1,33 @@
 import path from 'node:path';
 import { type Launch, launchPlaywright } from '../adapters/capture/playwright/browser';
-import { playwrightCapture, profileDirOf } from '../adapters/capture/playwright/index';
-import { CaptureLogSchema, StepsSchema } from '../contracts/types';
+import { launchFailure, playwrightCapture, profileDirOf } from '../adapters/capture/playwright/index';
+import { BriefSchema, CaptureLogSchema, StepsSchema } from '../contracts/types';
 import { runCli } from '../core/cli';
 import { type Deps, defaultDeps } from '../core/deps';
 import { InputError } from '../core/errors';
 import { readJson } from '../core/json';
-import { assertRunDir } from '../run/intake';
+import { assertRunDir, runFileOf } from '../core/paths';
 import { readNavVideo } from './reader';
 import { writeSteps } from './steps';
 
 const USAGE =
-  'usage: cli.ts read <run_dir> <source> | steps <run_dir> (draft JSON on stdin) | replay <run_dir> | login <url>';
+  'usage: cli.ts read <run_dir> <source> | steps <run_dir> (draft JSON on stdin) | replay <run_dir> | login <run_dir>';
 
 type Io = { stdin?: () => Promise<Uint8Array>; cwd?: string; deps?: Deps; launch?: Launch };
 
 const LOG = 'capture/log.json';
 const STEPS = 'capture/steps.json';
+
+/**
+ * The product URL of a run's brief: the one host a replay may visit even when it is private, and the browser profile.
+ * Returns the URL. Throws InputError when the brief is missing or lists no product_url.
+ */
+const productUrlOf = (runDir: string): string => {
+  const brief = readJson(runFileOf(runDir, 'brief.json', 'run the brief command first'), BriefSchema);
+  const url = brief.sources.find((s) => s.kind === 'product_url')?.path_or_url;
+  if (!url) throw new InputError(`brief.json in ${runDir} has no product_url source; add the product's address`);
+  return url;
+};
 
 /** The steps of a run, or an InputError that names the command which writes it. */
 const stepsOf = (runDir: string) => {
@@ -31,7 +42,8 @@ const stepsOf = (runDir: string) => {
 /**
  * Run one capture command: `read`, `steps`, `replay` or `login`.
  * Returns the fields of the CLI's JSON result. Throws InputError for a usage mistake, a draft that is not JSON, a run
- * with no steps file or a login URL that is not http(s); the reader, steps writer and replay throw their own errors.
+ * with no steps file, or a brief with no product_url (replay and login); a browser that will not open is a CaptureError;
+ * the reader, steps writer and replay throw their own errors.
  */
 export const main = async (argv: string[], io: Io = {}): Promise<Record<string, unknown>> => {
   const cwd = io.cwd ?? process.cwd();
@@ -54,15 +66,16 @@ export const main = async (argv: string[], io: Io = {}): Promise<Record<string, 
   }
   if (command === 'replay' && runDir && rest.length === 0) {
     assertRunDir(runDir);
+    const productUrl = productUrlOf(runDir);
     const steps = stepsOf(runDir);
-    const firstStep = steps[0];
-    if (!firstStep) throw new InputError(`${STEPS} in ${runDir} has no steps`);
+    if (steps.length === 0) throw new InputError(`${STEPS} in ${runDir} has no steps`);
     const adapter = playwrightCapture(deps, {
       launch: io.launch,
+      productUrl,
       onWarn: (line) => process.stderr.write(`${line}\n`),
     });
     const log = readJson(
-      await adapter.replay(runDir, steps, profileDirOf(deps.config.vmHome, firstStep.url)),
+      await adapter.replay(runDir, steps, profileDirOf(deps.config.vmHome, productUrl)),
       CaptureLogSchema,
     );
     return {
@@ -71,14 +84,19 @@ export const main = async (argv: string[], io: Io = {}): Promise<Record<string, 
       failed: log.flatMap((e) => (e.failed === undefined ? [] : [{ i: e.i, failed: e.failed, fallback: e.fallback }])),
     };
   }
-  if (command === 'login' && first && rest.length === 0) {
-    if (!URL.canParse(first) || !/^https?:$/.test(new URL(first).protocol))
-      throw new InputError(`cannot log in at ${first}: it is not an http(s) address`);
-    const profile = profileDirOf(deps.config.vmHome, first);
+  if (command === 'login' && runDir && rest.length === 0) {
+    assertRunDir(runDir);
+    const productUrl = productUrlOf(runDir);
+    const profile = profileDirOf(deps.config.vmHome, productUrl);
     // Passwords are typed by the creator, and no video is recorded, so nothing typed here is kept.
     const launch = io.launch ?? launchPlaywright;
-    const page = await launch({ profileDir: profile, headless: false });
-    await page.goto(first);
+    let page: Awaited<ReturnType<Launch>>;
+    try {
+      page = await launch({ profileDir: profile, headless: false });
+    } catch (cause) {
+      throw launchFailure(profile, cause);
+    }
+    await page.goto(productUrl);
     await page.closed();
     return { profile };
   }

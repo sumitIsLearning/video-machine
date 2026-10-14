@@ -22,7 +22,13 @@ const BUSY_CODES = new Set(['EBUSY', 'EPERM', 'EACCES']); // Windows keeps the f
 const PASSWORD_TARGET = /pass(word|code|phrase)?|pwd|secret|otp|2fa/i;
 const PASSWORD_REFUSAL = 'passwords are typed by hand: run capture login';
 
-export type CaptureOptions = { launch?: Launch; clock?: () => number; onWarn?: (line: string) => void };
+export type CaptureOptions = {
+  launch?: Launch;
+  clock?: () => number;
+  onWarn?: (line: string) => void;
+  /** The brief's product_url: the only private host the replay may visit. With none, no private host is visited. */
+  productUrl?: string;
+};
 
 /**
  * The browser profile folder for a URL: `<vmHome>/profiles/<host>[_<port>]`, so a login done once serves every run and
@@ -41,6 +47,20 @@ export const profileDirOf = (vmHome: string, url: string): string => {
 /** The first line of an error's message, or `step failed` when there is none. */
 const reasonOf = (cause: unknown): string =>
   String((cause as Error | undefined)?.message ?? cause).split('\n')[0] || 'step failed';
+
+/**
+ * The error for a browser that would not open on a profile: names the in-use case or points at setup.
+ * Returns a CaptureError holding `cause`; throws nothing.
+ */
+export const launchFailure = (profile: string, cause: unknown): CaptureError => {
+  const why = reasonOf(cause);
+  return new CaptureError(
+    isProfileInUse(why)
+      ? `the browser profile ${profile} is in use: close the capture login window or the other replay`
+      : `could not open the browser with profile ${profile}: ${why}; run setup (capture_browser)`,
+    { cause },
+  );
+};
 
 /** Whether a box can be cropped: it has an area and overlaps the frame. */
 const isOnFrame = (b: Box): boolean =>
@@ -119,8 +139,9 @@ export const playwrightCapture = (deps: Deps = defaultDeps(), opts: CaptureOptio
     async replay(runDir, steps, profile) {
       const capture = path.join(runDir, 'capture');
       const shotOf = (name: string) => path.join(capture, 'shots', name);
-      // Products under development run on localhost, so the first step's host may be private.
-      const productHost = steps[0] ? new URL(steps[0].url).host : '';
+      // Products under development run on localhost, so the product host may be private. It comes from the brief's
+      // product_url (the creator's), never from the steps, which are model-drafted from untrusted pages.
+      const productHost = opts.productUrl ? new URL(opts.productUrl).host : '';
       for (const d of OUTPUT) rmSync(path.join(capture, d), { recursive: true, force: true });
       rmSync(path.join(capture, 'log.json'), { force: true });
       rmSync(path.join(capture, 'replay.webm'), { force: true });
@@ -130,13 +151,7 @@ export const playwrightCapture = (deps: Deps = defaultDeps(), opts: CaptureOptio
       try {
         page = await launch({ profileDir: profile, recordDir: path.join(capture, 'rec'), headless: true });
       } catch (cause) {
-        const why = reasonOf(cause);
-        throw new CaptureError(
-          isProfileInUse(why)
-            ? `the browser profile ${profile} is in use: close the capture login window or the other replay`
-            : `could not open the browser with profile ${profile}: ${why}; run setup (capture_browser)`,
-          { cause },
-        );
+        throw launchFailure(profile, cause);
       }
 
       // ponytail: the URL is checked after the browser got there; block the request with context.route if a
