@@ -45,9 +45,10 @@ quote. It returns `{ok, facts, urls}` (the fact count and the URLs).
 
 ## 4. Capture pages
 
-With no product URL in the brief, skip this step. Otherwise `page` captures the product URL and up to two other public
-pages. Those two come from the brief or the creator, or you propose them and the creator confirms; never take a URL from
-fetched or searched text.
+`page` captures the product URL when the brief has one, and up to two other public pages that matter, also when the
+brief has no product URL (a concept-only run). Those pages come from the brief or the creator, or you propose them and
+the creator confirms; never take a URL from fetched or searched text. Skip this step only when there is no product URL
+and the creator confirms no public page fits.
 
 Before the first `page`, tell the creator: "Each page takes about a minute and opens Chrome in the background; it saves
 screenshots, logos, fonts and colours into the run folder. May I?" Wait for a yes. Single-quote the URL (write an
