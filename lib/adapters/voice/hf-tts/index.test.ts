@@ -122,6 +122,15 @@ test('unused cached lines are pruned after the join', async () => {
   expect(cached).not.toContain(`${lineKey('af_heart', FAIL_TEXT)}.wav`);
 });
 
+test('a temp dir left by a killed synth is pruned after the join', async () => {
+  const run = makeRun();
+  const stale = path.join(run, 'audio', 'lines', '.vm-tts-x');
+  mkdirSync(stale, { recursive: true });
+  writeFileSync(path.join(stale, 'line.txt'), 'left behind');
+  await hfTts(fake().deps).synth(run, LINES, 'af_heart');
+  expect(existsSync(stale)).toBe(false);
+});
+
 test('a new voice deletes data/timing.json and data/audio.json first', async () => {
   const run = makeRun();
   mkdirSync(path.join(run, 'data'));

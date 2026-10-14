@@ -122,8 +122,11 @@ export const hfTts = (deps: Deps = defaultDeps()): VoiceAdapter => ({
     }
 
     const used = new Set(wavs.map((wav) => path.basename(wav)));
-    for (const name of readdirSync(cacheDir))
-      if (name.endsWith('.wav') && !used.has(name)) rmSync(path.join(cacheDir, name), { force: true });
+    for (const name of readdirSync(cacheDir)) {
+      // A killed synth never reaches its own cleanup, so its `.vm-tts-` temp dir is pruned here too.
+      if (name.startsWith('.vm-tts-')) rmSync(path.join(cacheDir, name), { recursive: true, force: true });
+      else if (name.endsWith('.wav') && !used.has(name)) rmSync(path.join(cacheDir, name), { force: true });
+    }
     return out;
   },
   costEstimate: () => 0,

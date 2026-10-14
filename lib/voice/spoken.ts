@@ -38,44 +38,60 @@ const matchesOf = (a: string[], b: string[]): [number, number][] => {
   return pairs;
 };
 
+/** A word said as itself: its aligner form, or [] for a token with no letters. */
+const plainOf = (word: string): string[] => (up(word) === '' ? [] : [up(word)]);
+
+/** Stores `values` for `word`; throws InputError when the same word already has different values. */
+const putInto = (map: Map<string, string[]>, word: string, values: string[]): void => {
+  const known = map.get(word);
+  if (known !== undefined && JSON.stringify(known) !== JSON.stringify(values))
+    throw new InputError(`"${word}" is spoken two ways in the script; write it the same way in both lines`);
+  map.set(word, values);
+};
+
+/** The words one line's `spoken` changes, from a word diff of its `text` against it. Throws InputError as putInto does. */
+const spokenMapOf = (line: Line, spoken: string): Map<string, string[]> => {
+  const local = new Map<string, string[]>();
+  const text = line.text.split(' ').filter(Boolean);
+  const spokenWords = spoken.split(/\s+/).filter(Boolean);
+  const textUp = text.map(up);
+  const spokenUp = spokenWords.map(up);
+  let ti = 0;
+  let si = 0;
+  for (const [mi, mj] of [...matchesOf(textUp, spokenUp), [text.length, spokenWords.length]] as [number, number][]) {
+    const textGap = text.slice(ti, mi);
+    const spokenGap = spokenUp.slice(si, mj).filter(Boolean);
+    if (textGap.length > 0) {
+      putInto(local, textGap[0] ?? '', spokenGap);
+      for (const word of textGap.slice(1)) putInto(local, word, []);
+    } else if (spokenGap.length > 0) {
+      const before = text[ti - 1];
+      const after = text[mi];
+      if (before !== undefined) putInto(local, before, [up(before), ...spokenGap].filter(Boolean));
+      else if (after !== undefined) putInto(local, after, [...spokenGap, up(after)].filter(Boolean));
+      else throw new InputError(`line "${line.id}" has spoken words but no words in its text`);
+    }
+    ti = mi + 1;
+    si = mj + 1;
+  }
+  return local;
+};
+
 /**
  * Maps each display word of the scripts (as written in `text`, e.g. "5.5%" or "MCP") to the words said for it, in the
- * aligner's form (uppercase, e.g. ["FIVE", "POINT"]). Only lines with `spoken` count. A replaced run maps its first
- * word to the spoken words and the rest to []; extra spoken words attach to the word before them. Throws InputError
- * naming a word that is spoken two different ways in the script.
+ * aligner's form (uppercase, e.g. ["FIVE", "POINT"]). The map is global, since the aligner applies it to every line:
+ * a word's entry is its line's `spoken` change where a line has one, and its plain form elsewhere, so plain uses in
+ * any line count. A replaced run maps its first word to the spoken words and the rest to []; extra spoken words
+ * attach to the word before them. Only entries that differ from the plain form are returned. Throws InputError
+ * naming a word that is said two different ways in the script.
  */
 export function spokenWordsOf(lines: Line[]): Record<string, string[]> {
   const map = new Map<string, string[]>();
-  const put = (word: string, values: string[]): void => {
-    const known = map.get(word);
-    if (known !== undefined && JSON.stringify(known) !== JSON.stringify(values))
-      throw new InputError(`"${word}" is spoken two ways in the script; write it the same way in both lines`);
-    map.set(word, values);
-  };
   for (const line of lines) {
-    if (line.spoken === undefined) continue;
-    const text = line.text.split(' ').filter(Boolean);
-    const spoken = line.spoken.split(/\s+/).filter(Boolean);
-    const textUp = text.map(up);
-    const spokenUp = spoken.map(up);
-    let ti = 0;
-    let si = 0;
-    for (const [mi, mj] of [...matchesOf(textUp, spokenUp), [text.length, spoken.length]] as [number, number][]) {
-      const textGap = text.slice(ti, mi);
-      const spokenGap = spokenUp.slice(si, mj).filter(Boolean);
-      if (textGap.length > 0) {
-        put(textGap[0] ?? '', spokenGap);
-        for (const word of textGap.slice(1)) put(word, []);
-      } else if (spokenGap.length > 0) {
-        const before = text[ti - 1];
-        const after = text[mi];
-        if (before !== undefined) put(before, [up(before), ...spokenGap].filter(Boolean));
-        else if (after !== undefined) put(after, [...spokenGap, up(after)].filter(Boolean));
-        else throw new InputError(`line "${line.id}" has spoken words but no words in its text`);
-      }
-      ti = mi + 1;
-      si = mj + 1;
-    }
+    const local = line.spoken === undefined ? new Map<string, string[]>() : spokenMapOf(line, line.spoken);
+    for (const word of line.text.split(' ').filter(Boolean)) putInto(map, word, local.get(word) ?? plainOf(word));
   }
-  return Object.fromEntries(map);
+  return Object.fromEntries(
+    [...map].filter(([word, values]) => JSON.stringify(values) !== JSON.stringify(plainOf(word))),
+  );
 }

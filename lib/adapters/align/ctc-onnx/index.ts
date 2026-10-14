@@ -7,6 +7,7 @@ import { type AlignAdapter, TimingSchema } from '../../../contracts/types';
 import { type Deps, defaultDeps } from '../../../core/deps';
 import { UnsupportedError, VideoMachineError } from '../../../core/errors';
 import { readJson } from '../../../core/json';
+import { lineConf } from '../../../core/timing';
 
 /** A downloadable model: where it comes from, how to verify it, where it lives. */
 export type ModelSpec = { url: string; sha256: string; bytes: number; path: string };
@@ -79,10 +80,8 @@ export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
       const timing = readJson(out, TimingSchema); // validate on write
       const bad: string[] = [];
       timing.lines.forEach((line, i) => {
-        const confs = line.words.flatMap((w) => (w.conf === undefined ? [] : [w.conf]));
-        if (confs.length === 0) return;
-        const mean = confs.reduce((a, b) => a + b, 0) / confs.length;
-        if (mean < MIN_LINE_CONF) bad.push(`${line.id ?? i + 1} (${mean.toFixed(2)})`);
+        const mean = lineConf(line.words);
+        if (mean !== undefined && mean < MIN_LINE_CONF) bad.push(`${line.id ?? i + 1} (${mean.toFixed(2)})`);
       });
       if (bad.length > 0)
         throw new VideoMachineError(

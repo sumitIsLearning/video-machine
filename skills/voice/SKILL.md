@@ -53,6 +53,10 @@ Read the error and look at the named lines. Then:
   ones. Then run `synth` and `align` again.
 - **Supplied recording** (`source: supplied`): ask the creator whether the recording or the script is right. Never
   edit their recording. If the script is right, the creator re-records; if the script is wrong, fix the script as above.
+- **`"<word>" is spoken two ways in the script`** (from `synth` or `align`). The same display word is said differently
+  in two lines, or has a `spoken` in one line and is plain in another. Write it the same way in every line, or rephrase
+  one line, through `lib/script/cli.ts write` (whole `{"lines": [...]}` list, new version), then run `synth` and `align`
+  again.
 
 ## Rules
 

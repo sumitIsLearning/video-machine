@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { Timing } from '../contracts/types';
 import { InputError } from './errors';
-import { lineOf, timedLines, wordOf } from './timing';
+import { lineConf, lineOf, timedLines, wordOf } from './timing';
 
 const timing: Timing = {
   lines: [
@@ -63,4 +63,7 @@ describe('timedLines', () => {
     const old: Timing = { lines: [{ text: 'x', start: 0, end: 1, words: [] }] };
     expect(() => timedLines(old)).toThrow('re-run align');
   });
+  test('lineConf is the unrounded mean of the word confs, skipping words without one', () =>
+    expect(lineConf([{ conf: 0.5 }, { conf: 0.25 }, {}])).toBeCloseTo(0.375));
+  test('lineConf is undefined when no word has a conf', () => expect(lineConf([{}, {}])).toBeUndefined());
 });

@@ -43,6 +43,16 @@ export const wordOf = (line: TimedLine, word: string, nth = 0): { start: number;
   throw new InputError(`line "${line.id ?? '?'}" has no "${word}"${occurrence}`);
 };
 
+/**
+ * The mean conf of the words that have one, unrounded (callers round for display), or undefined when none does.
+ * Returns undefined rather than 0 so a line the aligner did not score is not read as a failed one.
+ */
+export const lineConf = (words: { conf?: number | undefined }[]): number | undefined => {
+  const confs = words.flatMap((w) => (w.conf === undefined ? [] : [w.conf]));
+  if (confs.length === 0) return undefined;
+  return confs.reduce((sum, c) => sum + c, 0) / confs.length;
+};
+
 /** Per-line word counts and spans in the LineEstimate shape. Throws InputError when a line has no id (re-run align). */
 export const timedLines = (timing: Timing): LineEstimate[] =>
   timing.lines.map((line) => {

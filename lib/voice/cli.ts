@@ -1,3 +1,4 @@
+// The voice CLI: synth (M9) voices or imports audio/vo.wav after the cost gate; align (M10) writes data/timing.json and reports the fit.
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { ctcOnnx } from '../adapters/align/ctc-onnx';
@@ -16,6 +17,7 @@ import { costGate } from '../core/cost';
 import { type Deps, defaultDeps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
 import { readJson } from '../core/json';
+import { lineConf } from '../core/timing';
 import { spokenWordsOf } from './spoken';
 
 const USAGE = 'usage: cli.ts synth <run_dir> [--approve-spend usd] | align <run_dir>';
@@ -63,9 +65,8 @@ const synth = async (runDir: string, rest: string[], io: Io): Promise<Record<str
 
 /** The mean of the words' conf rounded to 2 places, or null when no word has a conf. */
 const meanConf = (words: { conf?: number | undefined }[]): number | null => {
-  const confs = words.flatMap((w) => (w.conf === undefined ? [] : [w.conf]));
-  if (confs.length === 0) return null;
-  return Math.round((confs.reduce((sum, c) => sum + c, 0) / confs.length) * 100) / 100;
+  const mean = lineConf(words);
+  return mean === undefined ? null : Math.round(mean * 100) / 100;
 };
 
 /** Align the voiceover to the script lines and report per-line times against duration_target_s. */
