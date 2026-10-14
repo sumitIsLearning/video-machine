@@ -71,8 +71,10 @@ def main() -> int:
         "## Context pack (read only these; use Read with offset/limit)\n\n- (orchestrator: `path:start-end` + what to look for)",
         "## Report (10 lines max)\n\nFiles changed; `check.sh` result line; each difference from this brief with its reason.",
     ]
-    out = Path(args[args.index("--out") + 1]) if "--out" in args else Path(
-        ".superpowers/sdd", plan.stem, "briefs", f"task-{task}.md"
+    out = (
+        Path(args[args.index("--out") + 1])
+        if "--out" in args
+        else Path(".superpowers/sdd", plan.stem, "briefs", f"task-{task}.md")
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n\n".join(p for p in parts if p) + "\n", encoding="utf-8")

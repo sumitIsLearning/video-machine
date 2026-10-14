@@ -26,3 +26,6 @@ Ruling: skill says beat `nth` 0 = first occurrence (schema min 0; no resolver ye
 Task 8: done 94a3d59 (haiku build 7/7, code CHANGES: 3 🟠 refusal checks passed for any refusal + lib 🟠 writePlan defaulted missing scenes to [] → misleading coverage error; haiku fix incl. plan.ts guard + test; orchestrator re-ran 7/7 + check.sh)
 Ruling: Task 8 fix touched lib/storyboard/plan.ts (missing/empty `scenes` → InputError naming scenes) — cost if wrong: none
 Next: phase end — show user `bun tests/phase4.ts` output (7/7, ~31 s), then code-reviewer model opus over the branch (briefs task-1..8 + rulings), one fix brief, one re-review, ask before merging.
+Branch review: opus CHANGES (5 🟠, 6 🔵); fix brief briefs/fix-branch.md (haiku lib + haiku docs in parallel); opus re-review APPROVE (2 🟡 comments, orchestrator added); done e52f687. check.sh 586 pass; phase4 7/7.
+Ruling: finding 9 (dedupe readStdin/flag across 3 CLIs) skipped — cost if wrong: a later small refactor
+Next: ask user to merge phase-4-write-design into master (no push), then Phase 5.
