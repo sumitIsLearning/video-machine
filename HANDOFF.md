@@ -7,7 +7,8 @@
 - Plan: `docs/superpowers/plans/phase-4-write-design.md` (8 tasks, rulings R1–R11). Blueprint updated for R1 (gsap)
   and R2 (`lib/script`, `lib/look`, `lib/storyboard`). Dev agent `.claude/agents/visual-reviewer.md` added (R10).
 - Done: Task 1 `8b054db` (CheckResult, direction/board ids, `lib/core/estimate.ts`, gsap), Task 2 `d15f2ea`
-  (`lib/checks/` facts-cited, directions-differ, coverage). Next: Task 3 (composition adapter). Ledger:
+  (`lib/checks/` facts-cited, directions-differ, coverage), Task 3 `c55c17b` (HyperFrames composition folders), Task 4
+  `1f481ef` (`lib/script/`). Next: Task 5. Ledger:
   `.superpowers/sdd/phase-4-write-design/progress.md`.
 - Test run for later: `runs/2026-10-14-firecrawl-in-20-seconds-paste/` is at M6. It has research.md (14 facts), a
   logged-in replay of the Firecrawl playground scraping superteamai.com (10 clips; steps hand-written, no nav video),
