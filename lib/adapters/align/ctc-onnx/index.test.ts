@@ -72,7 +72,110 @@ test('align hands align.py a spec with the line texts and spoken words', async (
     return inner(cmd, o);
   };
   await ctcOnnx(deps).align(audio, lines, { 'MCP.': ['EM', 'SEE', 'PEE'] });
-  expect(spec).toEqual({ lines: [{ text: 'Ship faster.' }], spoken_words: { 'MCP.': ['EM', 'SEE', 'PEE'] } });
+  expect(spec).toEqual({ lines: [{ id: 'l1', text: 'Ship faster.' }], spoken_words: { 'MCP.': ['EM', 'SEE', 'PEE'] } });
+});
+
+test('the spec passes each line id to align.py', async () => {
+  const { audio, deps } = setup(GOOD);
+  let spec: unknown;
+  const inner = deps.sh;
+  deps.sh = async (cmd, o) => {
+    spec = JSON.parse(readFileSync(cmd[9] ?? '', 'utf8'));
+    return inner(cmd, o);
+  };
+  const two = [
+    { id: 'l1', text: 'Hello there.', delivery: 'voiceover' as const },
+    { id: 'l2', text: 'Bye now.', delivery: 'voiceover' as const },
+  ];
+  await ctcOnnx(deps).align(audio, two);
+  expect((spec as { lines: unknown }).lines).toEqual([
+    { id: 'l1', text: 'Hello there.' },
+    { id: 'l2', text: 'Bye now.' },
+  ]);
+});
+
+test('a line whose mean word conf is below 0.6 fails by id and removes the outputs', async () => {
+  const timing = JSON.stringify({
+    lines: [
+      {
+        id: 'l1',
+        text: 'Aa bb.',
+        start: 0,
+        end: 1,
+        words: [
+          { w: 'Aa', start: 0, end: 0.5, conf: 0.95 },
+          { w: 'bb', start: 0.5, end: 1, conf: 0.9 },
+        ],
+      },
+      {
+        id: 'l2',
+        text: 'Cc dd.',
+        start: 1,
+        end: 2,
+        words: [
+          { w: 'Cc', start: 1, end: 1.5, conf: 0.2 },
+          { w: 'dd', start: 1.5, end: 2, conf: 0.3 },
+        ],
+      },
+      {
+        id: 'l3',
+        text: 'Ee ff.',
+        start: 2,
+        end: 3,
+        words: [
+          { w: 'Ee', start: 2, end: 2.5, conf: 0.5 },
+          { w: 'ff', start: 2.5, end: 3, conf: 0.6 },
+        ],
+      },
+    ],
+  });
+  const { run, audio, deps } = setup(timing);
+  const three = [
+    { id: 'l1', text: 'Aa bb.', delivery: 'voiceover' as const },
+    { id: 'l2', text: 'Cc dd.', delivery: 'voiceover' as const },
+    { id: 'l3', text: 'Ee ff.', delivery: 'voiceover' as const },
+  ];
+  const err = await ctcOnnx(deps)
+    .align(audio, three)
+    .catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(VideoMachineError);
+  expect((err as Error).message).toContain('l2 (0.25)');
+  expect((err as Error).message).toContain('l3 (0.55)');
+  expect((err as Error).message).not.toContain('l1');
+  expect(existsSync(path.join(run, 'data', 'timing.json'))).toBe(false);
+  expect(existsSync(path.join(run, 'data', 'audio.json'))).toBe(false);
+});
+
+test('words without conf (unspoken tokens) do not count; a line with none passes', async () => {
+  const timing = JSON.stringify({
+    lines: [
+      {
+        id: 'l1',
+        text: 'Aa bb.',
+        start: 0,
+        end: 1,
+        words: [
+          { w: 'Aa', start: 0, end: 0.5, conf: 0.9 },
+          { w: 'bb', start: 0.5, end: 1 },
+        ],
+      },
+      { id: 'l2', text: 'Cc.', start: 1, end: 2, words: [{ w: 'Cc', start: 1, end: 2 }] },
+    ],
+  });
+  const { run, audio, deps } = setup(timing);
+  const two = [
+    { id: 'l1', text: 'Aa bb.', delivery: 'voiceover' as const },
+    { id: 'l2', text: 'Cc.', delivery: 'voiceover' as const },
+  ];
+  expect(await ctcOnnx(deps).align(audio, two)).toBe(path.join(run, 'data', 'timing.json'));
+});
+
+test('exactly 0.6 passes', async () => {
+  const timing = JSON.stringify({
+    lines: [{ id: 'l1', text: 'Aa.', start: 0, end: 1, words: [{ w: 'Aa', start: 0, end: 1, conf: 0.6 }] }],
+  });
+  const { run, audio, deps } = setup(timing);
+  expect(await ctcOnnx(deps).align(audio, lines)).toBe(path.join(run, 'data', 'timing.json'));
 });
 
 test('align removes the spec folder after a success', async () => {

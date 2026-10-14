@@ -23,12 +23,20 @@ export const alignerModel = (vmHome: string): ModelSpec => ({
 });
 
 /**
+ * A line whose mean word conf (mean token probability) is below this fails the align: the voice does not say the text.
+ * ponytail: one fixed threshold; per-scene or per-voice tuning waits for a real case.
+ */
+export const MIN_LINE_CONF = 0.6;
+
+/**
  * The CTC aligner. `align(audioPath, lines, spokenWords)` aligns `audioPath` (inside <run>/audio/) against `lines`,
  * writes <run>/data/timing.json and audio.json, and returns the timing.json path.
  * `spokenWords` maps a display word to what is said ("MCP." → ["EM", "SEE", "PEE"]).
  * Removes both outputs before running, and again if the run or the validation fails.
  * Throws UnsupportedError without lines, VideoMachineError when the audio is missing, not a file, empty or outside
- * <run>/audio/, VideoMachineError when the aligner model is missing (setup fetches it), ToolError when align.py fails and ContractError when it writes an invalid timing.json.
+ * <run>/audio/, VideoMachineError when the aligner model is missing (setup fetches it), VideoMachineError when a line's
+ * mean word conf is below MIN_LINE_CONF (the message names each such line by id), ToolError when align.py fails and
+ * ContractError when it writes an invalid timing.json.
  */
 export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
   async align(audioPath, lines, spokenWords = {}) {
@@ -59,13 +67,27 @@ export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
     const specDir = mkdtempSync(path.join(tmpdir(), 'vm-align-'));
     const spec = path.join(specDir, 'lines.json');
     // ponytail: throwaway, unschema'd input for align.py, so it skips writeJson on purpose.
-    writeFileSync(spec, JSON.stringify({ lines: lines.map((l) => ({ text: l.text })), spoken_words: spokenWords }));
+    writeFileSync(
+      spec,
+      JSON.stringify({ lines: lines.map((l) => ({ id: l.id, text: l.text })), spoken_words: spokenWords }),
+    );
     try {
       await deps.sh(
         ['uv', 'run', '--frozen', '--no-dev', '--project', pluginRoot, 'python', alignPy, audio, spec, runDir, model],
         { env: toolEnv },
       );
-      readJson(out, TimingSchema); // validate on write
+      const timing = readJson(out, TimingSchema); // validate on write
+      const bad: string[] = [];
+      timing.lines.forEach((line, i) => {
+        const confs = line.words.flatMap((w) => (w.conf === undefined ? [] : [w.conf]));
+        if (confs.length === 0) return;
+        const mean = confs.reduce((a, b) => a + b, 0) / confs.length;
+        if (mean < MIN_LINE_CONF) bad.push(`${line.id ?? i + 1} (${mean.toFixed(2)})`);
+      });
+      if (bad.length > 0)
+        throw new VideoMachineError(
+          `ctc-onnx.align: the audio does not match line(s) ${bad.join(', ')}; check their spoken text or re-voice them`,
+        );
       return out;
     } catch (e) {
       removeOutputs(); // a half-finished run must never look done

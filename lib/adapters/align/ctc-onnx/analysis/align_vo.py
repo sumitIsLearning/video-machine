@@ -171,11 +171,13 @@ def main():
         if s % 2 == 1:
             tok_frames.setdefault((s - 1) // 2, []).append(t)
     spans = {}  # (li, wi, pi) -> [start, end]
+    confs = {}  # (li, wi, pi) -> mean token probability
     for li, wi, pi, pos in units:
         fr = [f for p in pos for f in tok_frames.get(p, [])]
         if not fr:
             continue
         spans[(li, wi, pi)] = [min(fr) * FRAME, (max(fr) + 1) * FRAME]
+        confs[(li, wi, pi)] = float(np.mean([np.exp(E[t, tgt[p]]) for p in pos for t in tok_frames.get(p, [])]))
 
     # refine: a unit starts where the voice starts (walk back over voiced 10 ms frames, at most 120 ms)
     # and ends where it stops (walk forward to the next silence, never into the next unit)
@@ -209,6 +211,7 @@ def main():
             parts = [spans[(li, wi, pi)] for pi in range(len(spoken(w))) if (li, wi, pi) in spans]
             if parts:
                 wd = {"w": w, "start": round(parts[0][0], 3), "end": round(parts[-1][1], 3)}
+                wd["conf"] = round(float(np.mean([confs[(li, wi, pi)] for pi in range(len(spoken(w))) if (li, wi, pi) in confs])), 3)
                 if len(parts) > 1:
                     wd["syl"] = [[round(a, 3), round(b, 3)] for a, b in parts]
             else:

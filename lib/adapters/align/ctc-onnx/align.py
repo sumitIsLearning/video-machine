@@ -4,7 +4,8 @@
 
 lines.json: {"lines": [{"text": ...}, ...], "spoken_words"?: {"5.5.": ["FIVE", "POINT", "FIVE"], ...}}
   spoken_words maps a display word to what is said (align_vo's SPOKEN); words not in it are read as written.
-Writes <run_dir>/data/timing.json (word times, the aligner's word-timed format) and <run_dir>/data/audio.json
+lines.json "lines" entries may carry an "id"; it is copied onto the matching timing.json line.
+Writes <run_dir>/data/timing.json (word times with per-word "conf", the aligner's word-timed format) and <run_dir>/data/audio.json
 (voice envelopes, word onsets, nominal beat grid). Prints the timing.json path.
 """
 
@@ -34,7 +35,12 @@ def main(audio: Path, lines_file: Path, run_dir: Path, model: Path) -> Path:
         align_vo.MODEL = model
         (Path(tmp) / "data").mkdir()
         align_vo.main()
-        timing.write_text((Path(tmp) / "data" / "lyrics.json").read_text(encoding="utf-8"), encoding="utf-8")
+        timing_doc = json.loads((Path(tmp) / "data" / "lyrics.json").read_text(encoding="utf-8"))
+        # the line ids come from the spec, so timing.json can be matched back to scene lines by id
+        for line, src in zip(timing_doc["lines"], spec["lines"]):
+            if "id" in src:
+                line["id"] = src["id"]
+        timing.write_text(json.dumps(timing_doc, ensure_ascii=False, indent=1), encoding="utf-8")
 
     # audio_vo.py is a flat script with fixed paths: run its source with those paths swapped in.
     # ponytail: text swap of three path expressions; asserts fail loudly if the script changes
