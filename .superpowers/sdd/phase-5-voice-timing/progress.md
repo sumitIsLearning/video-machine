@@ -8,4 +8,5 @@ Probes (2026-10-14): hf tts 0.8.143 → 24 kHz mono, ~5 s/line, error JSON on st
 Task 1: done cbb585d (haiku build, spec PASS, code APPROVE w/ 🔵 NaN cost passed the guard — orchestrator fixed + test, 2 lines)
 Task 2: done 7e1494e (haiku build, spec PASS, code APPROVE; builder added confs = {} the brief omitted; 🔵 vendored conf comprehension repeats parts, skipped)
 Finding: tests/phase0.ts fails on this Mac on the base too (cbb585d): check 1 max deviation 80 ms at "shapes," (word 94) vs 10 ms; check 2 ENOENT C:/Work-data/video-testing (Windows path). Pre-existing, not Phase 5 — raise with user.
-Next: Task 3 (voice adapters hf-tts + supplied).
+Task 3: done c354ab8 (haiku build, spec PASS, code 🟠 tts temp dir in os.tmpdir → EXDEV on rename + 🟡 ok:true with no wav → raw ENOENT; one haiku fix round, both fixed with tests; supplied keeps its own SAMPLE_RATE, adapters don't import each other)
+Next: Task 4 (lib/voice CLI).
