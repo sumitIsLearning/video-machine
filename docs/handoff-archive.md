@@ -1,6 +1,6 @@
 # Handoff archive
 
-## Now (2026-10-14, late): Phase 4 (write and design) in progress on branch `phase-4-write-design`
+## Earlier (2026-10-14, late): Phase 4 (write and design) in progress on branch `phase-4-write-design`
 
 - User asked to build the rest of the pipeline (Phases 4–7) and then test it on the Firecrawl run. User rulings
   2026-10-14: gsap 3.14.2 as an npm dependency; work on a branch, no push; keep `/clear` every 2 tasks.
