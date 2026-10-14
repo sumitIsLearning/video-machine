@@ -5,6 +5,7 @@ import path from 'node:path';
 import { AssetsSchema, BriefSchema, LookSchema, PlanSchema, ScriptSchema } from '../contracts/types';
 import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
+import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
 import { writePlan, writeSceneBoard } from './plan';
 
@@ -135,9 +136,17 @@ test('needs script.json and look/look.json, and renderable assets', () => {
 test('a malformed plan is refused with an InputError', () => {
   const d = run();
   const msg = 'plan needs scenes: [{ scene_id, lines[], asset_ids[], ... }]';
-  expect(() => writePlan(d, { scenes: 'x' })).toThrow(msg);
+  expect(() => writePlan(d, { scenes: 'x' })).toThrow(/scenes/);
   expect(() => writePlan(d, { scenes: [null] })).toThrow(msg);
   expect(() => writePlan(d, { scenes: [{ scene_id: 'a' }] })).toThrow(msg);
+});
+
+test('a plan with no non-empty scenes array is refused with an InputError', () => {
+  const d = run();
+  expect(() => writePlan(d, {})).toThrow(InputError);
+  expect(() => writePlan(d, {})).toThrow(/scenes/);
+  expect(() => writePlan(d, { visuals_plan: {} })).toThrow(InputError);
+  expect(() => writePlan(d, { visuals_plan: {} })).toThrow(/scenes/);
 });
 
 const deps: Deps = {

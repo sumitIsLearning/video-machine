@@ -49,7 +49,11 @@ export function sceneTimes(scenes: { scene_id: string; lines: string[] }[], line
  * duration target.
  */
 export function writePlan(runDir: string, input: unknown): PlanWritten {
-  const { scenes = [], sections, asset_ids } = (input ?? {}) as Partial<PlanInput>;
+  const { scenes, sections, asset_ids } = (input ?? {}) as Partial<PlanInput>;
+  if (!Array.isArray(scenes) || scenes.length === 0)
+    throw new InputError(
+      'plan needs a non-empty "scenes" array; top-level keys are scenes, sections, asset_ids (visuals_plan is written by this command)',
+    );
   const scriptFile = path.join(runDir, 'script.json');
   if (!existsSync(scriptFile)) throw new InputError('script.json is missing: write the script (M6) first');
   const lookFile = path.join(runDir, 'look', 'look.json');
@@ -62,8 +66,7 @@ export function writePlan(runDir: string, input: unknown): PlanWritten {
     s === null ||
     !Array.isArray((s as PlanInput['scenes'][number]).lines) ||
     !Array.isArray((s as PlanInput['scenes'][number]).asset_ids);
-  if (!Array.isArray(scenes) || scenes.some(badScene))
-    throw new InputError('plan needs scenes: [{ scene_id, lines[], asset_ids[], ... }]');
+  if (scenes.some(badScene)) throw new InputError('plan needs scenes: [{ scene_id, lines[], asset_ids[], ... }]');
 
   const coverage = checkCoverage(scenes, script);
   if (coverage.status === 'fail')
