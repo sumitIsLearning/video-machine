@@ -11,9 +11,7 @@
 - Plan: `docs/superpowers/plans/phase-3-research-sources.md` (Tasks 1–10, rulings R1–R11, user-approved; BLUEPRINT
   edits in `87c3a8a`).
 - Ledger with every ruling and every deferred minor: `.superpowers/sdd/phase-3-research-sources/progress.md`. It is
-  **tracked in git** since `c1723d0` (user request). Read it first; trust it plus `git log` over memory. The superpowers
-  `sdd-workspace` script writes `.superpowers/sdd/.gitignore` containing `*` when it sets up a workspace. Delete that
-  file again, or new ledgers won't be committed.
+  git-ignored and local only. Read it first; trust it plus `git log` over memory.
 
 **Task status**
 
