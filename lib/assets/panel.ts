@@ -47,13 +47,13 @@ ${a.attribution ? `<p>${esc(a.attribution)}</p>\n` : ''}<p>status: ${esc(a.statu
 /**
  * Write the read-only assets panel, a self-contained page with no scripts, to `out/assets-panel.html`.
  * Returns its absolute path. Throws InputError when the folder is not a run, and the fs error or ContractError when
- * `assets/assets.json` is missing or malformed. An asset whose file no longer resolves inside the run is left out,
+ * `assets.json` is missing or malformed. An asset whose file no longer resolves inside the run is left out,
  * with an `[M4] skipped <path>: <reason>` line to `onWarn` (stderr by default).
  */
 export function writePanel(runDir: string, opts: { onWarn?: (line: string) => void } = {}): string {
   assertRunDir(runDir);
   const warn = opts.onWarn ?? ((line: string) => void process.stderr.write(`${line}\n`));
-  const assets = readJson(path.join(runDir, 'assets', 'assets.json'), AssetsSchema).assets.filter((a) => {
+  const assets = readJson(path.join(runDir, 'assets.json'), AssetsSchema).assets.filter((a) => {
     try {
       runFileOf(runDir, a.path);
       return true;

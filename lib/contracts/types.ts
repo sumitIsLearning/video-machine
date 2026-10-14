@@ -282,7 +282,7 @@ export const AssetRefSchema = z.strictObject({
 });
 export type AssetRef = z.infer<typeof AssetRefSchema>;
 
-// assets/assets.json: the one pool of everything gathered, with the creator's pin and drop marks.
+// assets.json: the one pool of everything gathered, with the creator's pin and drop marks.
 export const AssetsSchema = z
   .strictObject({ run_id: z.string().min(1), assets: z.array(AssetRefSchema) })
   .superRefine((pool, ctx) =>

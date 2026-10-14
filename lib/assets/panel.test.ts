@@ -34,9 +34,8 @@ const pool: Assets = {
 const panelOf = (assets: Assets['assets'], files: string[] = [], onWarn: (l: string) => void = () => {}) => {
   const dir = mkdtempSync(path.join(tmpdir(), 'vm-'));
   temps.push(dir);
-  mkdirSync(path.join(dir, 'assets'));
   writeFileSync(path.join(dir, 'concept.md'), 'c');
-  writeFileSync(path.join(dir, 'assets/assets.json'), JSON.stringify({ run_id: 'r', assets }));
+  writeFileSync(path.join(dir, 'assets.json'), JSON.stringify({ run_id: 'r', assets }));
   for (const f of files) {
     mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     writeFileSync(path.join(dir, f), 'x');
@@ -84,9 +83,8 @@ test('an asset whose file is gone is left out with a warning', () => {
 const panel = () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'vm-'));
   temps.push(dir);
-  mkdirSync(path.join(dir, 'assets'));
   writeFileSync(path.join(dir, 'concept.md'), 'c');
-  writeFileSync(path.join(dir, 'assets/assets.json'), JSON.stringify(pool));
+  writeFileSync(path.join(dir, 'assets.json'), JSON.stringify(pool));
   for (const a of pool.assets) {
     mkdirSync(path.dirname(path.join(dir, a.path)), { recursive: true });
     writeFileSync(path.join(dir, a.path), 'x');

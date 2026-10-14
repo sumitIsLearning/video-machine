@@ -17,7 +17,7 @@ import { readJson, writeJson } from '../core/json';
 import { relInside, runFileOf } from '../core/paths';
 import { assertRunDir, runIdOf } from '../run/intake';
 
-const ASSETS = 'assets/assets.json';
+const ASSETS = 'assets.json';
 const ORIGINS: AssetRef['origin'][] = ['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn'];
 
 const KINDS: Record<string, AssetRef['kind']> = {
@@ -49,7 +49,7 @@ export type PoolOptions = { onWarn?: (line: string) => void };
 const warnToStderr = (line: string): void => void process.stderr.write(`${line}\n`);
 
 /**
- * Collect every asset of a run into `assets/assets.json`, keeping the creator's pin and drop marks by asset id.
+ * Collect every asset of a run into `assets.json`, keeping the creator's pin and drop marks by asset id.
  * A file it cannot use (missing, outside the run, a folder, wrong extension, dangling link) is skipped with an
  * `[M4] skipped <path>: <reason>` line to `onWarn` (stderr by default); it never aborts the build.
  * Returns the pool, sorted by origin then path. Throws InputError when the folder is not a run, ContractError for a
@@ -218,7 +218,7 @@ export function buildPool(runDir: string, opts: PoolOptions = {}): Assets {
 }
 
 /**
- * Set the creator's mark on one asset in `assets/assets.json`.
+ * Set the creator's mark on one asset in `assets.json`.
  * Returns the updated pool. Throws InputError for an unknown id, for pinning an asset whose licence is unknown,
  * or when the pool has not been built yet.
  */
