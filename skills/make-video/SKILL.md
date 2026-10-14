@@ -5,7 +5,7 @@ description: "Use when the creator wants a motion-graphics video (reel first; lo
 
 # Make a video
 
-In this version intake, research, capture, the assets panel, the cited script, two looks and the storyboard exist. You turn the creator's concept and files into a run folder with a `brief.json`, research, captures, an assets panel, a script, a picked look and a storyboard, then stop before the voice part (M9).
+In this version intake, research, capture, the assets panel, the cited script, two looks, the storyboard, the voiceover and word timing exist. You turn the creator's concept and files into a run folder with a `brief.json`, research, captures, an assets panel, a script, a picked look, a storyboard, a voiceover and word timing, then stop before the scenes part.
 
 Run every command with the Bash tool (Git Bash on Windows), not PowerShell, from the creator's workspace (never `cd`
 into the plugin). Every command prints one JSON line. Read its `ok` field, never the exit code. Any `ok:false` means:
@@ -108,17 +108,19 @@ short table. Never hand-write `brief.json`.
 | `M5` | `video-machine:research` |
 | `M2`, `M3`, `M4` | `video-machine:capture` (the parts the brief does not need are already skipped) |
 | `M6`, `M7`, `M8` | `video-machine:storyboard` |
-| `M9` | stop (below) |
+| `M9`, `M10` | `video-machine:voice` |
+| `M11`, `M12` | stop (below) |
 
-After each part, run `where` again and repeat until it says `M9`. Between parts, tell the creator in one line what
+After each part, run `where` again and repeat until it says `M11` or `M12`. Between parts, tell the creator in one line what
 finished and what comes next; ask before each part that takes minutes or downloads anything.
 
 Stop the loop when `next` is unchanged after a part ran, or when the creator declines a part. Tell the creator what is
 missing (for example "research.md was not written"). Never run the same part again without asking.
 
-At `M9`, tell the creator the run folder path and what exists now (research, captures, assets panel, script, look and
-storyboard), and that the voice part (M9) arrives in the next version, then stop. Don't write the script or make the video by other means. If
-`next` is any other part, say its name in words and that it arrives in a later version, then stop.
+At `M11` or `M12`, tell the creator the run folder path and what exists now (research, captures, assets panel, script,
+look, storyboard, voiceover and word timing), and that the scenes part arrives in the next version, then stop. Don't
+write the script, voice the lines or make the video by other means. If `next` is any other part, say its name in words
+and that it arrives in a later version, then stop.
 
 ## Rules
 
