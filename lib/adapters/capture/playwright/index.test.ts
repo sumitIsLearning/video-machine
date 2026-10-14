@@ -33,6 +33,7 @@ let passwordTargets: Set<string>;
 let onClick: (target: string) => void;
 let redirect: (url: string) => string;
 let closeFails: boolean;
+let missingRecording: boolean;
 
 beforeEach(() => {
   run = mkdtempSync(path.join(tmpdir(), 'vm-'));
@@ -49,6 +50,7 @@ beforeEach(() => {
   onClick = () => {};
   redirect = (url) => url;
   closeFails = false;
+  missingRecording = false;
 });
 afterEach(() => rmSync(run, { recursive: true, force: true }));
 
@@ -94,7 +96,7 @@ const fakeLaunch: Launch = async ({ recordDir }) => {
       if (closeFails) throw new Error('close exploded');
       mkdirSync(recordDir, { recursive: true });
       const video = path.join(recordDir, 'rec.webm');
-      writeFileSync(video, 'webm');
+      if (!missingRecording) writeFileSync(video, 'webm');
       return video;
     },
   };
@@ -405,6 +407,39 @@ test('moveFile copies and removes the source when the rename keeps failing', asy
   await moveFile(from, to, { rename, sleep: async () => {} });
   expect(readFileSync(to, 'utf8')).toBe('video');
   expect(existsSync(from)).toBe(false);
+});
+
+test('moveFile resolves when the copy worked but the locked source cannot be removed', async () => {
+  const from = fileIn('a.webm', 'video');
+  const to = path.join(run, 'b.webm');
+  const rename = () => {
+    throw busy('EBUSY');
+  };
+  const remove = () => {
+    throw busy('EBUSY');
+  };
+  await moveFile(from, to, { rename, sleep: async () => {}, remove });
+  expect(readFileSync(to, 'utf8')).toBe('video');
+});
+
+test('log.json survives a recording that cannot be moved; the failure is a warning', async () => {
+  missingRecording = true;
+  const file = await capture().replay(run, STEPS, profile);
+  expect(readJson(file, CaptureLogSchema)).toHaveLength(3);
+  expect(shown('replay.webm')).toBe(false);
+  expect(warnings.some((w) => w.includes('[M3]') && w.includes('replay.webm'))).toBe(true);
+});
+
+test('a page that moves to a refused host while the target is measured gets no before-shot and no crop', async () => {
+  boxOf = () => {
+    urlNow = 'http://169.254.169.254/';
+    return BOX;
+  };
+  const log = await replayLog(STEPS.slice(1, 2));
+  expect(log[0]?.failed).toContain('refused 169.254.169.254');
+  expect(shown('shots/1-before.png')).toBe(false);
+  expect(shown('crops/1.png')).toBe(false);
+  expect(cropCalls()).toHaveLength(0);
 });
 
 test('moveFile does not hide an error that is not about a busy file', async () => {

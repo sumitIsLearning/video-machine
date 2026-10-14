@@ -68,11 +68,16 @@ const refusalOf = (url: string, productHost: string): string | undefined => {
   return undefined;
 };
 
-type FileMover = { rename: (from: string, to: string) => void; sleep: (ms: number) => Promise<unknown> };
+type FileMover = {
+  rename: (from: string, to: string) => void;
+  sleep: (ms: number) => Promise<unknown>;
+  remove?: (file: string) => void;
+};
 
 /**
  * Move a file: try a rename 3 times (200 ms apart) while the file is busy, then copy it and remove the original.
- * Throws the fs error for anything that is not a busy file.
+ * A locked original that cannot be removed after the copy is left behind (the caller cleans its folder).
+ * Throws the fs error for anything that is not a busy file, or when the copy itself fails.
  */
 export async function moveFile(
   from: string,
@@ -91,7 +96,12 @@ export async function moveFile(
     }
   }
   copyFileSync(from, to);
-  rmSync(from, { force: true });
+  try {
+    (io.remove ?? ((file) => rmSync(file, { force: true })))(from);
+  } catch (error) {
+    if (!BUSY_CODES.has((error as NodeJS.ErrnoException).code ?? '')) throw error;
+    // the copy is the move; the locked original goes with the rec folder, or stays there
+  }
 }
 
 /**
@@ -167,6 +177,7 @@ export const playwrightCapture = (deps: Deps = defaultDeps(), opts: CaptureOptio
           if (isType && (await page.isPassword(step.target))) throw new Error(PASSWORD_REFUSAL);
           if (isOnFrame(measured)) {
             box = measured;
+            guard(page.url()); // box() waits up to 5 s, in which the page may have moved on
             await cropFocus(step, measured);
           } else {
             warn(`[M3] step ${step.i}: target is off the frame, no focus crop`);
@@ -211,7 +222,11 @@ export const playwrightCapture = (deps: Deps = defaultDeps(), opts: CaptureOptio
       const finish = async () => {
         const recording = await page.close();
         await moveFile(recording, path.join(capture, 'replay.webm'));
-        rmSync(path.join(capture, 'rec'), { recursive: true, force: true });
+        try {
+          rmSync(path.join(capture, 'rec'), { recursive: true, force: true });
+        } catch (cause) {
+          warn(`[M3] could not remove capture/rec: ${reasonOf(cause)}`);
+        }
       };
       try {
         await runSteps();
@@ -220,11 +235,11 @@ export const playwrightCapture = (deps: Deps = defaultDeps(), opts: CaptureOptio
         await finish().catch((closeError) => warn(`[M3] could not close the browser cleanly: ${reasonOf(closeError)}`));
         throw error;
       }
-      await finish();
 
-      // The log is the contract; write it before the clips so a clip failure cannot lose it.
+      // The log is the contract; write it before the recording is moved and the clips are cut, so neither can lose it.
       const file = path.join(capture, 'log.json');
       writeJson(file, CaptureLogSchema, log);
+      await finish().catch((closeError) => warn(`[M3] replay.webm and the clips are missing: ${reasonOf(closeError)}`));
       for (const e of log) {
         if (e.failed !== undefined) continue;
         try {
