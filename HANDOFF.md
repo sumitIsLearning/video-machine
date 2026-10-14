@@ -1,6 +1,46 @@
 # Handoff
 
-## Now (2026-10-10): Phase 2 merged; concept-only spike done; Phase 3 plan next
+## Now (2026-10-14): Phase 3 paused mid-execution, at Task 6 fix round 2 (user asked to stop and hand off)
+
+**Where things are**
+- `master` is fast-forwarded to `phase-3-research-sources` (user request 2026-10-14). The phase is **not finished**, and
+  `master` carries Phase 3 Tasks 1–5 plus Task 6 work in progress.
+- **Not pushed: the repo has no git remote.** `git remote -v` is empty. Add one (`git remote add origin <url>`), then
+  `git push -u origin master`.
+- Plan: `docs/superpowers/plans/phase-3-research-sources.md` (Tasks 1–10, rulings R1–R11, user-approved; BLUEPRINT
+  edits in `87c3a8a`).
+- Ledger with every ruling and every deferred minor: `.superpowers/sdd/phase-3-research-sources/progress.md`. It is
+  git-ignored and local only. Read it first; trust it plus `git log` over memory.
+
+**Task status**
+
+| Task | State |
+|---|---|
+| 1 contracts | done, reviewed (`fe900b8`) |
+| 2 page capture + research.md | done, reviewed (`c602f1d`) |
+| 3 Openverse adapter | done, reviewed (`cef4dce`) |
+| 4 research CLI | done, reviewed (`84e0a2d`) |
+| 5 nav-video reader + steps | done, reviewed (`f4aefb1`). Nav folder is `capture/nav/<slug>-<hash>`, not `capture/nav/nav`. |
+| 6 Playwright replay | **in progress**: fix round 1 done and live-verified; Opus re-review found 2 new 🟠; **fix round 2 was dispatched but the builder was cut off**. Its partial edits are committed as a WIP commit (tests 454 pass, lint clean) and are **unreviewed**. |
+| 7 capture CLI + setup capture_browser | not started (also adds `'capture_browser'` to `DOCTOR_TOOLS`) |
+| 8 asset pool + panel + assets CLI | not started (must skip `capture/shots/*-before.png`) |
+| 9 skills research/capture/make-video | not started |
+| 10 acceptance `tests/phase3.ts` | not started (includes a replay clip-alignment check) |
+
+**Resume Task 6 here.** Fix round 2 must close the two 🟠 from the Opus re-review, and a fresh builder should check both
+against the WIP commit:
+1. The `moveFile` copy fallback still throws when the locked source can't be removed, so `log.json` is lost. A move
+   failure must not lose the log.
+2. There is no URL guard before the before-shot. The private-host and link-local check must also run before
+   `shots/<i>-before.png` is taken.
+
+Then do a scoped re-review, and commit as `feat(capture): Playwright replay (P3 Task 6, M3)`.
+
+**Then:** Tasks 7–10, one builder each (`Read docs/AGENT_PROMPT.md, then implement Task N from <plan>`), spec-reviewer,
+code-reviewer, fix rounds. Then `bun tests/phase3.ts`, the Opus whole-branch review, and the manual logged-in check with
+the user (R11).
+
+## Earlier (2026-10-10): Phase 2 merged; concept-only spike done; Phase 3 plan next
 
 - `master` was fast-forwarded to `phase-2-setup-intake` (`5bb3d8f`), with the user's "keep going". Nothing has been pushed.
 - Spike (R10): `runs/spike-concept/` (git-ignored).
