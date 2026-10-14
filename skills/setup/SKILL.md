@@ -20,6 +20,7 @@ Tell the creator everything setup will download, and ask once. Do this even when
 | Python venv | about 115 MB |
 | Aligner model (sha256-checked) | 95 MB |
 | Chrome for rendering | up to about 500 MB |
+| Browser for the capture replay (`capture_browser`) | none if Chrome is installed, else about 150 MB |
 | Parakeet transcription model | 640 MB |
 | Kokoro voice model (fetched on the first smoke test) | about 340 MB |
 
@@ -64,7 +65,8 @@ Code and run setup again.
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/setup/cli.ts" install
 ```
 
-It sets up the Python venv, the aligner model, Chrome for rendering and the Parakeet model. Re-run only failed steps with
+It sets up the Python venv, the aligner model, Chrome for rendering, the Parakeet model and the capture replay browser
+(the system Chrome is reused; only without it is Playwright's Chromium downloaded). Re-run only failed steps with
 `install <step>`.
 
 ## 4. Doctor again
@@ -77,6 +79,7 @@ Run `doctor` until `ok` is true. Fix each failing tool:
 | `aligner_model` | `install model` |
 | `chrome` | `install browser` |
 | `parakeet` | `install parakeet` |
+| `capture_browser` | `install capture_browser` |
 | `hyperframes` | never run hyperframes directly; re-run `install` or check Node, npm and the network |
 
 `doctor` prints `{ok, failing, details, doctor: <path>}`. `details` maps each failing tool to its `detail`: read it from
