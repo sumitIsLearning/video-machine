@@ -1,6 +1,52 @@
 # Handoff
 
-## Now (2026-10-14): Phase 3 paused mid-execution, at Task 6 fix round 2 (user asked to stop and hand off)
+## Now (2026-10-14, evening): Phase 3 code-complete on `master`; two manual checks left
+
+- Tasks 6–10 done and reviewed, then an Opus whole-branch review and its fix wave (re-review APPROVE). Commits
+  `491c187` (T6), `ff3fb38` (T7), `4140811` (`.python-version` 3.14, user OK), `57314e1` (T8), `bb0a4b5` (T9),
+  `4a36905` (T10), `cb4c37b` (branch fix wave). Not pushed yet.
+- `bun test` 532 tests, 0 fail; lint clean; `bun tests/phase3.ts` 9/9 live (R9 clip offset +0.05 to +0.11 s, not 0.45 s).
+- Playwright Chromium installed on this Mac (user OK); `doctor` all green.
+- User rulings: keep the repo's own agents for every builder/reviewer role (no mattpocock skills).
+- Behaviour changes from the branch review: `assets.json` lives at the run root (Task 8 had `assets/`); replay's
+  product host and profile come from the brief's `product_url`, and `capture login <run_dir>` reads it (no URL arg).
+- **Left, with the user:**
+  1. R11 manual logged-in check: a product the user can log in to → run with `product_url` → `capture login` by hand →
+     replay.
+  2. Live `claude --plugin-dir . -p "continue my video"` before/after (Task 9); the auto-mode classifier blocks nested
+     claude from agents, so it is run by hand.
+  3. Then: push, and plan Phase 4.
+- Open idea (no answer yet): builders twice wrote files through Bash/python despite the rule; `path_guard.py` could
+  block that.
+- Ledger: `.superpowers/sdd/phase-3-research-sources/progress.md` (rulings, deferred minors).
+
+## Earlier (2026-10-14, later): moved to a new Mac, set up and verified; resume Task 6 fix round 2
+
+**Machine:** the repo is now at `/Users/sumitchakraborty/work-data/video-machine` (macOS, arm64). It was a fresh clone of
+`origin/master` (`8f8e5d0`). Earlier work happened on Windows (`/c/Work-data/video-machine`).
+- Installed: `brew install uv ffmpeg` (uv 0.13.1, ffmpeg 9.0.2); `npm install`, then
+  `node_modules/.bin/bun install --frozen-lockfile` (bun 1.4.2); `bun lib/setup/cli.ts install` (venv, aligner model
+  fetched with sha256, Chrome Headless Shell, Parakeet). No manual model copy was needed.
+- `bun lib/setup/cli.ts doctor`: all green. `smoke`: render 28.6 s, tts 41.7 s, align 1 s.
+- `bun test`: 446 pass, 8 skip (the Windows-only tests), 0 fail. `npm run lint` (with `node_modules/.bin` on PATH): clean.
+  The WIP commit `7b5763c` passes on this machine.
+- **New, uncommitted: `.python-version` = `3.14`.** Homebrew's uv picked CPython 3.15, and onnxruntime 1.30.0 has no
+  cp315 wheel, so `uv sync` failed. `UV_PYTHON` is stripped from toolEnv on purpose, so the pin must live in the repo.
+  Waiting on the user's OK to commit it (it affects every new machine).
+
+**Ledger:** the user copied it to `.superpowers/sdd/` (Phase 1 and Phase 3 only; the Phase 2 ledger was not copied, and
+that phase is merged). The `plan-path` files were rewritten from `/c/Work-data/...` to this Mac's path. The Phase 3 ledger
+matches this file and `git log`.
+
+**Matt Pocock skills:** the plugin `mattpocock-skills@claude-plugins-official` v1.2.3 was installed and enabled at user
+scope during this session. It loads only in a new session. Open question for the user: use any of its skills (e.g.
+`tdd`, `code-review`) inside the repo's builder/reviewer flow, or keep the repo's own agents. Until decided, use the
+repo's flow.
+
+**Next:** Task 6 fix round 2, unchanged from the section below (moveFile must not lose `log.json`; URL guard before
+the before-shot), then the scoped re-review and the `feat(capture): Playwright replay (P3 Task 6, M3)` commit.
+
+## Earlier (2026-10-14): Phase 3 paused mid-execution, at Task 6 fix round 2 (user asked to stop and hand off)
 
 **Where things are**
 - `master` is fast-forwarded to `phase-3-research-sources` (user request 2026-10-14). The phase is **not finished**, and
