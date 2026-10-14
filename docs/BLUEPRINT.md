@@ -223,7 +223,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | Spending money | Paid adapters return `costEstimate` first; sum vs `brief.budget_usd` (default 0) → ask |
 | Passwords | Never typed by Claude; persistent profile, creator logs in by hand |
 | Plugin updates wipe data | Runs live in the creator's cwd (`./runs/`); models in `~/.video-machine/`; nothing written under `${CLAUDE_PLUGIN_ROOT}` at runtime |
-| Plugin JS dependencies (user ruling 2026-10-10) | Only `bun` 1.4.2 + `zod` at runtime (90 MB, `--production`). Setup installs them **into the plugin root** with `npx --yes bun@1.4.2 install --frozen-lockfile --production`. This is the one setup-time write there. A plugin update removes them; `make-video` sees the missing bun and re-runs setup |
+| Plugin JS dependencies (user ruling 2026-10-10; gsap added 2026-10-14) | Only `bun` 1.4.2 + `zod` + `gsap` 3.14.2 at runtime (`--production`; compositions copy `gsap.min.js` into their `vendor/`, never the CDN). Setup installs them **into the plugin root** with `npx --yes bun@1.4.2 install --frozen-lockfile --production`. This is the one setup-time write there. A plugin update removes them; `make-video` sees the missing bun and re-runs setup |
 | Orphaned processes on Windows | One subprocess helper with timeout that kills the whole tree (`taskkill /T`) |
 | cp1252 pipes on Windows | `PYTHONUTF8=1` for every Python call |
 | Young dependency drifting | HyperFrames pinned to an exact version; plans cite versions |
@@ -322,6 +322,9 @@ video-machine/                      # repo = the plugin and its own marketplace
     research/                       # M5: page capture, research.md, cli.ts
     capture/                        # M2-M3: nav-video reader, steps, cli.ts (replay is adapters/capture/playwright)
     assets/                         # M4: pool, panel, cli.ts
+    script/                         # M6: script.json (cited), cli.ts
+    look/                           # M7: directions A|B, boards, looks page, pick, cli.ts
+    storyboard/                     # M8: plan.json, scene boards, storyboard page, cli.ts
     adapters/
       render/hyperframes/           # primary renderer (Phase 6)
       align/ctc-onnx/               # Phase 0; analysis/ = vendored align_vo.py, audio_vo.py, model
