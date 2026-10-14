@@ -312,7 +312,15 @@ const WordTimingSchema = z.object({
 });
 export const TimingSchema = z.object({
   source: z.string().optional(),
-  lines: z.array(z.object({ text: z.string(), start: z.number(), end: z.number(), words: z.array(WordTimingSchema) })),
+  lines: z.array(
+    z.object({
+      id: z.string().optional(),
+      text: z.string(),
+      start: z.number(),
+      end: z.number(),
+      words: z.array(WordTimingSchema),
+    }),
+  ),
   beats: z.array(z.number()).optional(),
 });
 export type Timing = z.infer<typeof TimingSchema>;
@@ -478,7 +486,7 @@ export interface RenderAdapter {
   render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): Promise<string>;
 }
 export interface VoiceAdapter {
-  synth(lines: Script['lines'], voice_id: string): Promise<string>;
+  synth(runDir: string, lines: Script['lines'], voice_id: string): Promise<string>;
   costEstimate(lines: Script['lines']): number;
 }
 export interface MusicAdapter {

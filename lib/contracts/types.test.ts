@@ -20,6 +20,7 @@ import {
   ScriptSchema,
   StepsSchema,
   TestResultsSchema,
+  TimingSchema,
 } from './types';
 
 test('frameOf gives the reel frame as vertical 1080x1920 with its safe area', () => {
@@ -468,4 +469,14 @@ test('CheckResultSchema is the element type of TestResults.checks', () => {
   };
   expect(CheckResultSchema.parse(check)).toEqual(check);
   expect(() => CheckResultSchema.parse({ ...check, status: 'maybe' })).toThrow();
+});
+
+test('TimingSchema keeps a line id when the aligner gives one', () => {
+  const timing = { lines: [{ id: 'l1', text: 'Hi.', start: 0, end: 1, words: [] }] };
+  expect(TimingSchema.parse(timing).lines[0]?.id).toBe('l1');
+});
+
+test('TimingSchema accepts a line without an id', () => {
+  const timing = { lines: [{ text: 'Hi.', start: 0, end: 1, words: [] }] };
+  expect(TimingSchema.parse(timing).lines[0]?.id).toBeUndefined();
 });
