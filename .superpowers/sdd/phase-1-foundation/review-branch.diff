@@ -1,0 +1,3415 @@
+9c8794d test: Phase 1 acceptance script
+f6ee729 feat(align): ctc-onnx adapter on core deps; async adapter interfaces
+8c4dd75 feat(contracts): blueprint v1.1 data models
+0f83feb feat(core): sh, the only process runner, with Windows tree kill
+2b13fa2 feat(core): errors, config and validated JSON IO
+38ce9d6 feat(plugin): manifest, marketplace and placeholder make-video skill
+3e15291 build: tsconfig, Biome, ruff, lint/format scripts, first unit test
+91a0bd0 test: phase0 keeps alignment and video-testing checks after pdoom retirement
+c3548fa chore: retire pdoom; keep aligner scripts and model under ctc-onnx/analysis
+2c59f06 docs: retire pdoom (user ruling 2026-10-10)
+b038307 fix: repoint workspace paths and phase0 imports after the lib/ move
+cfb68a1 chore: move contracts and adapters to lib/ (no edits)
+
+ tests/phase0.ts                                    | 116 ++--
+ tests/phase1.ts                                    | 124 +++++
+ tsconfig.json                                      |  15 +
+ uv.lock                                            |  33 ++
+ 164 files changed, 1782 insertions(+), 10633 deletions(-)
+
+## Deleted wholesale (not shown): engine/, lib/adapters/render/pdoom/, tests/baseline/, tests/fixture/{scenes,timeline.ts,audio/sfx}; lockfiles omitted
+
+diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json
+new file mode 100644
+index 0000000..0ba8746
+--- /dev/null
++++ b/.claude-plugin/marketplace.json
+@@ -0,0 +1,12 @@
++{
++  "name": "video-machine",
++  "description": "Marketplace for the Video Machine Claude Code plugin.",
++  "owner": { "name": "Sumit Chakraborty" },
++  "plugins": [
++    {
++      "name": "video-machine",
++      "source": "./",
++      "description": "Concept + any source material to a motion-graphics video (reels first)."
++    }
++  ]
++}
+diff --git a/.claude-plugin/plugin.json b/.claude-plugin/plugin.json
+new file mode 100644
+index 0000000..dfa5fda
+--- /dev/null
++++ b/.claude-plugin/plugin.json
+@@ -0,0 +1,6 @@
++{
++  "name": "video-machine",
++  "version": "0.1.0",
++  "description": "Turns a concept and any source material into a motion-graphics video (reels first).",
++  "author": { "name": "Sumit Chakraborty" }
++}
+diff --git a/.claude/agents/lib-builder.md b/.claude/agents/lib-builder.md
+index 4a720e4..8942d41 100644
+--- a/.claude/agents/lib-builder.md
++++ b/.claude/agents/lib-builder.md
+@@ -1,26 +1,26 @@
+ ---
+ name: lib-builder
+-description: "Implements ONE code task (contracts, core helpers, adapters, checks, tests, tooling) from docs/superpowers/plans/ using TDD. Writes only lib/, tests/, engine/ and root tooling files. Use for every TypeScript or Python task."
++description: "Implements ONE code task (contracts, core helpers, adapters, checks, tests, tooling) from docs/superpowers/plans/ using TDD. Writes only lib/, tests/ and root tooling files. Use for every TypeScript or Python task."
+ tools: Read, Edit, Write, Grep, Glob, Bash
+ model: sonnet
+ color: blue
+ skills:
+   - superpowers:test-driven-development
+   - superpowers:verification-before-completion
+   - ponytail:ponytail
+ hooks:
+   PreToolUse:
+     - matcher: "Edit|Write|NotebookEdit"
+       hooks:
+         - type: command
+-          command: "python .claude/hooks/path_guard.py lib tests engine package.json pyproject.toml tsconfig.json biome.json .gitignore"
++          command: "python .claude/hooks/path_guard.py lib tests package.json pyproject.toml tsconfig.json biome.json .gitignore"
+ ---
+ 
+ You implement exactly one task from a Video Machine plan. You are a TypeScript engineer (bun, Zod, subprocess-driven media tools) who also writes small Python wrappers when a task needs one.
+ 
+ ## Context budget
+ Read only:
+ 1. `docs/AGENT_PROMPT.md` (the coding standard, which is mandatory)
+ 2. Your task section in the plan file you were given
+ 3. The files the task lists under **Read first**
+ 
+diff --git a/.claude/agents/orchestrator.md b/.claude/agents/orchestrator.md
+index 9b37f94..8b426e5 100644
+--- a/.claude/agents/orchestrator.md
++++ b/.claude/agents/orchestrator.md
+@@ -40,21 +40,21 @@ For each task:
+ 5. Commit the task (conventional message plus the attribution line).
+ 
+ After the last task of a phase: run `node_modules/.bin/bun tests/phase<N>.ts` and show the user the output plus anything visible (assets panel, boards, contact sheet, draft MP4). Then dispatch `code-reviewer` with `model: opus` over the whole branch. Turn its findings into one fix task, then one scoped re-review. Ask the user before merging.
+ 
+ ## Spikes
+ When a phase plan calls for a spike (Phase 1), you may work by hand **only inside `runs/spike-*/`**: throwaway HyperFrames scenes, captures and renders to learn how the tools behave. Write findings into the blueprint (with the user's approval) and the next plan. Never promote spike code into `lib/`; a builder rewrites it under TDD.
+ 
+ ## Folder ownership
+ | Agent | May write |
+ |---|---|
+-| lib-builder | `lib/`, `tests/`, `engine/`, `package.json`, `pyproject.toml`, `tsconfig.json`, `biome.json`, `.gitignore` |
++| lib-builder | `lib/`, `tests/`, `package.json`, `pyproject.toml`, `tsconfig.json`, `biome.json`, `.gitignore` |
+ | plugin-builder | `skills/`, `agents/`, `hooks/`, `.claude-plugin/`, `looks/`, `CONCEPT-TEMPLATE.md` |
+ | spec-reviewer, code-reviewer | nothing (read-only) |
+ | orchestrator | `docs/`, `.claude/agents/` (agent rules only), `HANDOFF.md`, `runs/spike-*/`, git commits; `tests/fixture/` and `tests/baseline/` only with the user's OK |
+ 
+ A hook in each builder's frontmatter enforces its folders. Root `agents/`, `skills/` and `hooks/` are the **shipped** plugin; `.claude/` is the dev team and is never shipped.
+ 
+ ## Standing rules
+ - Record every decision you make on the user's behalf as a ruling and list them in the phase summary.
+ - Paid calls (HeyGen, ElevenLabs) need the user's yes every time, even in development.
+ - Never delete, merge, or push without the user's OK.
+diff --git a/.claude/skills/video-machine/adapters/align/ctc-onnx/index.ts b/.claude/skills/video-machine/adapters/align/ctc-onnx/index.ts
+deleted file mode 100644
+index 699c253..0000000
+--- a/.claude/skills/video-machine/adapters/align/ctc-onnx/index.ts
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Align adapter: CTC forced alignment (wav2vec2-base-960h, quantized ONNX) via align.py, run with uv.
+-import path from 'node:path';
+-import { writeFileSync, mkdtempSync } from 'node:fs';
+-import { tmpdir } from 'node:os';
+-import { readJson, TimingSchema, type AlignAdapter, type Script } from '../../../contracts/types';
+-
+-const WORKSPACE = path.resolve(import.meta.dir, '../../../../../..');
+-
+-/**
+- * Align `audioPath` (inside <run>/audio/) against `lines`; writes <run>/data/timing.json and audio.json.
+- * `spokenWords` maps a display word to what is said ("MCP." → ["EM", "SEE", "PEE"]).
+- */
+-export function align(audioPath: string, lines?: Script['lines'], spokenWords: Record<string, string[]> = {}) {
+-  if (!lines?.length) throw new Error('ctc-onnx.align: needs the script lines (it aligns text to audio, it does not transcribe)');
+-  const runDir = path.resolve(path.dirname(audioPath), '..');
+-  const spec = path.join(mkdtempSync(path.join(tmpdir(), 'vm-align-')), 'lines.json');
+-  writeFileSync(spec, JSON.stringify({ lines: lines.map((l) => ({ text: l.text })), spoken_words: spokenWords }));
+-  const p = Bun.spawnSync(['uv', 'run', '--project', WORKSPACE, 'python', path.join(import.meta.dir, 'align.py'), path.resolve(audioPath), spec, runDir], { stdout: 'pipe', stderr: 'pipe', env: { ...process.env, PYTHONUTF8: '1' } }); // UTF-8 pipes on Windows (script prints →)
+-  if (p.exitCode !== 0) throw new Error(`ctc-onnx.align failed:\n${p.stderr.toString()}`);
+-  const out = path.join(runDir, 'data', 'timing.json');
+-  readJson(out, TimingSchema); // validate on write
+-  return out;
+-}
+-
+-export const ctcOnnx: AlignAdapter = { align };
+-export default ctcOnnx;
+diff --git a/.claude/skills/video-machine/adapters/render/pdoom/index.ts b/.claude/skills/video-machine/adapters/render/pdoom/index.ts
+deleted file mode 100644
+index ea4b997..0000000
+--- a/.claude/skills/video-machine/adapters/render/pdoom/index.ts
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Render adapter for the pdoom engine (engine/ at the workspace root): headless Chrome + WebGL → PNG / MP4.
+-// The run folder is handed to the engine as VM_RUN; the format's size as --w/--h. See engine/scripts/render.ts.
+-import path from 'node:path';
+-import { FORMATS, type FormatId, type LayerPass, type RenderAdapter } from '../../../contracts/types';
+-
+-const WORKSPACE = path.resolve(import.meta.dir, '../../../../../..');
+-const ENGINE = path.join(WORKSPACE, 'engine');
+-// pinned bun: bun 1.3.x on Windows cannot launch Chrome through Playwright's pipe
+-const BUN = path.join(WORKSPACE, 'node_modules/.bin', process.platform === 'win32' ? 'bun.exe' : 'bun');
+-
+-/** Run engine/scripts/render.ts for a run folder and format; throws with the tool's output on failure. */
+-function run(runDir: string, format: FormatId, args: string[]) {
+-  const { w, h } = FORMATS[format];
+-  const p = Bun.spawnSync([BUN, 'scripts/render.ts', ...args, '--w', String(w), '--h', String(h), '--strict'], {
+-    cwd: ENGINE, env: { ...process.env, VM_RUN: path.resolve(runDir) }, stdout: 'pipe', stderr: 'pipe',
+-  });
+-  const out = p.stdout.toString(), err = p.stderr.toString();
+-  if (p.exitCode !== 0) throw new Error(`pdoom render ${args[0]} (${format}) failed:\n${err || out}`);
+-  return out;
+-}
+-
+-const notYet = (what: string, phase: number) => () => { throw new Error(`pdoom.${what}: not built yet (Phase ${phase})`); };
+-
+-export const pdoom: RenderAdapter = {
+-  name: 'pdoom',
+-  // the engine draws at any size; whether a plate's layout suits the format is a check, not a capability
+-  supports: (format) => (format in FORMATS ? { ok: true } : { ok: false, reason: `unknown format ${format}` }),
+-  scaffold: notYet('scaffold', 1),
+-  plateApi: notYet('plateApi', 1),
+-  lint: notYet('lint', 2),
+-
+-  still(runDir, format, t, only) {
+-    const out = path.join(runDir, 'out/stills', format);
+-    run(runDir, format, ['stills', '--t', t.join(','), '--out', out, ...(only?.length ? ['--only', only.join(',')] : [])]);
+-    // render.ts names stills f_<t padded>.png
+-    return t.map((x) => path.join(out, `f_${x.toFixed(2).padStart(7, '0')}.png`));
+-  },
+-
+-  contactSheet(runDir, format, perPlate) {
+-    const out = path.join(runDir, 'out/sheets', `${format}.png`);
+-    run(runDir, format, ['sheet', '--per-plate', String(perPlate), '--cols', String(perPlate), '--out', out]);
+-    return out;
+-  },
+-
+-  render(runDir, format, quality, passes?: LayerPass[]) {
+-    if (passes?.length) throw new Error('pdoom.render: layer passes are not supported yet (Phase 5)');
+-    const fps = String(FORMATS[format].fps);
+-    const out = path.join(runDir, 'out', quality === 'draft' ? 'drafts' : 'final', format, 'video.mp4');
+-    const q = quality === 'draft'
+-      ? ['--samples', '1', '--crf', '23', '--preset', 'veryfast']
+-      : ['--samples', 'auto', '--min-samples', '4', '--max-samples', '12', '--shutter', '0.5', '--crf', '17'];
+-    run(runDir, format, ['video', '--fps', fps, ...q, '--out', out]);
+-    return out;
+-  },
+-};
+-
+-export default pdoom;
+\ No newline at end of file
+diff --git a/.claude/skills/video-machine/contracts/types.ts b/.claude/skills/video-machine/contracts/types.ts
+deleted file mode 100644
+index 628fef4..0000000
+--- a/.claude/skills/video-machine/contracts/types.ts
++++ /dev/null
+@@ -1,213 +0,0 @@
+-// Data contracts for the Video Machine (spec §3) and adapter contracts (§4).
+-// Every JSON file the skill writes goes through writeJson/readJson: a failed parse is an error, never a warning.
+-import { z } from 'zod';
+-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+-import path from 'node:path';
+-
+-// ------------------------------------------------------------------ formats
+-export const FormatIdSchema = z.enum(['landscape_1080p', 'reel', 'square', 'portrait_feed']);
+-export type FormatId = z.infer<typeof FormatIdSchema>;
+-
+-type Safe = { top: number; bottom: number; left: number; right: number };
+-/** Fixed table; adding a format = one line here (and one in FormatIdSchema). */
+-export const FORMATS: Record<FormatId, { w: number; h: number; fps: number; safe: Safe }> = {
+-  landscape_1080p: { w: 1920, h: 1080, fps: 30, safe: { top: 0.05, bottom: 0.05, left: 0.05, right: 0.05 } },
+-  reel:            { w: 1080, h: 1920, fps: 30, safe: { top: 0.14, bottom: 0.2, left: 0.06, right: 0.06 } },
+-  square:          { w: 1080, h: 1080, fps: 30, safe: { top: 0.06, bottom: 0.06, left: 0.06, right: 0.06 } },
+-  portrait_feed:   { w: 1080, h: 1350, fps: 30, safe: { top: 0.06, bottom: 0.08, left: 0.06, right: 0.06 } },
+-};
+-
+-/** What a plate lays itself out against (§7). */
+-export type Frame = { w: number; h: number; aspect: 'landscape' | 'vertical' | 'square'; safe: Safe };
+-export const frameOf = (f: FormatId): Frame => {
+-  const { w, h, safe } = FORMATS[f];
+-  return { w, h, safe, aspect: w > h ? 'landscape' : w < h ? 'vertical' : 'square' };
+-};
+-
+-const formatRecord = <T extends z.ZodType>(v: T) => z.partialRecord(FormatIdSchema, v);
+-
+-// ------------------------------------------------------------------ brief
+-export const DeliverableSchema = z.object({
+-  format: FormatIdSchema,
+-  kind: z.enum(['mp4_h264', 'mov_prores4444', 'png_sequence', 'webm', 'gif', 'srt', 'ae_package']),
+-  captions: z.enum(['burned', 'separate', 'none']),
+-});
+-export type Deliverable = z.infer<typeof DeliverableSchema>;
+-
+-export const BriefSchema = z.object({
+-  run_id: z.string().min(1),
+-  concept: z.string().min(1),
+-  goals: z.array(z.string()),
+-  audience: z.string().optional(),
+-  tone: z.string().optional(),
+-  duration_target_s: z.tuple([z.number().positive(), z.number().positive()]).refine(([a, b]) => a <= b, 'min > max'),
+-  timing_source: z.enum(['voiceover', 'music', 'text_only']),
+-  voice: z.discriminatedUnion('source', [
+-    z.object({ source: z.literal('supplied'), path: z.string() }),
+-    z.object({ source: z.literal('tts'), adapter: z.string(), voice_id: z.string() }),
+-  ]).optional(),
+-  music: z.discriminatedUnion('source', [
+-    z.object({ source: z.literal('supplied'), path: z.string() }),
+-    z.object({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
+-  ]).optional(),
+-  formats: z.array(FormatIdSchema).min(1).default(['landscape_1080p', 'reel']),
+-  deliverables: z.array(DeliverableSchema).default([]),
+-  references: z.array(z.object({ path_or_url: z.string(), use: z.literal('study_only') })).optional(),
+-  look_hint: z.string().optional(),
+-  brand: z.object({
+-    logo: z.string().optional(),
+-    colors: z.array(z.object({ hex: z.string().regex(/^#[0-9a-fA-F]{6}$/), role: z.enum(['bg', 'fg', 'accent', 'muted']).optional() })).optional(),
+-    fonts: z.array(z.object({ family: z.string(), path: z.string().optional(), license: z.string().min(1) })).optional(),
+-  }).optional(),
+-  assets: z.array(z.string()).optional(),
+-  source_material: z.array(z.string()).optional(),
+-  cta: z.object({ text: z.string(), url_or_handle: z.string().optional() }).optional(),
+-  must_include: z.array(z.string()).optional(),
+-  must_avoid: z.array(z.string()).optional(),
+-  budget_usd: z.number().min(0).default(0),
+-});
+-export type Brief = z.infer<typeof BriefSchema>;
+-
+-// ------------------------------------------------------------------ script
+-export const ScriptSchema = z.object({
+-  run_id: z.string(),
+-  version: z.number().int().min(1),
+-  lines: z.array(z.object({
+-    id: z.string(),
+-    text: z.string().min(1),       // what is said (or shown, if text_only)
+-    spoken: z.string().optional(),  // how TTS/aligner should read it ("5.5" → "five point five")
+-    on_screen: z.string().optional(),
+-  })).min(1),
+-});
+-export type Script = z.infer<typeof ScriptSchema>;
+-
+-// ------------------------------------------------------------------ look
+-export const LookSchema = z.object({
+-  id: z.string(),
+-  based_on: z.array(z.string()),
+-  idea: z.string(),
+-  palette: z.array(z.object({ name: z.string(), hex: z.string().regex(/^#[0-9a-fA-F]{6}$/), role: z.enum(['bg', 'fg', 'accent', 'muted']) })).min(1),
+-  type: z.array(z.object({ role: z.enum(['display', 'body', 'mono', 'label']), family: z.string(), weights: z.array(z.number()), license: z.string().min(1) })).min(1),
+-  motion: z.object({ character: z.string(), easings: z.array(z.string()), typical_beat_s: z.tuple([z.number(), z.number()]), camera: z.string() }),
+-  motifs: z.array(z.object({ id: z.string(), meaning: z.string(), code: z.string().optional() })),
+-  post: z.record(z.string(), z.number()),
+-  layout_rules: z.object({ landscape: z.string(), vertical: z.string(), square: z.string() }),
+-});
+-export type Look = z.infer<typeof LookSchema>;
+-
+-// ------------------------------------------------------------------ plan
+-export const PlatePlanSchema = z.object({
+-  plate_id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
+-  lines: z.array(z.string()).min(1),
+-  cut_in: z.object({ anchor: z.string(), rule: z.enum(['pause_before', 'on_word', 'on_beat']) }),
+-  intent: z.string(),
+-  beats: z.array(z.object({
+-    on: z.string(),                 // word/phrase found by content, or "beat:12"
+-    nth: z.number().int().min(0).optional(),
+-    does: z.string(),
+-    motif: z.string().optional(),
+-    hold: z.boolean().optional(),
+-  })),
+-  layout: formatRecord(z.string()),
+-  transition_out: z.string(),
+-  asset_ids: z.array(z.string()),
+-  overrides: z.string().optional(),
+-  input_hash: z.string(),
+-});
+-export type PlatePlan = z.infer<typeof PlatePlanSchema>;
+-
+-export const PlanSchema = z.object({
+-  run_id: z.string(),
+-  version: z.number().int().min(1),
+-  look_id: z.string(),
+-  visuals_plan: z.object({ plates: z.array(PlatePlanSchema).min(1) }),
+-  asset_ids: z.array(z.string()),
+-  formats: z.array(FormatIdSchema).min(1),
+-});
+-export type Plan = z.infer<typeof PlanSchema>;
+-
+-// ------------------------------------------------------------------ assets
+-export const AssetRefSchema = z.object({
+-  asset_id: z.string(),
+-  kind: z.enum(['image', 'video', 'audio', 'font', 'svg', 'data']),
+-  path: z.string(),
+-  source: z.string(),
+-  license: z.string(),
+-  usage: z.enum(['render', 'reference_only']),
+-});
+-export type AssetRef = z.infer<typeof AssetRefSchema>;
+-
+-// ------------------------------------------------------------------ timing
+-// data/timing.json: the engine's word-timed format (what align_vo.py writes as lyrics.json).
+-const WordTimingSchema = z.object({
+-  w: z.string(),
+-  start: z.number(),
+-  end: z.number(),
+-  syl: z.array(z.tuple([z.number(), z.number()])).optional(),
+-  conf: z.number().optional(),
+-});
+-export const TimingSchema = z.object({
+-  source: z.string().optional(),
+-  lines: z.array(z.object({ text: z.string(), start: z.number(), end: z.number(), words: z.array(WordTimingSchema) })),
+-  beats: z.array(z.number()).optional(),
+-});
+-export type Timing = z.infer<typeof TimingSchema>;
+-
+-// ------------------------------------------------------------------ test results
+-export const TestResultsSchema = z.object({
+-  run_id: z.string(),
+-  plan_version: z.number().int(),
+-  output_paths: z.object({
+-    stills: formatRecord(z.array(z.string())),
+-    contact_sheets: formatRecord(z.string()),
+-    drafts: formatRecord(z.string()),
+-    deliverables: z.array(z.object({ deliverable: DeliverableSchema, path: z.string() })),
+-    report: z.string(),
+-  }),
+-  checks: z.array(z.object({
+-    id: z.string(),
+-    format: FormatIdSchema.optional(),
+-    blocking: z.boolean(),
+-    status: z.enum(['pass', 'fail', 'skip']),
+-    detail: z.string(),
+-    annotations: z.array(z.object({ plate_id: z.string().optional(), t: z.number().optional(), problem: z.string(), suggested_fix: z.string() })),
+-  })),
+-  summary: z.object({ blocking_failed: z.number().int(), warnings: z.number().int() }),
+-});
+-export type TestResults = z.infer<typeof TestResultsSchema>;
+-
+-// ------------------------------------------------------------------ adapter contracts (§4)
+-export type Issue = { severity: 'error' | 'warning'; plate_id?: string; message: string };
+-export type LayerPass = 'bg' | 'graphics' | 'type' | 'captions' | 'fx';
+-
+-export interface RenderAdapter {
+-  name: string;
+-  supports(format: FormatId): { ok: boolean; reason?: string };
+-  scaffold(runDir: string, plan: Plan, look: Look): void;
+-  plateApi(): string;
+-  lint(runDir: string): Issue[];
+-  still(runDir: string, format: FormatId, t: number[], only?: string[]): string[];
+-  contactSheet(runDir: string, format: FormatId, perPlate: number): string;
+-  render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): string;
+-}
+-export interface VoiceAdapter { synth(lines: Script['lines'], voice_id: string): string; costEstimate(lines: Script['lines']): number }
+-export interface MusicAdapter { get(query: string, duration_s: number): AssetRef; costEstimate?(query: string): number }
+-export interface AlignAdapter { align(audioPath: string, lines?: Script['lines']): string /* timing.json path */ }
+-export interface AssetAdapter { find(query: string, kind: AssetRef['kind']): AssetRef[]; make?(spec: string): AssetRef; costEstimate?(spec: string): number }
+-export interface ExportAdapter { kind: Deliverable['kind']; export(runDir: string, d: Deliverable): string }
+-
+-// ------------------------------------------------------------------ validated IO
+-/** Read a JSON file and parse it against its schema; throws with the file path and every issue. */
+-export function readJson<T extends z.ZodType>(file: string, schema: T): z.infer<T> {
+-  const r = schema.safeParse(JSON.parse(readFileSync(file, 'utf8')));
+-  if (!r.success) throw new Error(`${file} does not match its schema:\n${z.prettifyError(r.error)}`);
+-  return r.data;
+-}
+-/** Validate, then write (pretty, LF). Invalid data is never written. */
+-export function writeJson<T extends z.ZodType>(file: string, schema: T, data: z.input<T>): z.infer<T> {
+-  const r = schema.safeParse(data);
+-  if (!r.success) throw new Error(`refusing to write ${file}:\n${z.prettifyError(r.error)}`);
+-  mkdirSync(path.dirname(file), { recursive: true });
+-  writeFileSync(file, JSON.stringify(r.data, null, 1) + '\n');
+-  return r.data;
+-}
+diff --git a/HANDOFF.md b/HANDOFF.md
+index 96654cf..a62a03a 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -1,12 +1,24 @@
+ # Handoff
+ 
++## Now (2026-10-10): blueprint v1.1, Phase 1 running on branch `phase-1-foundation`
++
++- **User rulings 2026-10-10 (BLUEPRINT v1.1, `e293e48`):** concept is the only required input; everything else is
++  `brief.sources[]`; nav video is source material (renders only as a replay fallback); research (WebSearch/WebFetch)
++  always runs right after intake; Claude draws / captures / finds its own licensed assets (paid AI media: Future);
++  reel built first, contracts format/length-agnostic, long-form 16:9 with chapters is new Phase 9 (Polish → 10);
++  shipped skill renamed `make-video`.
++- Phase 1 plan updated to match (`a4d1e8b`), approved, executing subagent-driven. Pre-step done (`cfb68a1`).
++  Ledger (git-ignored via `.git/info/exclude`): `.superpowers/sdd/phase-1-foundation/progress.md`, trust it + `git log`.
++- Visual blueprint artifact (claude.ai) still shows the v1 pipeline: refresh it.
++- Spike now starts from a concept only (no nav video needed).
++
+ ## Session end (2026-10-09): Phase 1 plan awaits the user's review
+ 
+ - **Next session:** the user reviews `docs/superpowers/plans/phase-1-foundation.md`. On approval: orchestrator `git mv` pre-step,
+   then Tasks 1-9 subagent-driven (builder -> spec-reviewer -> code-reviewer -> bun test + lint -> commit), then
+   `bun tests/phase1.ts`, Opus whole-branch review, ask before merging.
+ - **Combined test reel (throwaway, git-ignored):** `runs/spike-probe/notes/combined-reel.mp4` (9.3 s, 1080x1920, H.264 + AAC
+   48 kHz, rendered in 21 s with `--quality delivery --no-browser-gpu`). Built by hand from: `hyperframes capture https://bun.sh`
+   (brand colours, Archivo / Martian Mono fonts, screenshots) -> 3 lines through `hyperframes tts` (Kokoro af_heart, 24 kHz,
+   joined with 0.25 s gaps, resampled to 48 kHz) -> `hyperframes transcribe --engine parakeet` (20/20 words right) -> one
+   composition in `runs/spike-probe/reel/p/index.html` that looks words up by text (`at('Bun.sh')`), vendored GSAP 3.14.2,
+diff --git a/biome.json b/biome.json
+new file mode 100644
+index 0000000..c979819
+--- /dev/null
++++ b/biome.json
+@@ -0,0 +1,9 @@
++{
++  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
++  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
++  "files": { "includes": ["**", "!tests/fixture", "!runs", "!.claude"] },
++  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
++  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
++  "javascript": { "formatter": { "quoteStyle": "single" } },
++  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } }
++}
+diff --git a/docs/AGENT_PROMPT.md b/docs/AGENT_PROMPT.md
+index cf8a93d..04372fe 100644
+--- a/docs/AGENT_PROMPT.md
++++ b/docs/AGENT_PROMPT.md
+@@ -6,32 +6,30 @@ You are implementing **one task** from a plan in `docs/superpowers/plans/`. Read
+ 3. The files the task lists under **Read first**.
+ 
+ Do **not** scan the whole repo, read the other plans, or re-open design decisions. If the task looks wrong or unclear,
+ stop and report the problem. Do not guess.
+ 
+ Project facts you need: `docs/BLUEPRINT.md` (read only the section your task points to). Part ids (`M0`–`M18`) mean the
+ same thing everywhere.
+ 
+ ## 1. Tooling
+ - TypeScript, run by **bun 1.4.2, pinned in the workspace**. Always call it as `node_modules/.bin/bun` from the
+-  workspace root (`../node_modules/.bin/bun` from `engine/`). The global `bun` is 1.3.5 and breaks Chrome launch and the
+-  engine lockfile.
++  workspace root. The global `bun` is 1.3.5 and breaks Chrome launch.
+ - Python (model wrappers only, e.g. the aligner), run by `uv` directly: `uv run --project . python ...`. Never
+   `python -m uv`. Every Python subprocess gets `PYTHONUTF8=1`.
+ - HyperFrames is pinned: use the `HYPERFRAMES_VERSION` constant from `lib/core/config.ts`, never a bare `npx hyperframes`.
+ - Commands, from the workspace root (the scripts are added in Phase 1):
+   - Unit tests: `node_modules/.bin/bun test`
+   - Lint and types: `node_modules/.bin/bun run lint` (`tsc --noEmit`, `biome check`, `uv run ruff check`)
+   - Format: `node_modules/.bin/bun run format` (`biome check --write`, `uv run ruff format`)
+ - Add dependencies only with `node_modules/.bin/bun add [-d] <pkg>` (root) or `uv add [--dev] <pkg>`. Pin exact
+-  versions for HyperFrames and Playwright. In `engine/`, install only with `../node_modules/.bin/bun install
+-  --frozen-lockfile`. Never edit a lockfile by hand.
++  versions for HyperFrames and Playwright. Never edit a lockfile by hand.
+ - Keep the formatter's output. If the plan's code and the formatter disagree on layout, the formatter wins.
+ - A task is done only when unit tests pass and lint is clean.
+ - Acceptance scripts (`tests/phase<N>.ts`) drive real HyperFrames, Chrome, ffmpeg, Playwright and the aligner and take
+   minutes. Run one only if your task says so. The orchestrator runs them at the end of each phase.
+ 
+ ## 2. TDD (mandatory)
+ 1. **Red:** write the test first and run it. It must fail for the right reason.
+ 2. **Green:** write the minimum code that makes it pass.
+ 3. **Refactor:** clean up, then run the tests again.
+ 
+@@ -55,21 +53,21 @@ same thing everywhere.
+ | Functions, variables | camelCase; verbs for functions, auxiliary verbs for booleans | `readNavVideo`, `isInsideSafeArea` |
+ | Constants | UPPER_SNAKE | `FORMATS`, `HYPERFRAMES_VERSION` |
+ | Python | snake_case functions, UPPER_SNAKE constants | `align.py: main()` |
+ | Tests | `<file>.test.ts` beside `<file>.ts` | `lib/core/sh.test.ts` |
+ | Run-folder JSON keys | snake_case, as in the contracts | `scene_id`, `input_hash` |
+ 
+ Use the blueprint's domain words exactly: run, brief, scene, beat, board, look, pack, motif, direction, asset, capture,
+ format, frame, gate, deliverable.
+ 
+ ## 4. Module layout
+-- Library code is plain functions and objects. No classes (the pdoom `engine/` keeps its own).
++- Library code is plain functions and objects. No classes.
+ - Import direction: `lib/checks/` and `lib/adapters/` → `lib/core/` → `lib/contracts/`. `contracts/` imports nothing
+   from `lib/`. **Adapters never import each other** or `looks/`.
+ - Each adapter's `cli.ts` parses argv, calls `index.ts`, and prints **one JSON line** to stdout. Shipped skills call
+   adapters only through `cli.ts`.
+ - External tools are reached only through `lib/core/sh.ts` (timeout, kills the whole process tree on Windows, returns
+   `{code, stdout, stderr}`). No direct `Bun.spawn` elsewhere.
+ - Shared mechanics (timing lookup, text fit, frame/safe area, captions) go in `lib/core/`. Anything that gives a video a
+   look (palette, type, motifs) goes in `looks/`.
+ - Dependencies (paths, runner, settings) are passed in as arguments, so tests can replace them.
+ - **Who writes what at run time:** only adapters write run-folder media and JSON (JSON only through `writeJson`); only
+@@ -115,21 +113,21 @@ format, frame, gate, deliverable.
+ - Find words and lines by content (`lineOf`, `wordOf`), never by hard-coded seconds.
+ - No pixel constants for layout in scenes: compute from the frame (per-format CSS variables).
+ - JSON files: written by `writeJson` (1-space indent, LF, trailing newline). Paths inside JSON are run-relative and
+   POSIX (`capture/clips/3.mp4`). `input_hash`: SHA-256 of canonical JSON (keys sorted), hex.
+ - Build paths with `node:path`; never hard-code `\` or `/` separators in joined paths.
+ - Media written by adapters: video H.264 at 30 fps CFR, audio 48 kHz WAV, unless the task says otherwise.
+ 
+ ## 10. Comments
+ Explain *why*, not *what*. Mark deliberate simplifications with `ponytail:` plus the limit and the upgrade path. Keep the
+ MIT attribution (`LICENSE.pdoom-engine`) in any file that contains code lifted from the pdoom engine or Motion
+-Graphics 1.
++Graphics 1 (today: the vendored aligner scripts in `lib/adapters/align/ctc-onnx/analysis/`).
+ 
+ ## 11. Writing files
+ Write files only with Edit/Write. **Never create or modify files through Bash** (no `>`, `>>`, `sed -i`, `tee`, `cp`,
+ `mv` into the repo); package-manager commands and `bun run format` are the only exceptions. A hook blocks Edit/Write outside your folders;
+ Bash would bypass it. Do not commit; the orchestrator commits.
+ 
+ ## 12. Definition of done (report this back)
+ 1. The files you created or changed.
+ 2. The `bun test` summary line.
+ 3. Lint status (`bun run lint`).
+diff --git a/docs/BLUEPRINT.md b/docs/BLUEPRINT.md
+index 3187847..8def317 100644
+--- a/docs/BLUEPRINT.md
++++ b/docs/BLUEPRINT.md
+@@ -75,39 +75,39 @@ and Claude installs everything. The first user is the project owner, making reel
+ 6. I review real storyboard frames, scene by scene, and my notes stick when scenes are regenerated.
+ 7. I watch a draft and give plain-language notes; only the affected scenes change.
+ 8. I get an MP4 ready to post, an SRT, and optionally an After Effects package.
+ 9. I can add an avatar that delivers some lines, layered over the motion graphics.
+ 10. (Phase 9) I can ask for a long 16:9 video with chapters from the same kind of inputs.
+ 
+ ## 1.6 Scope decisions (locked)
+ | Decision | Resolution |
+ |---|---|
+ | App or plugin | **Claude Code plugin.** Build an app only if payments or hosted rendering are ever needed. |
+-| Renderer | **HyperFrames** (Apache 2.0, HTML + CSS + GSAP), pinned. Remotion rejected (licence friction for creators). pdoom adapter stays, not extended. |
++| Renderer | **HyperFrames** (Apache 2.0, HTML + CSS + GSAP), pinned. Remotion rejected (licence friction for creators). The pdoom renderer is retired (user ruling 2026-10-10). |
+ | Review gates | **Four:** script (G1), storyboard per scene (G2), draft (G3), delivery formats (G4). Spend always asks too. |
+ | Art directions (user ruling 2026-10-09) | Two directions, **three boards each** (hook, one product scene, ending) at G1→G2, so the creator judges each look on more than one frame. |
+ | Product capture | **Playwright** with a persistent profile per product; the creator logs in once by hand. Claude never types passwords. |
+ | Inputs (user ruling 2026-10-10) | **`concept.md` is the only required input** (one line up to a full script). Everything else is optional and listed in `brief.sources[]`: navigation videos, product URL, files, reference links. |
+ | Navigation video (user ruling 2026-10-10, replaces "reference only") | Source material. It teaches the flow; clean captures come from replaying it (M3). Its frames/clips may be rendered **only as a fallback** for a step replay can't capture (asset `origin: nav_video`, `usage` flipped to `render`). |
+ | Research (user ruling 2026-10-10) | **Always runs, right after intake (M5).** Claude Code's WebSearch / WebFetch are part of the toolset, plus `hyperframes capture` of public pages. Output `research.md` with cited URLs. Any fact or number in the script carries its source (`cite`). |
+ | Resources (user ruling 2026-10-10) | Claude makes and finds its own: graphics drawn in code (SVG/HTML/CSS within the look), captures of public pages, free-licence media (source picked after a Phase 3 probe), product captures. Every asset records `origin` and `license`; unknown licence never renders. **Paid AI image/video generation: Future**, behind the cost gate. |
+ | Voice | **Kokoro via `hyperframes tts`** by default. Chatterbox (voice clone) later. ElevenLabs only behind the cost gate. |
+ | Alignment | Existing **ctc-onnx** forced aligner (M10). `hyperframes transcribe` (Parakeet engine) only when there's no script. |
+ | Avatar | Optional, built last (Phase 8). Local audio-driven (SadTalker / Wav2Lip / MuseTalk), HeyGen (paid), or a supplied clip. Background removed with `hyperframes remove-background`. |
+ | Language (user ruling 2026-10-09) | **English only in v1.** Another language (e.g. Hindi) later needs three things: Whisper through a prebuilt whisper.cpp `whisper-cli` + `HYPERFRAMES_WHISPER_PATH` (Parakeet covers European languages only), a multilingual aligner model (wav2vec2-base-960h is English-only), and a Kokoro voice for that language. |
+ | Formats v1 (user ruling 2026-10-10) | **Reel built first**, end to end. Contracts stay format- and length-agnostic (`formats`, `duration_target_s` without a cap, optional `sections` for chapters). Long-form 16:9 is Phase 9, from the same pipeline (layout via per-format CSS variables). |
+ | After Effects | Handoff only (layers or flattened scenes + `build_comp.jsx` with word markers). No editable keyframes. |
+ | Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(User ruling 2026-10-09: off inside Video Machine; the machine-wide HyperFrames setting is left alone for now.)* |
+ | Resolution | 1080p formats. 4K only as an opt-in, never the default. |
+ | Source projects | `video-testing` and `kinomat` are read-only. The only command ever run in `video-testing` was the Phase 0 baseline render. |
+-| pdoom engine (kept from 2026-10-05/06 rulings) | Applies only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
+-| Tooling (ruling 2026-10-06, kept) | `bun test`, `tsc --noEmit`, Biome (lint + format), ruff via uv. `engine/` and `tests/fixture/` are excluded from lint and format. |
++| pdoom engine (retired, user ruling 2026-10-10) | `render/pdoom`, `engine/`, the pdoom fixture scenes and `tests/baseline/` are deleted; HyperFrames is the only renderer. Only the aligner's Python (`engine/analysis/` → `lib/adapters/align/ctc-onnx/analysis/`) is kept. Superseded rule, for the record: | Applies only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
++| Tooling (ruling 2026-10-06, kept) | `bun test`, `tsc --noEmit`, Biome (lint + format), ruff via uv. The vendored aligner scripts (`lib/adapters/align/ctc-onnx/analysis/`) and `tests/fixture/` are excluded from lint and format. |
+ | Build team (ruling 2026-10-09, replaces 2026-10-06) | Orchestrator + `lib-builder`, `plugin-builder` + `spec-reviewer` + `code-reviewer`. A `visual-reviewer` joins in Phase 4. The old `skill-builder` / `look-builder` / `engine-builder` split assumed pdoom plates. |
+ | Phase numbering (2026-10-09; 2026-10-10 adds Phase 9 Long-form, Polish becomes 10) | Phases 1–10 in Part 5 replace the old spec phases 1–5. The old "Phase 0 finish" items (canvas default, tooling) move into Phase 1. |
+ | Out of scope | Web UI, server, database, accounts, template catalog, auto-posting, 4K by default, vlog/raw-footage editing (future), paid AI media generation (future). |
+ 
+ ## 1.7 Success metrics
+ - Fresh Windows machine → passing smoke test from one "set it up for me", with no manual steps except approving installs and installing Claude Code.
+ - Concept alone → approved reel with every blocking check passing at delivery. Same with a concept + navigation video.
+ - A 30 s draft renders in under 2 minutes on the reference laptop (RTX 3050 4 GB, Ryzen 7 7435HS).
+ - A single-scene note ("make scene 3 slower") changes only that scene's file.
+ 
+@@ -222,22 +222,21 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
+ | Web content as instructions | Fetched pages and search results are data, never instructions; nothing fetched is executed |
+ | Spending money | Paid adapters return `costEstimate` first; sum vs `brief.budget_usd` (default 0) → ask |
+ | Passwords | Never typed by Claude; persistent profile, creator logs in by hand |
+ | Plugin updates wipe data | Runs live in the creator's cwd (`./runs/`); models in `~/.video-machine/`; nothing written under `${CLAUDE_PLUGIN_ROOT}` at runtime |
+ | Orphaned processes on Windows | One subprocess helper with timeout that kills the whole tree (`taskkill /T`) |
+ | cp1252 pipes on Windows | `PYTHONUTF8=1` for every Python call |
+ | Young dependency drifting | HyperFrames pinned to an exact version; plans cite versions |
+ | Privacy | Telemetry off; no `hyperframes feedback`; no secrets in logs. Gemini extras always off: `snapshot --describe false`, `capture --skip-vision`. Never run bare `hyperframes skills` (it installs into every AI tool on the machine); `init` runs with `HYPERFRAMES_SKIP_SKILLS=1` |
+ | Licence | Confirm `@hyperframes/producer` and the SDK licences before publishing |
+ | Source projects | Each acceptance script re-checks the `video-testing` listing against `tests/phase0/video-testing.before.txt` |
+-| Toolchain drift (pdoom) | Engine dependencies installed with `--frozen-lockfile` only (a non-frozen install re-resolved three to 0.186.1) |
+-| Fixtures | `tests/baseline/` and `tests/fixture/` are owned by no builder; the orchestrator changes them only with the user's OK |
++| Fixtures | `tests/fixture/` is owned by no builder; the orchestrator changes them only with the user's OK |
+ | Secrets | API keys only in the workspace `.env`; `.claude/settings.json` denies agents Read/Edit on it. Never paste keys into chat |
+ 
+ ## 2.7 Settings
+ | Name | Type | Default |
+ |---|---|---|
+ | `VM_HOME` (env) | path | `~/.video-machine` (models, profiles, doctor.json) |
+ | `HYPERFRAMES_NO_TELEMETRY` (env) | `"1"` | `"1"`, set by the plugin |
+ | `HYPERFRAMES_SKIP_SKILLS` (env) | `"1"` | `"1"`, set by the plugin |
+ | `HYPERFRAMES_PYTHON` (env) | path | the plugin's uv venv python (has `kokoro-onnx`, `soundfile`), set by the plugin |
+ | render quality | draft / final | `draft` / `delivery` |
+@@ -311,49 +310,47 @@ video-machine/                      # repo = the plugin and its own marketplace
+     review/SKILL.md                 # M15 routing rules
+   agents/                           # SHIPPED subagents
+     scene-writer.md                 # M12
+     avatar-director.md              # M11
+   hooks/hooks.json                  # SHIPPED hook: validate runs/**/*.json on write
+   lib/
+     contracts/types.ts              # M18 schemas + adapter interfaces
+     core/                           # config.ts, errors.ts, sh.ts, timing lookup, run-folder helpers
+     adapters/
+       render/hyperframes/           # primary renderer (Phase 6)
+-      render/pdoom/                 # Phase 0, kept
+-      align/ctc-onnx/               # Phase 0
++      align/ctc-onnx/               # Phase 0; analysis/ = vendored align_vo.py, audio_vo.py, model
+       voice/hf-tts/  voice/supplied/
+       capture/playwright/
+       avatar/<name>/
+       export/srt/  export/ae/
+     checks/                         # one file per check HyperFrames doesn't already do
+   looks/                            # style library, a starting point only
+-  engine/                           # pdoom copy (used only by render/pdoom)
+   tests/                            # unit tests live beside the code as *.test.ts
+-    fixture/  baseline/             # Phase 0 fixtures (orchestrator-owned)
++    fixture/                        # Phase 0 aligner fixture (orchestrator-owned)
+     phase0.ts  phase<N>.ts          # acceptance tests, one per phase
+   docs/
+     BLUEPRINT.md  AGENT_PROMPT.md
+     superpowers/plans/phase-N-<name>.md
+   .claude/                          # DEV-ONLY team (not shipped)
+     agents/  hooks/path_guard.py  settings.json
+   CONCEPT-TEMPLATE.md  HANDOFF.md  package.json  pyproject.toml
+ ```
+ 
+ # Part 5 — Feature list
+ Each phase gets one plan in `docs/superpowers/plans/`. Each task is self-contained for a subagent. A phase is done when its
+ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible output.
+ 
+ ### Phase 1 — Foundation and spike (Step 0)
+ - Move contracts and adapters to `lib/`; fix imports and the align adapter's workspace path; Phase 0 test still passes.
+ - Plugin manifest + marketplace; `claude --plugin-dir .` loads a placeholder `make-video` skill.
+ - Tooling (old "Phase 0 finish"): `tsconfig.json`, Biome, ruff, `bun run lint` / `bun run format` scripts, `bun test` with one unit test.
+-- pdoom canvas default (old "Phase 0 finish"): software Canvas2D by default in `render/pdoom`; make `tests/phase0.ts` match.
++- Retire pdoom (user ruling 2026-10-10): delete `render/pdoom`, `engine/` (aligner Python moves into `lib/adapters/align/ctc-onnx/analysis/`), pdoom fixture scenes and `tests/baseline/`; `tests/phase0.ts` keeps the alignment and `video-testing` checks.
+ - `lib/core`: `config.ts` (only env reader), `errors.ts` (`VideoMachineError` + subclasses), `sh.ts` (timeout + Windows tree kill).
+ - Contract changes from 2.4 (`delivery`, `section`, `cite`, `ScenePlan` rename, `Plan.sections`, `Brief.sources`, `AssetRef.origin`, `Steps`, `CaptureLog`, `Doctor`).
+ - ~~Probe HyperFrames 0.8.143~~ done 2026-10-09 (results in 2.3).
+ - **Spike (orchestrator + user, throwaway, `runs/spike-*`):** one 15 s reel by hand from a **concept only** (web research, page captures, drawn graphics) with HyperFrames directly; a nav video is used if the user has one. Findings update this blueprint.
+ 
+ ### Phase 2 — Setup and intake (M0, M1)
+ - `setup` skill + `doctor` CLI (install via winget/brew/apt with approval, pinned HyperFrames, `doctor`, `skills check`, Kokoro packages in the uv venv, `models install parakeet`, aligner model fetch with sha256, smoke test).
+ - `make-video` intake: run folder, verbatim inputs, `sources[]` from whatever was handed over, ≤ 3 blocking questions with defaults, `brief.json`.
+ - `whereAmI` (skips parts whose input is absent) + `/video-machine:status`.
+ 
+diff --git a/docs/superpowers/plans/phase-1-foundation.md b/docs/superpowers/plans/phase-1-foundation.md
+index a71e98f..50b4aaf 100644
+--- a/docs/superpowers/plans/phase-1-foundation.md
++++ b/docs/superpowers/plans/phase-1-foundation.md
+@@ -1,57 +1,59 @@
+ # Phase 1 — Foundation Implementation Plan
+ 
+ > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+ 
+-**Goal:** Move the Phase 0 code into `lib/`, add tooling, the core helpers (`config`, `errors`, `json`, `sh`), the 2.4 contract changes, software Canvas2D for pdoom, and a loadable plugin shell, so Phase 2 starts on a clean, linted, tested base.
++**Goal:** Move the Phase 0 code into `lib/`, add tooling, the core helpers (`config`, `errors`, `json`, `sh`), the 2.4 contract changes, the pdoom renderer retired (aligner kept), and a loadable plugin shell, so Phase 2 starts on a clean, linted, tested base.
+ 
+ **Architecture:** Plain functions under `lib/`: `contracts/` (Zod schemas + adapter interfaces, imports nothing from `lib/`), `core/` (the only env reader, the only process spawner, validated JSON IO, error classes), `adapters/` (factories that take `Deps = { sh, config }` so tests pass fakes). The plugin shell is `.claude-plugin/` + one placeholder skill.
+ 
+ **Tech Stack:** bun 1.4.2 (pinned, `node_modules/.bin/bun`), TypeScript 7.0.2 (`tsc --noEmit`), Biome 2.5.15, zod ^4.1, ruff 0.16.10 via uv 0.11.6, Python 3.13, Claude Code 2.1.295 (`claude plugin validate`), ffmpeg 9.0, HyperFrames 0.8.143 (version pin only in this phase).
+ 
+ **Spec:** `docs/BLUEPRINT.md` (Part 5 Phase 1; 2.4 data models; 2.5 adapter functions; 2.6 safeguards; 2.7 settings) and `docs/AGENT_PROMPT.md` (coding standard).
+ 
+ ## Global Constraints
+ 
+ - Call bun as `node_modules/.bin/bun` from the repo root, never the global bun (1.3.5 cannot launch Chrome on Windows).
+ - `HYPERFRAMES_VERSION = '0.8.143'`, exact.
+ - Dev tools pinned exactly: `typescript@7.0.2`, `@biomejs/biome@2.5.15`, `ruff==0.16.10`. Runtime dependency `zod@^4.1.0` (already installed).
+ - Only `lib/core/config.ts` reads `process.env` / `Bun.env`. Only `lib/core/sh.ts` spawns processes (`Bun.spawn`, `Bun.spawnSync`, `node:child_process`). Tests never read the real environment: they pass an env object to `loadConfig(env)`. (Code strings run inside a child process, as in `sh.test.ts`, are the child's business.)
+ - `lib/contracts/` imports nothing from `lib/`. Adapters never import each other.
+ - Every child process gets `HYPERFRAMES_NO_TELEMETRY=1`, `HYPERFRAMES_SKIP_SKILLS=1`, `PYTHONUTF8=1`, and never gets `HEYGEN_API_KEY`, `ELEVENLABS_API_KEY` or `GEMINI_API_KEY`.
+ - JSON files: 1-space indent, LF, trailing newline, written only through `writeJson`.
+ - Windows 11 is the primary platform. Paths are built with `node:path`.
+ - Nothing ever writes to `C:\Work-data\video-testing` or `C:\Work-data\kinomat`.
+-- `tests/fixture/` and `tests/baseline/` are read-only for builders.
++- `tests/fixture/` is read-only for builders.
+ - English only in v1 (BLUEPRINT 1.6).
+ 
+ ## Review Focus
+ 
+ 1. **API keys in the environment** (bun auto-loads `.env`) must not reach HyperFrames, Python or any other child process, whatever the key's letter case on Windows. Pinned by the `toolEnv` tests in Task 4.
+-2. **A hung tool on Windows** (Chrome, vite, a `cmd`-wrapped node) must be killed with its whole process tree when the timeout fires, not orphaned. Pinned by the tree-kill test in Task 5.
++2. **A hung tool on Windows** (Chrome, a `cmd`-wrapped node) must be killed with its whole process tree when the timeout fires, not orphaned. Pinned by the tree-kill test in Task 5.
+ 3. **A hand-edited or truncated run-folder JSON file** must fail with a `ContractError` naming the file, never a bare `SyntaxError`. Pinned in Task 4.
+ 4. **A URL source (`product_url`, `link`) or `cite` that is not http(s)** (`file:///…`, `javascript:…`) must be rejected at the brief / script, because Playwright and WebFetch will open them in Phase 3. Pinned in Task 6.
+ 5. **A missing audio file or empty script** handed to the aligner must fail fast with the path or reason named, before `uv` starts. Pinned in Task 7.
+ 
+ ## Rulings made in this plan (orchestrator, 2026-10-09; listed in the phase summary)
+ 
+ - R1. The move from `.claude/skills/video-machine/` to `lib/` is a pure `git mv` done by the orchestrator (the source folder is outside every builder's fence). Builders fix what breaks.
+-- R2. Adapters are exported as factories taking `Deps = { sh, config }` with a default (`pdoom(deps = defaultDeps())`), so tests pass fakes. This replaces the AGENT_PROMPT example `export const hfTts: VoiceAdapter`.
++- R2. Adapters are exported as factories taking `Deps = { sh, config }` with a default (`ctcOnnx(deps = defaultDeps())`), so tests pass fakes. This replaces the AGENT_PROMPT example `export const hfTts: VoiceAdapter`.
+ - R3. `readJson` / `writeJson` move from `contracts/types.ts` to `lib/core/json.ts`, because they throw `ContractError` and `contracts/` may not import from `lib/`.
+-- R4. `RenderAdapter` and `AlignAdapter` follow BLUEPRINT 2.5 and become async: `scaffold`/`plateApi` (pdoom-only plate API) are dropped, `check` is added; pdoom's `lint`/`check` throw `UnsupportedError` (pdoom is kept, not extended).
++- R4. `RenderAdapter` and `AlignAdapter` follow BLUEPRINT 2.5 and become async: `scaffold`/`plateApi` (pdoom-only plate API) are dropped, `check` is added. No renderer implements `RenderAdapter` until `render/hyperframes` (Phase 6).
+ - R5. `toolEnv` strips API keys (case-insensitive) before any child process sees the env.
+-- R6. With software Canvas2D, pdoom stills no longer match the GPU-era baseline byte for byte (Phase 0 measured PSNR 45–65 dB). Phase 0 check 1 becomes: identical across two renders **and** PSNR ≥ 40 dB against `tests/baseline/`. The baseline files are not changed.
++- R6. *(Withdrawn 2026-10-10: the user retired pdoom, so there is no Canvas2D mode or GPU-era baseline to compare.)*
+ - R7. `bun run format` runs `biome check --write` (format + import order + safe fixes) and `ruff format`. Running `bun run format` is allowed through Bash, like package managers.
+ - R8. `Brief.formats` defaults to `['reel']` (BLUEPRINT 1.6 "Formats v1" and 2.7).
+ 
+ User rulings 2026-10-10 (BLUEPRINT v1.1, commit `e293e48`) folded in: skill `make-video` (Task 3); `Brief.sources`,
+ `AssetRef.origin`, `Script` `section` / `cite`, `Plan.sections` (Task 6); the spike starts from a concept only.
++User ruling 2026-10-10: **pdoom retired** (BLUEPRINT 1.6). Orchestrator pre-step 2 + Task 1b remove it; Task 7 covers the aligner
++only; Task 8 is withdrawn.
+ 
+ ---
+ 
+ ### Orchestrator pre-step (before Task 1, not a builder task)
+ 
+ ```bash
+ git mv .claude/skills/video-machine/contracts lib/contracts
+ git mv .claude/skills/video-machine/adapters lib/adapters
+ git commit -m "chore: move contracts and adapters to lib/ (no edits)"
+ ```
+@@ -113,20 +115,79 @@ The `contracts` import inside each adapter (`'../../../contracts/types'`) is sti
+ 
+ - [ ] **Step 3: Run Phase 0 to see it pass**
+ 
+ Run: `node_modules/.bin/bun tests/phase0.ts` (takes a few minutes; it renders with Chrome and runs the aligner)
+ Expected: `4/4 passed`.
+ 
+ **Done when:** `node_modules/.bin/bun tests/phase0.ts` prints `4/4 passed`, and `git grep -n "skills/video-machine" -- lib tests` prints nothing.
+ 
+ ---
+ 
++### Orchestrator pre-step 2 (after Task 1, not a builder task): retire pdoom
++
++User ruling 2026-10-10. Pure moves and deletes; `engine/` and the fixture are outside every builder's fence for these.
++
++```bash
++mkdir -p lib/adapters/align/ctc-onnx/analysis/models
++git mv engine/analysis/align_vo.py engine/analysis/audio_vo.py engine/LICENSE.pdoom-engine lib/adapters/align/ctc-onnx/analysis/
++git mv engine/analysis/models/vocab.json engine/analysis/models/preprocessor_config.json lib/adapters/align/ctc-onnx/analysis/models/
++mv engine/analysis/models/w2v2_base_960h_q.onnx lib/adapters/align/ctc-onnx/analysis/models/   # git-ignored (*.onnx)
++git rm -r -q engine lib/adapters/render/pdoom tests/baseline tests/fixture/scenes tests/fixture/timeline.ts tests/fixture/audio/sfx
++rm -rf engine                      # untracked leftovers (node_modules, __pycache__, out/)
++git commit -m "chore: retire pdoom; keep aligner scripts and model under ctc-onnx/analysis"
++```
++
++`align_vo.py` / `audio_vo.py` compute `ROOT = Path(__file__).resolve().parent.parent` and the model as
++`ROOT / "analysis" / "models" / ...`, so after the move they resolve to `lib/adapters/align/ctc-onnx/analysis/models/`
++without edits. `align.py` and `tests/phase0.ts` break; Task 1b fixes them.
++
++---
++
++### Task 1b: Phase 0 test without pdoom
++
++**Agent:** lib-builder
++
++**Read first:**
++- BLUEPRINT 1.6 (pdoom engine row: retired)
++- `tests/phase0.ts`, `lib/adapters/align/ctc-onnx/align.py`
++
++**Files:**
++- Modify: `lib/adapters/align/ctc-onnx/align.py` (the `ANALYSIS` constant and the docstring's first line)
++- Modify: `tests/phase0.ts`
++
++**Interfaces:**
++- Consumes: nothing new. Produces: `tests/phase0.ts` with two checks.
++
++- [ ] **Step 1: See it fail**
++
++Run: `node_modules/.bin/bun tests/phase0.ts`
++Expected: crash with `Cannot find module '../lib/adapters/render/pdoom'`.
++
++- [ ] **Step 2: Fix**
++
++- `align.py`: `ANALYSIS = Path(__file__).resolve().parent / "analysis"`; docstring line 1 says it drives the vendored
++  `analysis/align_vo.py` and `audio_vo.py` unchanged. Update the `noqa` comment on `import align_vo` to say MODEL/VOCAB
++  point at `analysis/models`.
++- `tests/phase0.ts`: delete checks 1 (landscape stills vs baseline) and 3 (reel still), the `pdoom` import, `TIMES`,
++  `ATTEMPTS` and their comment, and the now-unused imports. Renumber: `1. fixture alignment within 10 ms`,
++  `2. video-testing unchanged since before Phase 0`. Header comment lists exactly these two. Everything inside the two
++  kept checks stays as it is.
++
++- [ ] **Step 3: Verify**
++
++Run: `node_modules/.bin/bun tests/phase0.ts` → both checks PASS, last line `2/2 passed`.
++
++**Done when:** that passes, and `git grep -n "pdoom\|render/" -- lib tests/phase0.ts ':!lib/adapters/align/ctc-onnx/analysis'` prints only the
++`LICENSE.pdoom-engine` attribution lines (if any). `tests/fixture/` and `tests/phase0/video-testing.before.txt` are data.
++
++---
++
+ ### Task 2: Tooling (tsconfig, Biome, ruff, lint/format scripts, first unit test)
+ 
+ **Agent:** lib-builder
+ 
+ **Read first:**
+ - `package.json`, `pyproject.toml`, `.gitignore`
+ - `lib/contracts/types.ts` (only `FORMATS` and `frameOf`)
+ - AGENT_PROMPT §1 (tooling)
+ 
+ **Files:**
+@@ -183,44 +244,44 @@ uv add --dev ruff==0.16.10
+     "module": "Preserve",
+     "moduleResolution": "bundler",
+     "strict": true,
+     "noEmit": true,
+     "skipLibCheck": true,
+     "noUncheckedIndexedAccess": true,
+     "verbatimModuleSyntax": true,
+     "types": ["bun"]
+   },
+   "include": ["lib", "tests"],
+-  "exclude": ["tests/fixture", "tests/out", "engine", "runs", "node_modules"]
++  "exclude": ["tests/fixture", "tests/out", "runs", "node_modules"]
+ }
+ ```
+ 
+ `biome.json` (matches the existing code style: 2 spaces, single quotes, 120 columns):
+ 
+ ```json
+ {
+   "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+-  "files": { "includes": ["**", "!engine", "!tests/fixture", "!runs", "!.claude"] },
++  "files": { "includes": ["**", "!tests/fixture", "!runs", "!.claude"] },
+   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
+   "linter": { "enabled": true, "rules": { "preset": "recommended" } },
+   "javascript": { "formatter": { "quoteStyle": "single" } },
+   "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } }
+ }
+ ```
+ 
+ `pyproject.toml` (append):
+ 
+ ```toml
+ [tool.ruff]
+ line-length = 120
+-extend-exclude = ["engine", "tests/fixture", "runs"]
++extend-exclude = ["lib/adapters/align/ctc-onnx/analysis", "tests/fixture", "runs"]  # vendored aligner scripts stay as lifted
+ ```
+ 
+ - [ ] **Step 4: Run lint to see it fail**
+ 
+ Run: `node_modules/.bin/bun run lint`
+ Expected: FAIL. Probed findings on today's code: Biome formatting and import order in `lib/contracts/types.ts`, `lint/style/useTemplate` (`JSON.stringify(...) + '\n'`); ruff `E401` (`import json, sys, tempfile`) and `E741` (variable `l`) in `align.py`; possibly `noUncheckedIndexedAccess` errors in `tests/phase0.ts`.
+ 
+ - [ ] **Step 5: Fix**
+ 
+ Run `node_modules/.bin/bun run format`, then fix what remains by hand without changing behaviour (template literal; one import per line; rename `l` to `line`; add `!` or a guard where an index may be undefined). Do not add `biome-ignore` or `# noqa` comments except the existing `# noqa: E402` in `align.py`.
+@@ -1002,39 +1063,39 @@ export const DoctorSchema = z.object({
+ export type Doctor = z.infer<typeof DoctorSchema>;
+ ```
+ 
+ Do not touch the adapter interfaces in this task (Task 7 does).
+ 
+ - [ ] **Step 4: Verify**
+ 
+ Run: `node_modules/.bin/bun test` → all pass.
+ Run: `node_modules/.bin/bun run lint` → clean.
+ 
+-**Done when:** both pass, and `git grep -n "plate_id\|PlatePlan\|plates" -- lib` prints nothing except inside `lib/adapters/render/pdoom/` (the engine's own `--only` plate filter and `--per-plate` flag stay).
++**Done when:** both pass, and `git grep -n "plate_id\|PlatePlan\|plates" -- lib` prints nothing.
+ 
+ ---
+ 
+ ### Task 7: Adapters on core (`Deps`, `sh`, async interfaces)
+ 
+ **Agent:** lib-builder
+ 
+ **Read first:**
+-- BLUEPRINT 2.5 (adapter functions) and 1.6 (pdoom engine row)
++- BLUEPRINT 2.5 (adapter functions)
+ - AGENT_PROMPT §4 (module layout), §7 (errors)
+ - `lib/contracts/types.ts` (the adapter interfaces at the end)
+ - `lib/core/config.ts`, `lib/core/sh.ts`, `lib/core/errors.ts`, `lib/core/json.ts`
+-- `lib/adapters/render/pdoom/index.ts`, `lib/adapters/align/ctc-onnx/index.ts`
++- `lib/adapters/align/ctc-onnx/index.ts`
+ - `tests/phase0.ts`
+ 
+ **Files:**
+-- Create: `lib/core/deps.ts`, `lib/adapters/render/pdoom/index.test.ts`, `lib/adapters/align/ctc-onnx/index.test.ts`
+-- Modify: `lib/contracts/types.ts` (`RenderAdapter`, `AlignAdapter` only), `lib/adapters/render/pdoom/index.ts`, `lib/adapters/align/ctc-onnx/index.ts`, `tests/phase0.ts`
++- Create: `lib/core/deps.ts`, `lib/adapters/align/ctc-onnx/index.test.ts`
++- Modify: `lib/contracts/types.ts` (`RenderAdapter`, `AlignAdapter` only), `lib/adapters/align/ctc-onnx/index.ts`, `tests/phase0.ts`
+ 
+ **Interfaces:**
+ - Consumes: `Sh`, `ShOptions`, `sh` (Task 5); `Config`, `Env`, `loadConfig` (Task 4); `UnsupportedError`, `VideoMachineError` (Task 4); `readJson` (Task 4).
+ - Produces:
+   - `lib/core/deps.ts`: `type Deps = { sh: Sh; config: Config }`, `function defaultDeps(): Deps` (returns `{ sh, config: loadConfig() }`).
+   - In `lib/contracts/types.ts`:
+ 
+ ```ts
+ export interface RenderAdapter {
+   name: string;
+@@ -1043,92 +1104,24 @@ export interface RenderAdapter {
+   check(runDir: string): Promise<Issue[]>;
+   still(runDir: string, format: FormatId, t: number[], only?: string[]): Promise<string[]>;
+   contactSheet(runDir: string, format: FormatId, perScene: number): Promise<string>;
+   render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): Promise<string>;
+ }
+ export interface AlignAdapter {
+   align(audioPath: string, lines: Script['lines'], spokenWords?: Record<string, string[]>): Promise<string>;
+ }
+ ```
+ 
+-  - `lib/adapters/render/pdoom/index.ts`: `export const pdoom = (deps: Deps = defaultDeps()): RenderAdapter`, `export default pdoom`.
+   - `lib/adapters/align/ctc-onnx/index.ts`: `export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter`, `export default ctcOnnx`. The standalone `align` export is removed.
+ 
+ - [ ] **Step 1: Write the failing tests**
+ 
+-`lib/adapters/render/pdoom/index.test.ts`:
+-
+-```ts
+-import { expect, test } from 'bun:test';
+-import path from 'node:path';
+-import { type Env, loadConfig } from '../../../core/config';
+-import type { Deps } from '../../../core/deps';
+-import { UnsupportedError } from '../../../core/errors';
+-import type { ShOptions } from '../../../core/sh';
+-import { pdoom } from './index';
+-
+-const fakeDeps = (env: Env = { PATH: '/bin' }) => {
+-  const calls: { cmd: string[]; opts?: ShOptions }[] = [];
+-  const deps: Deps = {
+-    config: loadConfig(env),
+-    sh: async (cmd, opts) => {
+-      calls.push({ cmd, opts });
+-      return { code: 0, stdout: '', stderr: '' };
+-    },
+-  };
+-  return { deps, calls };
+-};
+-const RUN = path.resolve('some', 'run');
+-
+-test('still() renders the requested times at the format size and returns their paths', async () => {
+-  const { deps, calls } = fakeDeps();
+-  const files = await pdoom(deps).still(RUN, 'landscape_1080p', [5, 12.5]);
+-  expect(files).toEqual([
+-    path.join(RUN, 'out', 'stills', 'landscape_1080p', 'f_0005.00.png'),
+-    path.join(RUN, 'out', 'stills', 'landscape_1080p', 'f_0012.50.png'),
+-  ]);
+-  const { cmd, opts } = calls[0]!;
+-  expect(cmd.slice(0, 3)).toEqual([deps.config.bun, 'scripts/render.ts', 'stills']);
+-  expect(cmd).toContain('--strict');
+-  expect(cmd.join(' ')).toContain('--t 5,12.5');
+-  expect(cmd.join(' ')).toContain('--w 1920 --h 1080');
+-  expect(opts?.cwd).toBe(path.join(deps.config.pluginRoot, 'engine'));
+-  expect(opts?.env?.VM_RUN).toBe(RUN);
+-  expect(opts?.env?.HYPERFRAMES_NO_TELEMETRY).toBe('1');
+-});
+-
+-test('a draft render writes out/drafts/<format>/video.mp4 at the format size and fps', async () => {
+-  const { deps, calls } = fakeDeps();
+-  expect(await pdoom(deps).render(RUN, 'reel', 'draft')).toBe(path.join(RUN, 'out', 'drafts', 'reel', 'video.mp4'));
+-  expect(calls[0]!.cmd.join(' ')).toContain('--fps 30');
+-  expect(calls[0]!.cmd.join(' ')).toContain('--w 1080 --h 1920');
+-});
+-
+-test('layer passes are refused, not faked, and nothing runs', async () => {
+-  const { deps, calls } = fakeDeps();
+-  await expect(pdoom(deps).render(RUN, 'reel', 'final', ['bg'])).rejects.toBeInstanceOf(UnsupportedError);
+-  expect(calls).toHaveLength(0);
+-});
+-
+-test('lint and check are not offered by the pdoom adapter', async () => {
+-  const { deps } = fakeDeps();
+-  await expect(pdoom(deps).lint(RUN)).rejects.toBeInstanceOf(UnsupportedError);
+-  await expect(pdoom(deps).check(RUN)).rejects.toBeInstanceOf(UnsupportedError);
+-});
+-
+-test('supports() follows the formats table', () => {
+-  const { deps } = fakeDeps();
+-  expect(pdoom(deps).supports('reel')).toEqual({ ok: true });
+-  expect(pdoom(deps).supports('vhs' as never).ok).toBe(false);
+-});
+-```
+-
+ `lib/adapters/align/ctc-onnx/index.test.ts`:
+ 
+ ```ts
+ import { expect, test } from 'bun:test';
+ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+ import { tmpdir } from 'node:os';
+ import path from 'node:path';
+ import { loadConfig } from '../../../core/config';
+ import type { Deps } from '../../../core/deps';
+ import { ContractError, UnsupportedError, VideoMachineError } from '../../../core/errors';
+@@ -1188,139 +1181,47 @@ test('align names the audio file when it does not exist, before running anything
+ 
+ test('align fails with a ContractError when align.py writes an invalid timing.json', async () => {
+   const { audio, deps } = setup('{"lines": 3}');
+   await expect(ctcOnnx(deps).align(audio, lines)).rejects.toBeInstanceOf(ContractError);
+ });
+ ```
+ 
+ - [ ] **Step 2: Run them to see them fail**
+ 
+ Run: `node_modules/.bin/bun test lib/adapters`
+-Expected: FAIL (`pdoom` is an object, not a function; `ctcOnnx` likewise; `../../../core/deps` missing).
++Expected: FAIL (`ctcOnnx` not exported; `../../../core/deps` missing).
+ 
+ - [ ] **Step 3: Implement**
+ 
+ - `lib/core/deps.ts` as in Interfaces, with JSDoc.
+-- Interfaces in `contracts/types.ts` exactly as in Interfaces (drop `scaffold` and `plateApi`; `perPlate` → `perScene`).
+-- `pdoom(deps)`:
+-  - `ENGINE = path.join(deps.config.pluginRoot, 'engine')`; delete the module-level `WORKSPACE` and `BUN` constants and every `process.env` / `Bun.spawnSync`.
+-  - private `run(runDir, format, args, timeoutMs)` → `deps.sh([deps.config.bun, 'scripts/render.ts', ...args, '--w', w, '--h', h, '--strict'], { cwd: ENGINE, env: { ...deps.config.toolEnv, VM_RUN: path.resolve(runDir) }, timeoutMs })`. Use `DEFAULT_TIMEOUT_MS` for stills and sheets, 30 minutes for `video`. A failed render surfaces as the `ToolError` from `sh` (no wrapping).
+-  - Output paths are built from `path.resolve(runDir)` (same names as today).
+-  - All methods except `supports` are `async`. `lint` / `check`: `throw new UnsupportedError('pdoom.<name>: the pdoom adapter is kept, not extended (BLUEPRINT 1.6); use render/hyperframes')`. `render` with `passes?.length`: `throw new UnsupportedError('pdoom.render: layer passes are not supported')` before running anything.
++- Interfaces in `contracts/types.ts` exactly as in Interfaces (drop `scaffold` and `plateApi`; `perPlate` → `perScene`). Nothing implements `RenderAdapter` yet (Phase 6).
+ - `ctcOnnx(deps)`:
+   - Guards, in order, before any process runs: `lines.length === 0` → `UnsupportedError('ctc-onnx.align needs the script lines: it aligns text to audio, it does not transcribe')`; `!existsSync(audioPath)` → `VideoMachineError(\`ctc-onnx.align: audio not found: ${audioPath}\`)`.
+   - Spec file in `mkdtempSync(path.join(tmpdir(), 'vm-align-'))` as today.
+   - `deps.sh(['uv', 'run', '--project', deps.config.pluginRoot, 'python', ALIGN_PY, path.resolve(audioPath), spec, runDir], { env: deps.config.toolEnv })` where `ALIGN_PY = path.join(deps.config.pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py')` and `runDir = path.resolve(path.dirname(audioPath), '..')`. `PYTHONUTF8` now comes from `toolEnv`.
+   - Validate with `readJson(out, TimingSchema)` and return `out`.
+-- `tests/phase0.ts`: make the `check` helper async (`await fn()`), build `const renderer = pdoom()` and use `await renderer.still(...)`, replace `align(...)` with `await ctcOnnx().align(...)`. Keep every assertion as it is.
++- `tests/phase0.ts`: make the `check` helper async (`await fn()`) and replace `align(...)` with `await ctcOnnx().align(...)`. Keep every assertion as it is.
+ 
+ - [ ] **Step 4: Verify**
+ 
+ Run: `node_modules/.bin/bun test` → all pass.
+ Run: `node_modules/.bin/bun run lint` → clean.
+-Run: `node_modules/.bin/bun tests/phase0.ts` → `4/4 passed`.
++Run: `node_modules/.bin/bun tests/phase0.ts` → `2/2 passed`.
+ 
+ **Done when:** all three pass, and `git grep -n "process.env\|Bun.env\|Bun.spawn" -- lib ':!lib/core/config.ts' ':!lib/core/sh.ts' ':!*.test.ts'` prints nothing.
+ 
+ ---
+ 
+-### Task 8: pdoom renders with software Canvas2D by default
+-
+-**Agent:** lib-builder
+-
+-**Read first:**
+-- BLUEPRINT 1.6 (pdoom engine row)
+-- `HANDOFF.md` section "What broke, and what was learned" (the Canvas2D bullet)
+-- `lib/adapters/render/pdoom/index.ts`, `lib/adapters/render/pdoom/index.test.ts`
+-- `tests/phase0.ts`
+-- `engine/scripts/render.ts` line 64 only (how `EXTRA_CHROME_ARGS` reaches Chrome; do not edit `engine/`)
+-
+-**Files:**
+-- Modify: `lib/adapters/render/pdoom/index.ts`, `lib/adapters/render/pdoom/index.test.ts`, `tests/phase0.ts`
+-
+-**Interfaces:**
+-- Consumes: `pdoom(deps)` and the `fakeDeps(env)` helper in its test file (Task 7); `sh` (Task 5).
+-- Produces: no new exports.
+-
+-- [ ] **Step 1: Write the failing tests** — append to `lib/adapters/render/pdoom/index.test.ts`
+-
+-```ts
+-test('pdoom renders with software Canvas2D so frames are the same on every run', async () => {
+-  const { deps, calls } = fakeDeps();
+-  await pdoom(deps).still(RUN, 'reel', [1]);
+-  expect(calls[0]!.opts?.env?.EXTRA_CHROME_ARGS?.split(' ')).toContain('--disable-accelerated-2d-canvas');
+-});
+-
+-test('Chrome args already in the env are kept', async () => {
+-  const { deps, calls } = fakeDeps({ PATH: '/bin', EXTRA_CHROME_ARGS: '--foo' });
+-  await pdoom(deps).still(RUN, 'reel', [1]);
+-  const args = calls[0]!.opts?.env?.EXTRA_CHROME_ARGS?.split(' ');
+-  expect(args).toContain('--foo');
+-  expect(args).toContain('--disable-accelerated-2d-canvas');
+-});
+-```
+-
+-- [ ] **Step 2: Run them to see them fail**
+-
+-Run: `node_modules/.bin/bun test lib/adapters/render/pdoom`
+-Expected: FAIL (`EXTRA_CHROME_ARGS` undefined).
+-
+-- [ ] **Step 3: Implement**
+-
+-In `run(...)`, set `EXTRA_CHROME_ARGS` to the existing value (if any) plus `--disable-accelerated-2d-canvas`, space-separated. Comment why: GPU Canvas2D rasterizes hairline text one of two ways depending on GPU cache state (Phase 0), so it is not deterministic.
+-
+-Rewrite check 1 of `tests/phase0.ts` (ruling R6; the baseline files stay as they are) and update the header comment's line 1 to match:
+-
+-```ts
+-await check('1. landscape stills are identical across runs and close to the GPU-era baseline (PSNR >= 40 dB)', async () => {
+-  const name = (t: number) => `f_${t.toFixed(2).padStart(7, '0')}.png`;
+-  const renderHashes = async () => {
+-    rmSync(path.join(FIXTURE, 'out'), { recursive: true, force: true });
+-    const files = await renderer.still(FIXTURE, 'landscape_1080p', TIMES);
+-    return files.map((f) => Bun.hash(readFileSync(f)));
+-  };
+-  const first = await renderHashes();
+-  const second = await renderHashes();
+-  const unstable = TIMES.filter((_, i) => first[i] !== second[i]);
+-  if (unstable.length) throw new Error(`differs between two renders at t=${unstable.join(', ')}`);
+-  const psnr = async (t: number) => {
+-    const r = await sh([
+-      'ffmpeg', '-hide_banner',
+-      '-i', path.join(FIXTURE, 'out', 'stills', 'landscape_1080p', name(t)),
+-      '-i', path.join(WS, 'tests', 'baseline', name(t)),
+-      '-lavfi', 'psnr', '-f', 'null', '-',
+-    ]);
+-    const m = /average:(inf|[\d.]+)/.exec(r.stderr); // ffmpeg prints "PSNR r:… average:47.31 …" or "average:inf"
+-    if (!m) throw new Error(`no PSNR in ffmpeg output for t=${t}`);
+-    return m[1] === 'inf' ? Number.POSITIVE_INFINITY : Number(m[1]);
+-  };
+-  const lines: string[] = [];
+-  let worst = Number.POSITIVE_INFINITY;
+-  for (const t of TIMES) {
+-    const p = await psnr(t);
+-    worst = Math.min(worst, p);
+-    lines.push(`t=${t}: ${p === Number.POSITIVE_INFINITY ? 'identical to baseline' : `${p.toFixed(1)} dB`}`);
+-  }
+-  if (worst < 40) throw new Error(lines.join('\n'));
+-  return `identical across 2 renders\n${lines.join('\n')}`;
+-});
+-```
+-
+-Import `sh` from `../lib/core/sh`. Delete the `ATTEMPTS` constant and its comment.
+-
+-- [ ] **Step 4: Verify**
+-
+-Run: `node_modules/.bin/bun test` → all pass.
+-Run: `node_modules/.bin/bun run lint` → clean.
+-Run: `node_modules/.bin/bun tests/phase0.ts` → `4/4 passed`; check 1 lists five PSNR values, all ≥ 40 dB (Phase 0 measured 45–65 dB).
++### Task 8: *(withdrawn 2026-10-10)*
+ 
+-**Done when:** all three pass. Report the five PSNR values.
++The user retired pdoom (BLUEPRINT 1.6), so there is no pdoom Canvas2D mode to set. Numbering kept so ledger and
++commit references stay valid.
+ 
+ ---
+ 
+ ### Task 9: Acceptance test `tests/phase1.ts`
+ 
+ **Agent:** lib-builder
+ 
+ **Read first:**
+ - BLUEPRINT Part 5, Phase 1
+ - `tests/phase0.ts` (output format to copy)
+@@ -1334,21 +1235,21 @@ Run: `node_modules/.bin/bun tests/phase0.ts` → `4/4 passed`; check 1 lists fiv
+ 
+ Probed: `claude plugin validate <file> --strict --json` prints `{ success, manifest: { errors, warnings } }` and exits 0 on success; `claude --plugin-dir . plugin details video-machine` prints a line `Skills (1)  make-video`; `npx --yes hyperframes@0.8.143 --version` prints `0.8.143`.
+ 
+ - [ ] **Step 1: Write the script** — `tests/phase1.ts`
+ 
+ ```ts
+ // Phase 1 acceptance test (real tools; takes several minutes because it runs Phase 0).
+ //   node_modules/.bin/bun tests/phase1.ts
+ // 1. unit tests pass                        2. lint is clean (tsc, Biome, ruff)
+ // 3. Phase 0 acceptance still passes        4. plugin and marketplace manifests pass strict validation
+-// 5. claude --plugin-dir . loads make-video  6. lib/ keeps its boundaries (env, processes, old folder gone)
++// 5. claude --plugin-dir . loads make-video  6. lib/ keeps its boundaries (env, processes, retired folders gone)
+ // 7. the pinned HyperFrames version resolves
+ import { existsSync, readdirSync, readFileSync } from 'node:fs';
+ import path from 'node:path';
+ import { HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT } from '../lib/core/config';
+ import { sh } from '../lib/core/sh';
+ 
+ const WS = PLUGIN_ROOT;
+ const { bun } = loadConfig();
+ const MIN = 60_000;
+ const lastLine = (s: string) => s.trim().split(/\r?\n/).at(-1) ?? '';
+@@ -1408,21 +1309,22 @@ await check('6. lib/ keeps its boundaries', async () => {
+     }
+   };
+   walk(path.join(WS, 'lib'));
+   const rel = (f: string) => path.relative(WS, f).replaceAll('\\', '/');
+   const bad: string[] = [];
+   for (const f of files) {
+     const src = readFileSync(f, 'utf8');
+     if (/process\.env|Bun\.env/.test(src) && rel(f) !== 'lib/core/config.ts') bad.push(`${rel(f)} reads the environment`);
+     if (/Bun\.spawn|node:child_process/.test(src) && rel(f) !== 'lib/core/sh.ts') bad.push(`${rel(f)} spawns a process`);
+   }
+-  if (existsSync(path.join(WS, '.claude', 'skills', 'video-machine'))) bad.push('.claude/skills/video-machine still exists');
++  for (const gone of ['.claude/skills/video-machine', 'engine', 'lib/adapters/render/pdoom', 'tests/baseline'])
++    if (existsSync(path.join(WS, gone))) bad.push(`${gone} still exists`);
+   if (bad.length) throw new Error(bad.join('\n'));
+   return `${files.length} files checked`;
+ });
+ 
+ await check('7. pinned HyperFrames resolves', async () => {
+   const r = await sh(['npx', '--yes', `hyperframes@${HYPERFRAMES_VERSION}`, '--version'], { timeoutMs: 5 * MIN });
+   if (lastLine(r.stdout) !== HYPERFRAMES_VERSION) throw new Error(`got "${lastLine(r.stdout)}"`);
+   return `hyperframes ${HYPERFRAMES_VERSION}`;
+ });
+ 
+diff --git a/.claude/skills/video-machine/adapters/align/ctc-onnx/align.py b/lib/adapters/align/ctc-onnx/align.py
+similarity index 69%
+rename from .claude/skills/video-machine/adapters/align/ctc-onnx/align.py
+rename to lib/adapters/align/ctc-onnx/align.py
+index 2374994..12bdda6 100644
+--- a/.claude/skills/video-machine/adapters/align/ctc-onnx/align.py
++++ b/lib/adapters/align/ctc-onnx/align.py
+@@ -1,48 +1,64 @@
+-"""Align adapter (CTC, wav2vec2 ONNX): drives engine/analysis/align_vo.py and audio_vo.py unchanged.
++"""Align adapter (CTC, wav2vec2 ONNX): drives the vendored analysis/align_vo.py and audio_vo.py unchanged.
+ 
+     uv run python align.py <audio> <lines.json> <run_dir>
+ 
+ lines.json: {"lines": [{"text": ...}, ...], "spoken_words"?: {"5.5.": ["FIVE", "POINT", "FIVE"], ...}}
+   spoken_words maps a display word to what is said (align_vo's SPOKEN); words not in it are read as written.
+ Writes <run_dir>/data/timing.json (word times, the engine's lyrics format) and <run_dir>/data/audio.json
+ (voice envelopes, word onsets, nominal beat grid). Prints the timing.json path.
+ """
+-import json, sys, tempfile
++
++import json
++import sys
++import tempfile
+ from pathlib import Path
+ 
+-ANALYSIS = Path(__file__).resolve().parents[6] / "engine" / "analysis"
++ANALYSIS = Path(__file__).resolve().parent / "analysis"
+ sys.path.insert(0, str(ANALYSIS))
+-import align_vo  # noqa: E402  (module-level paths are overridden below; MODEL/VOCAB keep pointing at engine/analysis/models)
++import align_vo  # module-level paths are overridden below; MODEL/VOCAB keep pointing at analysis/models
+ 
+ 
+ def main(audio: Path, lines_file: Path, run_dir: Path) -> Path:
+     spec = json.loads(lines_file.read_text(encoding="utf-8"))
+-    texts = [l["text"] for l in spec["lines"]]
++    texts = [line["text"] for line in spec["lines"]]
+     if not texts:
+         sys.exit("align: no lines")
+     data = run_dir / "data"
+     data.mkdir(parents=True, exist_ok=True)
+     timing, audio_json = data / "timing.json", data / "audio.json"
+ 
+     # align_vo.main() reads these module globals at call time and writes ROOT/data/lyrics.json
+     with tempfile.TemporaryDirectory() as tmp:
+         align_vo.ROOT, align_vo.AUDIO = Path(tmp), audio
+         align_vo.SCRIPT, align_vo.SPOKEN = texts, spec.get("spoken_words", {})
+         (Path(tmp) / "data").mkdir()
+         align_vo.main()
+         timing.write_text((Path(tmp) / "data" / "lyrics.json").read_text(encoding="utf-8"), encoding="utf-8")
+ 
+     # audio_vo.py is a flat script with fixed paths: run its source with those paths swapped in.
+     # ponytail: text swap of three path expressions; asserts fail loudly if the script changes
+     src = (ANALYSIS / "audio_vo.py").read_text(encoding="utf-8")
+-    for old, new in [('ROOT / "audio" / "voiceover.mp3"', "_AUDIO"), ('ROOT / "data" / "lyrics.json"', "_TIMING"), ('ROOT / "data" / "audio.json"', "_OUT")]:
++    for old, new in [
++        ('ROOT / "audio" / "voiceover.mp3"', "_AUDIO"),
++        ('ROOT / "data" / "lyrics.json"', "_TIMING"),
++        ('ROOT / "data" / "audio.json"', "_OUT"),
++    ]:
+         assert old in src, f"audio_vo.py changed: {old!r} not found"
+         src = src.replace(old, new)
+-    exec(compile(src, str(ANALYSIS / "audio_vo.py"), "exec"), {"__name__": "__main__", "__file__": str(ANALYSIS / "audio_vo.py"), "_AUDIO": audio, "_TIMING": timing, "_OUT": audio_json})
++    exec(
++        compile(src, str(ANALYSIS / "audio_vo.py"), "exec"),
++        {
++            "__name__": "__main__",
++            "__file__": str(ANALYSIS / "audio_vo.py"),
++            "_AUDIO": audio,
++            "_TIMING": timing,
++            "_OUT": audio_json,
++        },
++    )
+     return timing
+ 
+ 
+ if __name__ == "__main__":
+     if len(sys.argv) != 4:
+         sys.exit(__doc__)
+     print(main(Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve(), Path(sys.argv[3]).resolve()))
+diff --git a/lib/adapters/align/ctc-onnx/analysis/LICENSE.pdoom-engine b/lib/adapters/align/ctc-onnx/analysis/LICENSE.pdoom-engine
+new file mode 100644
+index 0000000..ecc957d
+--- /dev/null
++++ b/lib/adapters/align/ctc-onnx/analysis/LICENSE.pdoom-engine
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2026 Giacomo Magnanini
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/lib/adapters/align/ctc-onnx/analysis/align_vo.py b/lib/adapters/align/ctc-onnx/analysis/align_vo.py
+new file mode 100644
+index 0000000..7d6a517
+--- /dev/null
++++ b/lib/adapters/align/ctc-onnx/analysis/align_vo.py
+@@ -0,0 +1,231 @@
++"""Word timings for the voiceover: CTC forced alignment of the script against the audio.
++
++The display script (with its punctuation, arrows and numbers) is mapped to a spoken form per
++word ("5.5." -> FIVE POINT FIVE, "→" -> TO, "MCP." -> EM SEE PEE). wav2vec2-base-960h (quantized
++ONNX, char-level CTC) gives frame-wise log-probs (20 ms); one Viterbi pass over the whole file aligns
++every character. Word edges are then refined against the audio's energy envelope (a word ends where
++the voice actually stops, not on its last CTC spike). Display words made of several spoken words get
++`syl` spans, so each part lights up when it is said.
++
++Writes ../data/lyrics.json in the engine's format: { lines: [{ text, start, end, words: [{ w, start, end, syl? }] }] }.
++
++    python -m uv run --no-project --with onnxruntime --with numpy python analysis/align_vo.py
++"""
++import json, re, subprocess, sys
++from pathlib import Path
++import numpy as np
++import onnxruntime as ort
++
++ROOT = Path(__file__).resolve().parent.parent
++AUDIO = ROOT / "audio" / "voiceover.mp3"
++MODEL = ROOT / "analysis" / "models" / "w2v2_base_960h_q.onnx"
++VOCAB = ROOT / "analysis" / "models" / "vocab.json"
++SR, HOP = 16000, 320  # 20 ms frames
++FRAME = HOP / SR
++
++# The script, one entry per display line. Words are split on spaces; SPOKEN overrides the spoken form.
++SCRIPT = [
++    "What if I told you… you can create motion graphics like this without even opening After Effects?",
++    "And no — I’m not talking about an After Effects MCP.",
++    "This is Claude Opus 5.5.",
++    "Instead of controlling After Effects, you basically tell Claude what you want the animation to look like.",
++    "For example:",
++    "“Create a 15-second cinematic motion graphics sequence with kinetic typography, smooth shape transitions, 3D elements and seamless camera movement.”",
++    "And this is where it gets crazy.",
++    "Claude doesn’t actually generate an MP4 directly.",
++    "It writes the animation itself as code.",
++    "The text, shapes, positions, easing, transitions, particles — basically every visual element is defined mathematically over time.",
++    "Then that code is rendered frame by frame and turned into a video.",
++    "So instead of: After Effects → layers → keyframes → graph editor → render",
++    "you’re essentially doing: Prompt → code → render → video.",
++    "And because the animation is procedural, you can literally tell Claude:",
++    "“Make this transition smoother.”",
++    "“Change the colour.”",
++    "“Slow this section down.”",
++    "“Make the ending seamlessly loop into the beginning.”",
++    "And it can modify the underlying animation instead of you manually moving hundreds of keyframes.",
++    "Does this replace After Effects?",
++    "Not really.",
++    "But for certain types of motion graphics…",
++    "the fact that you can go from an idea to a working animation without touching a timeline is pretty insane.",
++]
++SPOKEN = {
++    "5.5.": ["FIVE", "POINT", "FIVE"],
++    "MCP.": ["EM", "SEE", "PEE"],
++    "MP4": ["EM", "PEE", "FOUR"],
++    "15-second": ["FIFTEEN", "SECOND"],
++    "3D": ["THREE", "DEE"],
++    "→": ["TO"],
++    "colour.”": ["COLOR"],
++    "—": [],  # the dash is the pause between two words
++}
++
++
++def spoken(w: str) -> list[str]:
++    if w in SPOKEN:
++        return SPOKEN[w]
++    s = w.replace("’", "'").upper()
++    s = re.sub(r"[^A-Z' ]", "", s).strip("'")
++    return [s] if s else []
++
++
++def load_audio():
++    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(AUDIO), "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"], capture_output=True, check=True).stdout
++    return np.frombuffer(raw, dtype=np.float32).copy()
++
++
++def emissions(y):
++    sess = ort.InferenceSession(str(MODEL), providers=["CPUExecutionProvider"])
++    name = sess.get_inputs()[0].name
++    n = len(y) // HOP
++    out = None
++    chunk, ctx = 15 * SR, 2 * SR
++    for s in range(0, len(y), chunk):
++        a, b = max(0, s - ctx), min(len(y), s + chunk + ctx)
++        x = y[a:b]
++        x = (x - x.mean()) / np.sqrt(x.var() + 1e-7)  # the feature extractor's normalisation
++        lg = sess.run(None, {name: x[None].astype(np.float32)})[0][0]
++        lg = lg - np.logaddexp.reduce(lg, axis=1, keepdims=True)
++        if out is None:
++            out = np.full((n, lg.shape[1]), np.nan, np.float32)
++        f0 = a // HOP
++        lo, hi = s // HOP, min(n, (s + chunk) // HOP)
++        seg = lg[lo - f0: hi - f0]
++        out[lo: lo + len(seg)] = seg
++    bad = np.isnan(out[:, 0])
++    if bad.any():
++        last = np.where(~bad)[0].max()
++        out[last + 1:] = out[last]
++    return out
++
++
++def viterbi(E, tgt):
++    """CTC forced alignment. E: [T, V] log-probs, tgt: token ids (no blanks). Returns the state per frame."""
++    T, L = E.shape[0], len(tgt)
++    S = 2 * L + 1
++    lab = np.zeros(S, np.int64)
++    lab[1::2] = tgt
++    NEG = -1e30
++    # skip transition s-2 -> s allowed for non-blank s whose label differs from s-2's
++    skip = np.zeros(S, bool)
++    skip[3::2] = np.array(tgt[1:]) != np.array(tgt[:-1])
++    dp = np.full(S, NEG)
++    dp[0] = E[0, 0]
++    dp[1] = E[0, lab[1]]
++    bp = np.zeros((T, S), np.int8)
++    for t in range(1, T):
++        stay = dp
++        one = np.concatenate([[NEG], dp[:-1]])
++        two = np.where(skip, np.concatenate([[NEG, NEG], dp[:-2]]), NEG)
++        best = np.maximum(stay, np.maximum(one, two))
++        bp[t] = np.where(best == stay, 0, np.where(best == one, 1, 2))
++        dp = best + E[t, lab]
++    s = S - 1 if dp[S - 1] >= dp[S - 2] else S - 2
++    path = np.zeros(T, np.int64)
++    for t in range(T - 1, -1, -1):
++        path[t] = s
++        s -= int(bp[t, s])
++    return path
++
++
++def envelope_db(y):
++    n = len(y) // 160
++    fr = y[: n * 160].reshape(n, 160)
++    return 20 * np.log10(np.sqrt((fr ** 2).mean(1) + 1e-12) + 1e-9)  # 10 ms frames
++
++
++def main():
++    vocab = json.loads(VOCAB.read_text())
++    blank, sep = vocab["<pad>"], vocab["|"]
++    y = load_audio()
++    dur = len(y) / SR
++    print(f"audio {dur:.2f}s", file=sys.stderr)
++    E = emissions(y)
++    db = envelope_db(y)
++    peak = np.percentile(db, 99)
++    voiced = db > peak - 34  # 10 ms frames with voice energy
++
++    # target: every spoken unit of every display word, '|' between units
++    lines = []
++    units = []  # (line, word, part, [token positions])
++    tgt = []
++    for li, text in enumerate(SCRIPT):
++        words = text.split(" ")
++        lines.append(words)
++        for wi, w in enumerate(words):
++            for pi, sp in enumerate(spoken(w)):
++                if tgt:
++                    tgt.append(sep)
++                pos = []
++                for ch in sp:
++                    if ch == " ":
++                        tgt.append(sep)
++                        continue
++                    pos.append(len(tgt))
++                    tgt.append(vocab[ch])
++                units.append((li, wi, pi, pos))
++    path = viterbi(E, tgt)
++    # frames per target token
++    tok_frames: dict[int, list[int]] = {}
++    for t, s in enumerate(path):
++        if s % 2 == 1:
++            tok_frames.setdefault((s - 1) // 2, []).append(t)
++    spans = {}  # (li, wi, pi) -> [start, end]
++    for li, wi, pi, pos in units:
++        fr = [f for p in pos for f in tok_frames.get(p, [])]
++        if not fr:
++            continue
++        spans[(li, wi, pi)] = [min(fr) * FRAME, (max(fr) + 1) * FRAME]
++
++    # refine: a unit starts where the voice starts (walk back over voiced 10 ms frames, at most 120 ms)
++    # and ends where it stops (walk forward to the next silence, never into the next unit)
++    order = sorted(spans.keys())
++    for k, key in enumerate(order):
++        a, b = spans[key]
++        nxt = spans[order[k + 1]][0] if k + 1 < len(order) else dur
++        prv = spans[order[k - 1]][1] if k > 0 else 0.0
++        # (only onsets after a silence: in connected speech the voicing runs on from the previous word)
++        i = int(a * 100)
++        lim = max(int(prv * 100), i - 12)
++        while i - 1 > lim and voiced[i - 1]:
++            i -= 1
++        if i - 1 >= 0 and not voiced[i - 1]:
++            a = i / 100
++        j = int(b * 100)
++        while j < min(len(voiced), int(nxt * 100)) and voiced[j]:
++            j += 1
++        b = max(b, j / 100)
++        spans[key] = [a, min(b, nxt)]
++    # close small gaps inside a phrase: a unit runs until the next one starts when the gap is unvoiced < 90 ms
++    for k, key in enumerate(order[:-1]):
++        nk = order[k + 1]
++        if 0 < spans[nk][0] - spans[key][1] < 0.09:
++            spans[key][1] = spans[nk][0]
++
++    out_lines = []
++    for li, words in enumerate(lines):
++        ow = []
++        for wi, w in enumerate(words):
++            parts = [spans[(li, wi, pi)] for pi in range(len(spoken(w))) if (li, wi, pi) in spans]
++            if parts:
++                wd = {"w": w, "start": round(parts[0][0], 3), "end": round(parts[-1][1], 3)}
++                if len(parts) > 1:
++                    wd["syl"] = [[round(a, 3), round(b, 3)] for a, b in parts]
++            else:
++                wd = {"w": w, "start": None, "end": None}
++            ow.append(wd)
++        # unspoken tokens (the dash): the pause between their neighbours
++        for i, wd in enumerate(ow):
++            if wd["start"] is None:
++                prev = next((x for x in reversed(ow[:i]) if x["start"] is not None), None)
++                nxt = next((x for x in ow[i + 1:] if x["start"] is not None), None)
++                wd["start"] = prev["end"] if prev else (nxt["start"] if nxt else 0)
++                wd["end"] = nxt["start"] if nxt else wd["start"]
++        out_lines.append({"text": " ".join(words), "start": ow[0]["start"], "end": ow[-1]["end"], "words": ow})
++    (ROOT / "data" / "lyrics.json").write_text(json.dumps({"source": "align_vo.py (wav2vec2-base-960h CTC)", "lines": out_lines}, indent=1, ensure_ascii=False), encoding="utf-8")
++    for l in out_lines:
++        print(f"{l['start']:6.2f}-{l['end']:6.2f}  " + " ".join(f"{w['w']}[{w['start']:.2f}]" for w in l["words"]))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/lib/adapters/align/ctc-onnx/analysis/audio_vo.py b/lib/adapters/align/ctc-onnx/analysis/audio_vo.py
+new file mode 100644
+index 0000000..c271aed
+--- /dev/null
++++ b/lib/adapters/align/ctc-onnx/analysis/audio_vo.py
+@@ -0,0 +1,51 @@
++"""data/audio.json for the voiceover: the engine's audio API (envelopes, onsets, a beat grid) for a
++track that has no music. The envelopes are the voice's loudness (rms, vocal) and three bands; the
++'vocal' onsets are the word starts from data/lyrics.json; the beat grid is a nominal 120 BPM (the
++scenes time everything from the words, the grid only feeds generic helpers).
++
++    python -m uv run --no-project --with numpy python analysis/audio_vo.py
++"""
++import json, subprocess
++from pathlib import Path
++import numpy as np
++
++ROOT = Path(__file__).resolve().parent.parent
++SR, FPS = 16000, 100
++raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(ROOT / "audio" / "voiceover.mp3"), "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"], capture_output=True, check=True).stdout
++y = np.frombuffer(raw, dtype=np.float32)
++dur = len(y) / SR
++hop = SR // FPS
++n = int(np.ceil(dur * FPS))
++win = np.hanning(2 * hop)
++pad = np.concatenate([np.zeros(hop), y, np.zeros(3 * hop)])
++spec = np.abs(np.fft.rfft(np.stack([pad[i * hop: i * hop + 2 * hop] * win for i in range(n)]), axis=1))
++freqs = np.fft.rfftfreq(2 * hop, 1 / SR)
++
++
++def norm(x):
++    x = np.convolve(x, np.ones(3) / 3, mode="same")
++    p = np.percentile(x, 99.5)
++    return np.clip(x / (p + 1e-9), 0, 1)
++
++
++rms = norm(np.sqrt((spec ** 2).mean(1)))
++bands = {k: norm(spec[:, (freqs >= a) & (freqs < b)].mean(1)) for k, (a, b) in {"low": (60, 300), "mid": (300, 2000), "high": (2000, 8000)}.items()}
++lyr = json.loads((ROOT / "data" / "lyrics.json").read_text(encoding="utf-8"))
++words = [w for l in lyr["lines"] for w in l["words"] if w["end"] > w["start"]]
++vocal_on = [[round(w["start"], 3), round(float(rms[min(n - 1, int(w["start"] * FPS) + 3)]), 3)] for w in words]
++line_on = [[round(l["start"], 3), 1.0] for l in lyr["lines"]]
++period = 0.5
++beats = [round(i * period, 3) for i in range(int(dur / period) + 1)]
++out = {
++    "duration": round(dur, 3), "bpm": 120.0, "beat_period": period, "time_signature": 4,
++    "beats": beats, "downbeats": beats[::4],
++    "sections": [{"name": f"l{i}", "start": l["start"], "end": l["end"]} for i, l in enumerate(lyr["lines"])],
++    "fps": FPS,
++    "rms": rms.round(4).tolist(), "vocal": rms.round(4).tolist(),
++    "low": bands["low"].round(4).tolist(), "mid": bands["mid"].round(4).tolist(), "high": bands["high"].round(4).tolist(),
++    "drums": [0.0] * n, "bass": [0.0] * n, "other": [0.0] * n,
++    "onsets": {"vocal": vocal_on, "kick": line_on, "snare": [], "hat": []},
++    "notes": "Voiceover only (no music). 'kick' onsets are line starts; 'vocal' onsets are word starts; the beat grid is nominal.",
++}
++(ROOT / "data" / "audio.json").write_text(json.dumps(out), encoding="utf-8")
++print(f"duration {dur:.2f}s, {n} frames, {len(vocal_on)} word onsets, {len(beats)} beats")
+diff --git a/lib/adapters/align/ctc-onnx/analysis/models/preprocessor_config.json b/lib/adapters/align/ctc-onnx/analysis/models/preprocessor_config.json
+new file mode 100644
+index 0000000..a0b7227
+--- /dev/null
++++ b/lib/adapters/align/ctc-onnx/analysis/models/preprocessor_config.json
+@@ -0,0 +1,9 @@
++{
++  "do_normalize": true,
++  "feature_extractor_type": "Wav2Vec2FeatureExtractor",
++  "feature_size": 1,
++  "padding_side": "right",
++  "padding_value": 0.0,
++  "return_attention_mask": false,
++  "sampling_rate": 16000
++}
+diff --git a/lib/adapters/align/ctc-onnx/analysis/models/vocab.json b/lib/adapters/align/ctc-onnx/analysis/models/vocab.json
+new file mode 100644
+index 0000000..7efc55a
+--- /dev/null
++++ b/lib/adapters/align/ctc-onnx/analysis/models/vocab.json
+@@ -0,0 +1,34 @@
++{
++  "'": 27,
++  "</s>": 2,
++  "<pad>": 0,
++  "<s>": 1,
++  "<unk>": 3,
++  "A": 7,
++  "B": 24,
++  "C": 19,
++  "D": 14,
++  "E": 5,
++  "F": 20,
++  "G": 21,
++  "H": 11,
++  "I": 10,
++  "J": 29,
++  "K": 26,
++  "L": 15,
++  "M": 17,
++  "N": 9,
++  "O": 8,
++  "P": 23,
++  "Q": 30,
++  "R": 13,
++  "S": 12,
++  "T": 6,
++  "U": 16,
++  "V": 25,
++  "W": 18,
++  "X": 28,
++  "Y": 22,
++  "Z": 31,
++  "|": 4
++}
+diff --git a/lib/adapters/align/ctc-onnx/index.test.ts b/lib/adapters/align/ctc-onnx/index.test.ts
+new file mode 100644
+index 0000000..a79182e
+--- /dev/null
++++ b/lib/adapters/align/ctc-onnx/index.test.ts
+@@ -0,0 +1,162 @@
++import { afterEach, expect, test } from 'bun:test';
++import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import { loadConfig } from '../../../core/config';
++import type { Deps } from '../../../core/deps';
++import { ContractError, ToolError, UnsupportedError, VideoMachineError } from '../../../core/errors';
++import type { ShOptions } from '../../../core/sh';
++import { ctcOnnx } from './index';
++
++const lines = [{ id: 'l1', text: 'Ship faster.', delivery: 'voiceover' as const }];
++
++const runs: string[] = [];
++afterEach(() => {
++  for (const r of runs.splice(0)) rmSync(r, { recursive: true, force: true });
++});
++
++/**
++ * A run folder with audio/vo.wav, and a fake sh that writes `timing` as data/timing.json
++ * (or throws `fail`, or writes nothing when `timing` is null).
++ */
++const setup = (timing: string | null, fail?: Error) => {
++  const run = mkdtempSync(path.join(tmpdir(), 'vm-'));
++  runs.push(run);
++  mkdirSync(path.join(run, 'audio'));
++  const audio = path.join(run, 'audio', 'vo.wav');
++  writeFileSync(audio, 'RIFF');
++  const calls: string[][] = [];
++  const opts: (ShOptions | undefined)[] = [];
++  const deps: Deps = {
++    config: loadConfig({ PATH: '/bin' }),
++    sh: async (cmd, o) => {
++      calls.push(cmd);
++      opts.push(o);
++      if (fail) throw fail;
++      if (timing !== null) {
++        mkdirSync(path.join(run, 'data'), { recursive: true });
++        writeFileSync(path.join(run, 'data', 'timing.json'), timing);
++      }
++      return { code: 0, stdout: '', stderr: '' };
++    },
++  };
++  return { run, audio, calls, opts, deps };
++};
++const GOOD = JSON.stringify({ lines: [{ text: 'Ship faster.', start: 0, end: 1, words: [] }] });
++
++test('align runs align.py through uv in the plugin project and returns the validated timing.json', async () => {
++  const { run, audio, calls, opts, deps } = setup(GOOD);
++  const out = await ctcOnnx(deps).align(audio, lines, { 'MCP.': ['EM', 'SEE', 'PEE'] });
++  expect(out).toBe(path.join(run, 'data', 'timing.json'));
++  const cmd = calls[0] ?? [];
++  expect(cmd.slice(0, 5)).toEqual(['uv', 'run', '--project', deps.config.pluginRoot, 'python']);
++  expect(cmd[5]).toBe(path.join(deps.config.pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py'));
++  expect(cmd[6]).toBe(audio);
++  expect(cmd[8]).toBe(run);
++  expect(opts[0]?.env).toBe(deps.config.toolEnv);
++});
++
++test('align hands align.py a spec with the line texts and spoken words, and removes it afterwards', async () => {
++  const { audio, deps } = setup(GOOD);
++  let spec: unknown;
++  const inner = deps.sh;
++  deps.sh = async (cmd, o) => {
++    spec = JSON.parse(readFileSync(cmd[7] ?? '', 'utf8'));
++    return inner(cmd, o);
++  };
++  await ctcOnnx(deps).align(audio, lines, { 'MCP.': ['EM', 'SEE', 'PEE'] });
++  expect(spec).toEqual({ lines: [{ text: 'Ship faster.' }], spoken_words: { 'MCP.': ['EM', 'SEE', 'PEE'] } });
++});
++
++test('align removes the spec folder after a success', async () => {
++  const { audio, calls, deps } = setup(GOOD);
++  await ctcOnnx(deps).align(audio, lines);
++  expect(existsSync(path.dirname(calls[0]?.[7] ?? ''))).toBe(false);
++});
++
++test('align removes the spec folder after a failure', async () => {
++  const { audio, calls, deps } = setup('{"lines": 3}');
++  await ctcOnnx(deps)
++    .align(audio, lines)
++    .catch(() => {});
++  const specDir = path.dirname(calls[0]?.[7] ?? '');
++  expect(specDir).not.toBe('.');
++  expect(existsSync(specDir)).toBe(false);
++});
++
++test('align refuses to run without script lines', async () => {
++  const { audio, calls, deps } = setup(GOOD);
++  await expect(ctcOnnx(deps).align(audio, [])).rejects.toBeInstanceOf(UnsupportedError);
++  expect(calls).toHaveLength(0);
++});
++
++test('align refuses to run when every script line is blank', async () => {
++  const { audio, calls, deps } = setup(GOOD);
++  const blank = [{ id: 'l1', text: '  ', delivery: 'voiceover' as const }];
++  await expect(ctcOnnx(deps).align(audio, blank)).rejects.toBeInstanceOf(UnsupportedError);
++  expect(calls).toHaveLength(0);
++});
++
++test('align names the audio file when it does not exist, before running anything', async () => {
++  const { run, calls, deps } = setup(GOOD);
++  const missing = path.join(run, 'audio', 'nope.wav');
++  const e = await ctcOnnx(deps)
++    .align(missing, lines)
++    .catch((x: unknown) => x);
++  expect(e).toBeInstanceOf(VideoMachineError);
++  expect((e as Error).message).toContain(`audio not found: ${missing}`);
++  expect(calls).toHaveLength(0);
++});
++
++test('align names the path when the audio is a folder, before running anything', async () => {
++  const { run, calls, deps } = setup(GOOD);
++  const dir = path.join(run, 'audio', 'sub');
++  mkdirSync(dir);
++  const e = await ctcOnnx(deps)
++    .align(dir, lines)
++    .catch((x: unknown) => x);
++  expect(e).toBeInstanceOf(VideoMachineError);
++  expect((e as Error).message).toContain(`not a file: ${dir}`);
++  expect(calls).toHaveLength(0);
++});
++
++test('align names the audio file when it is empty, before running anything', async () => {
++  const { audio, calls, deps } = setup(GOOD);
++  writeFileSync(audio, '');
++  const e = await ctcOnnx(deps)
++    .align(audio, lines)
++    .catch((x: unknown) => x);
++  expect(e).toBeInstanceOf(VideoMachineError);
++  expect((e as Error).message).toContain(`audio is empty: ${audio}`);
++  expect(calls).toHaveLength(0);
++});
++
++test('align refuses audio that is not inside an audio folder, before running anything', async () => {
++  const { run, calls, deps } = setup(GOOD);
++  const outside = path.join(run, 'vo.wav');
++  writeFileSync(outside, 'RIFF');
++  const e = await ctcOnnx(deps)
++    .align(outside, lines)
++    .catch((x: unknown) => x);
++  expect(e).toBeInstanceOf(VideoMachineError);
++  expect((e as Error).message).toContain(outside);
++  expect(calls).toHaveLength(0);
++});
++
++test('align never returns a stale timing.json left by an earlier run', async () => {
++  const { run, audio, deps } = setup(null);
++  mkdirSync(path.join(run, 'data'));
++  writeFileSync(path.join(run, 'data', 'timing.json'), GOOD);
++  await expect(ctcOnnx(deps).align(audio, lines)).rejects.toThrow();
++});
++
++test('align passes a ToolError from the runner through unchanged', async () => {
++  const failure = new ToolError({ cmd: ['uv'], code: 1, stderr: 'boom' });
++  const { audio, deps } = setup(GOOD, failure);
++  await expect(ctcOnnx(deps).align(audio, lines)).rejects.toBe(failure);
++});
++
++test('align fails with a ContractError when align.py writes an invalid timing.json', async () => {
++  const { audio, deps } = setup('{"lines": 3}');
++  await expect(ctcOnnx(deps).align(audio, lines)).rejects.toBeInstanceOf(ContractError);
++});
+diff --git a/lib/adapters/align/ctc-onnx/index.ts b/lib/adapters/align/ctc-onnx/index.ts
+new file mode 100644
+index 0000000..74f6428
+--- /dev/null
++++ b/lib/adapters/align/ctc-onnx/index.ts
+@@ -0,0 +1,50 @@
++// Align adapter: CTC forced alignment (wav2vec2-base-960h, quantized ONNX) via align.py, run with uv.
++
++import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import { type AlignAdapter, TimingSchema } from '../../../contracts/types';
++import { type Deps, defaultDeps } from '../../../core/deps';
++import { UnsupportedError, VideoMachineError } from '../../../core/errors';
++import { readJson } from '../../../core/json';
++
++/**
++ * The CTC aligner. `align(audioPath, lines, spokenWords)` aligns `audioPath` (inside <run>/audio/) against `lines`,
++ * writes <run>/data/timing.json and audio.json, and returns the timing.json path.
++ * `spokenWords` maps a display word to what is said ("MCP." → ["EM", "SEE", "PEE"]).
++ * Throws UnsupportedError without lines, VideoMachineError when the audio is missing, ToolError when align.py fails
++ * and ContractError when it writes an invalid timing.json.
++ */
++export const ctcOnnx = (deps: Deps = defaultDeps()): AlignAdapter => ({
++  async align(audioPath, lines, spokenWords = {}) {
++    if (lines.every((l) => l.text.trim() === ''))
++      throw new UnsupportedError(
++        'ctc-onnx.align needs the script lines: it aligns text to audio, it does not transcribe',
++      );
++    const audio = path.resolve(audioPath);
++    const stat = statSync(audio, { throwIfNoEntry: false });
++    if (!stat) throw new VideoMachineError(`ctc-onnx.align: audio not found: ${audioPath}`);
++    if (!stat.isFile()) throw new VideoMachineError(`ctc-onnx.align: not a file: ${audioPath}`);
++    if (stat.size === 0) throw new VideoMachineError(`ctc-onnx.align: audio is empty: ${audioPath}`);
++    // align.py writes data/ next to audio/, so a stray audio path must not write into the run's parent.
++    if (path.basename(path.dirname(audio)) !== 'audio')
++      throw new VideoMachineError(`ctc-onnx.align: audio must be inside the run's audio/ folder: ${audioPath}`);
++    const { pluginRoot, toolEnv } = deps.config;
++    const alignPy = path.join(pluginRoot, 'lib', 'adapters', 'align', 'ctc-onnx', 'align.py');
++    const runDir = path.resolve(path.dirname(audio), '..');
++    const out = path.join(runDir, 'data', 'timing.json');
++    rmSync(out, { force: true }); // a stale file must never be validated and returned
++    const specDir = mkdtempSync(path.join(tmpdir(), 'vm-align-'));
++    const spec = path.join(specDir, 'lines.json');
++    // ponytail: throwaway, unschema'd input for align.py, so it skips writeJson on purpose.
++    writeFileSync(spec, JSON.stringify({ lines: lines.map((l) => ({ text: l.text })), spoken_words: spokenWords }));
++    try {
++      await deps.sh(['uv', 'run', '--project', pluginRoot, 'python', alignPy, audio, spec, runDir], { env: toolEnv });
++      readJson(out, TimingSchema); // validate on write
++      return out;
++    } finally {
++      rmSync(specDir, { recursive: true, force: true }); // the spec holds the script text
++    }
++  },
++});
++export default ctcOnnx;
+diff --git a/lib/contracts/types.test.ts b/lib/contracts/types.test.ts
+new file mode 100644
+index 0000000..d6fdc6e
+--- /dev/null
++++ b/lib/contracts/types.test.ts
+@@ -0,0 +1,226 @@
++import { expect, test } from 'bun:test';
++import {
++  AssetRefSchema,
++  BriefSchema,
++  CaptureLogSchema,
++  DoctorSchema,
++  frameOf,
++  PlanSchema,
++  ScenePlanSchema,
++  ScriptSchema,
++  StepsSchema,
++  TestResultsSchema,
++} from './types';
++
++test('frameOf gives the reel frame as vertical 1080x1920 with its safe area', () => {
++  expect(frameOf('reel')).toEqual({
++    w: 1080,
++    h: 1920,
++    aspect: 'vertical',
++    safe: { top: 0.14, bottom: 0.2, left: 0.06, right: 0.06 },
++  });
++});
++
++const line = { id: 'l1', text: 'Ship faster.' };
++const script = (lines: object[]) => ({ run_id: 'r', version: 1, lines });
++
++test('script lines default to voiceover delivery', () => {
++  expect(ScriptSchema.parse(script([line])).lines[0]?.delivery).toBe('voiceover');
++});
++
++test('script lines accept avatar delivery and reject anything else', () => {
++  expect(ScriptSchema.parse(script([{ ...line, delivery: 'avatar' }])).lines[0]?.delivery).toBe('avatar');
++  expect(ScriptSchema.safeParse(script([{ ...line, delivery: 'narrator' }])).success).toBe(false);
++});
++
++const scene = {
++  scene_id: 'hook',
++  lines: ['l1'],
++  cut_in: { anchor: 'Ship', rule: 'on_word' },
++  intent: 'open strong',
++  beats: [],
++  layout: {},
++  transition_out: 'cut',
++  asset_ids: [],
++  input_hash: 'abc',
++};
++
++test('a scene plan is keyed by scene_id, not plate_id', () => {
++  expect(ScenePlanSchema.parse(scene).scene_id).toBe('hook');
++  const { scene_id, ...rest } = scene;
++  expect(ScenePlanSchema.safeParse({ ...rest, plate_id: scene_id }).success).toBe(false);
++});
++
++test('plan.visuals_plan holds scenes, not plates', () => {
++  const plan = { run_id: 'r', version: 1, look_id: 'a', asset_ids: [], formats: ['reel'] };
++  expect(PlanSchema.safeParse({ ...plan, visuals_plan: { scenes: [scene] } }).success).toBe(true);
++  expect(PlanSchema.safeParse({ ...plan, visuals_plan: { plates: [scene] } }).success).toBe(false);
++});
++
++test('check annotations point at a scene_id', () => {
++  const results = TestResultsSchema.parse({
++    run_id: 'r',
++    plan_version: 1,
++    output_paths: { stills: {}, contact_sheets: {}, drafts: {}, deliverables: [], report: 'report.md' },
++    checks: [
++      {
++        id: 'layout.safe_area',
++        blocking: true,
++        status: 'fail',
++        detail: '1 box outside',
++        annotations: [{ scene_id: 'hook', t: 1.2, problem: 'title under the caption bar', suggested_fix: 'move up' }],
++      },
++    ],
++    summary: { blocking_failed: 1, warnings: 0 },
++  });
++  expect(results.checks[0]?.annotations[0]?.scene_id).toBe('hook');
++});
++
++const brief = { run_id: 'r', concept: 'c', goals: [], duration_target_s: [15, 30], timing_source: 'voiceover' };
++
++test('brief formats default to reel only', () => {
++  expect(BriefSchema.parse(brief).formats).toEqual(['reel']);
++});
++
++test('a concept alone is a valid brief: sources default to empty', () => {
++  expect(BriefSchema.parse(brief).sources).toEqual([]);
++});
++
++test('brief takes any mix of sources', () => {
++  const sources = [
++    { kind: 'nav_video', path_or_url: 'input/nav.mp4' },
++    { kind: 'product_url', path_or_url: 'https://app.example.com/login' },
++    { kind: 'file', path_or_url: 'input/logo.svg', note: 'logo' },
++    { kind: 'link', path_or_url: 'http://blog.example.com/launch', note: 'competitor' },
++  ];
++  expect(BriefSchema.parse({ ...brief, sources }).sources).toHaveLength(4);
++});
++
++test('brief rejects a product_url or link source that is not an http(s) URL', () => {
++  for (const kind of ['product_url', 'link']) {
++    for (const bad of ['app dot example', 'file:///C:/Users/me/secrets.txt', 'javascript:alert(1)']) {
++      expect(BriefSchema.safeParse({ ...brief, sources: [{ kind, path_or_url: bad }] }).success).toBe(false);
++    }
++  }
++});
++
++test('brief rejects an unknown source kind and an empty path', () => {
++  expect(BriefSchema.safeParse({ ...brief, sources: [{ kind: 'dream', path_or_url: 'x' }] }).success).toBe(false);
++  expect(BriefSchema.safeParse({ ...brief, sources: [{ kind: 'file', path_or_url: '' }] }).success).toBe(false);
++});
++
++test('brief no longer has source_material, assets or references', () => {
++  const parsed = BriefSchema.parse({ ...brief, source_material: ['a'], assets: ['b'], references: [] });
++  expect(Object.keys(parsed)).not.toContain('source_material');
++  expect(Object.keys(parsed)).not.toContain('assets');
++  expect(Object.keys(parsed)).not.toContain('references');
++});
++
++test('script lines take a section and http(s) cite URLs', () => {
++  const parsed = ScriptSchema.parse(script([{ ...line, section: 'intro', cite: ['https://example.com/stats'] }]));
++  expect(parsed.lines[0]?.cite).toEqual(['https://example.com/stats']);
++  for (const bad of ['not a url', 'file:///C:/x', 'javascript:alert(1)', 'ftp://a.com']) {
++    expect(ScriptSchema.safeParse(script([{ ...line, cite: [bad] }])).success).toBe(false);
++  }
++  expect(ScriptSchema.safeParse(script([{ ...line, cite: [] }])).success).toBe(false);
++});
++
++test('plan sections are optional, and a scene may only name a declared section', () => {
++  const plan = { run_id: 'r', version: 1, look_id: 'a', asset_ids: [], formats: ['reel'] };
++  const sections = [{ id: 'intro', title: 'Why it matters' }];
++  const inIntro = { ...scene, section: 'intro' };
++  expect(PlanSchema.safeParse({ ...plan, sections, visuals_plan: { scenes: [inIntro] } }).success).toBe(true);
++  expect(PlanSchema.safeParse({ ...plan, visuals_plan: { scenes: [inIntro] } }).success).toBe(false);
++  expect(PlanSchema.safeParse({ ...plan, sections: [], visuals_plan: { scenes: [scene] } }).success).toBe(false);
++});
++
++const asset = {
++  asset_id: 'a1',
++  kind: 'image',
++  path: 'capture/shots/1.png',
++  source: 'replay',
++  license: 'own',
++  usage: 'render',
++};
++
++test('every asset records where it came from', () => {
++  for (const origin of ['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn'] as const) {
++    expect(AssetRefSchema.parse({ ...asset, origin }).origin).toBe(origin);
++  }
++  expect(AssetRefSchema.safeParse(asset).success).toBe(false);
++  expect(AssetRefSchema.safeParse({ ...asset, origin: 'ai' }).success).toBe(false);
++});
++
++test('brief takes an optional avatar with a known source', () => {
++  expect(BriefSchema.parse({ ...brief, avatar: { source: 'supplied', portrait: 'input/me.png' } }).avatar?.source).toBe(
++    'supplied',
++  );
++  expect(BriefSchema.safeParse({ ...brief, avatar: { source: 'magic' } }).success).toBe(false);
++});
++
++const step = (i: number, extra: object = {}) => ({
++  i,
++  url: 'https://app.example.com',
++  action: 'click',
++  target: 'Export',
++  expect: 'dialog opens',
++  ...extra,
++});
++
++test('a step url must be http(s), since the replay opens it', () => {
++  for (const bad of ['file:///C:/x', 'javascript:alert(1)']) {
++    expect(StepsSchema.safeParse([step(0, { url: bad })]).success).toBe(false);
++  }
++});
++
++test('urls carrying a username or password are rejected', () => {
++  const bad = 'https://user:pw@a.com/x';
++  expect(BriefSchema.safeParse({ ...brief, sources: [{ kind: 'product_url', path_or_url: bad }] }).success).toBe(false);
++  expect(ScriptSchema.safeParse(script([{ ...line, cite: [bad] }])).success).toBe(false);
++});
++
++test('steps parse a click and a type with a value', () => {
++  expect(StepsSchema.parse([step(0), step(1, { action: 'type', target: 'Name', value: 'Q3 report' })])).toHaveLength(2);
++});
++
++test('a type step without a value is rejected', () => {
++  expect(StepsSchema.safeParse([step(0, { action: 'type' })]).success).toBe(false);
++});
++
++test('step numbers must go up', () => {
++  expect(StepsSchema.safeParse([step(0), step(0)]).success).toBe(false);
++  expect(StepsSchema.safeParse([step(1), step(0)]).success).toBe(false);
++});
++
++test('an unknown step action is rejected', () => {
++  expect(StepsSchema.safeParse([step(0, { action: 'hover' })]).success).toBe(false);
++});
++
++const entry = { i: 0, t0: 1.2, t1: 3.4, url: 'https://app.example.com' };
++
++test('capture log entries take an optional box, failure reason and fallback', () => {
++  const log = CaptureLogSchema.parse([
++    entry,
++    { ...entry, i: 1, t0: 3.4, t1: 3.4, failed: 'target "Export" not found', fallback: 'capture/nav-frames/0012.png' },
++    { ...entry, i: 2, box: { x: 10, y: 20, w: 300, h: 40 } },
++  ]);
++  expect(log[1]?.failed).toContain('Export');
++});
++
++test('a capture log entry cannot end before it starts', () => {
++  expect(CaptureLogSchema.safeParse([{ ...entry, t0: 5, t1: 4 }]).success).toBe(false);
++});
++
++test('doctor.json records tool versions, paths and smoke timings', () => {
++  const d = DoctorSchema.parse({
++    checked_at: '2026-10-09T17:00:00Z',
++    tools: {
++      hyperframes: { ok: true, version: '0.8.143' },
++      ffmpeg: { ok: true, version: '9.0', path: 'C:/ffmpeg/bin/ffmpeg.exe' },
++      whisper: { ok: false, detail: 'not installed' },
++    },
++    smoke_s: { draft_render: 15.2 },
++  });
++  expect(d.tools.hyperframes?.version).toBe('0.8.143');
++  expect(DoctorSchema.safeParse({ checked_at: 'yesterday', tools: {}, smoke_s: {} }).success).toBe(false);
++});
+diff --git a/lib/contracts/types.ts b/lib/contracts/types.ts
+new file mode 100644
+index 0000000..0cfeae7
+--- /dev/null
++++ b/lib/contracts/types.ts
+@@ -0,0 +1,357 @@
++// Data contracts for the Video Machine (spec §3) and adapter contracts (§4).
++// Every JSON file the skill writes goes through writeJson/readJson: a failed parse is an error, never a warning.
++
++import { z } from 'zod';
++
++// ------------------------------------------------------------------ formats
++export const FormatIdSchema = z.enum(['landscape_1080p', 'reel', 'square', 'portrait_feed']);
++export type FormatId = z.infer<typeof FormatIdSchema>;
++
++type Safe = { top: number; bottom: number; left: number; right: number };
++/** Fixed table; adding a format = one line here (and one in FormatIdSchema). */
++export const FORMATS: Record<FormatId, { w: number; h: number; fps: number; safe: Safe }> = {
++  landscape_1080p: { w: 1920, h: 1080, fps: 30, safe: { top: 0.05, bottom: 0.05, left: 0.05, right: 0.05 } },
++  reel: { w: 1080, h: 1920, fps: 30, safe: { top: 0.14, bottom: 0.2, left: 0.06, right: 0.06 } },
++  square: { w: 1080, h: 1080, fps: 30, safe: { top: 0.06, bottom: 0.06, left: 0.06, right: 0.06 } },
++  portrait_feed: { w: 1080, h: 1350, fps: 30, safe: { top: 0.06, bottom: 0.08, left: 0.06, right: 0.06 } },
++};
++
++/** What a plate lays itself out against (§7). */
++export type Frame = { w: number; h: number; aspect: 'landscape' | 'vertical' | 'square'; safe: Safe };
++export const frameOf = (f: FormatId): Frame => {
++  const { w, h, safe } = FORMATS[f];
++  return { w, h, safe, aspect: w > h ? 'landscape' : w < h ? 'vertical' : 'square' };
++};
++
++const formatRecord = <T extends z.ZodType>(v: T) => z.partialRecord(FormatIdSchema, v);
++// No credentials in URLs: they would leak into run folders and logs.
++const httpUrl = z.url({ protocol: /^https?$/ }).refine((u) => {
++  // zod runs this even when the url check failed, so unparseable input must pass through to that error
++  if (!URL.canParse(u)) return true;
++  const { username, password } = new URL(u);
++  return !username && !password;
++}, 'URL must not contain a username or password');
++
++// ------------------------------------------------------------------ brief
++export const DeliverableSchema = z.object({
++  format: FormatIdSchema,
++  kind: z.enum(['mp4_h264', 'mov_prores4444', 'png_sequence', 'webm', 'gif', 'srt', 'ae_package']),
++  captions: z.enum(['burned', 'separate', 'none']),
++});
++export type Deliverable = z.infer<typeof DeliverableSchema>;
++
++// brief.sources: whatever the creator handed over besides concept.md (BLUEPRINT 1.6 Inputs). Empty = concept only.
++export const SourceSchema = z.discriminatedUnion('kind', [
++  z.object({ kind: z.enum(['nav_video', 'file']), path_or_url: z.string().min(1), note: z.string().optional() }),
++  z.object({ kind: z.enum(['product_url', 'link']), path_or_url: httpUrl, note: z.string().optional() }),
++]);
++export type Source = z.infer<typeof SourceSchema>;
++
++export const BriefSchema = z.object({
++  run_id: z.string().min(1),
++  concept: z.string().min(1),
++  goals: z.array(z.string()),
++  audience: z.string().optional(),
++  tone: z.string().optional(),
++  duration_target_s: z.tuple([z.number().positive(), z.number().positive()]).refine(([a, b]) => a <= b, 'min > max'),
++  timing_source: z.enum(['voiceover', 'music', 'text_only']),
++  voice: z
++    .discriminatedUnion('source', [
++      z.object({ source: z.literal('supplied'), path: z.string() }),
++      z.object({ source: z.literal('tts'), adapter: z.string(), voice_id: z.string() }),
++    ])
++    .optional(),
++  music: z
++    .discriminatedUnion('source', [
++      z.object({ source: z.literal('supplied'), path: z.string() }),
++      z.object({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
++    ])
++    .optional(),
++  formats: z.array(FormatIdSchema).min(1).default(['reel']),
++  deliverables: z.array(DeliverableSchema).default([]),
++  sources: z.array(SourceSchema).default([]),
++  // ponytail: Phase 8 decides where a supplied avatar clip's path lives; only the portrait is modelled now.
++  avatar: z
++    .object({
++      source: z.enum(['adapter', 'supplied']),
++      adapter: z.string().optional(),
++      portrait: z.string().optional(),
++    })
++    .optional(),
++  look_hint: z.string().optional(),
++  brand: z
++    .object({
++      logo: z.string().optional(),
++      colors: z
++        .array(
++          z.object({
++            hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
++            role: z.enum(['bg', 'fg', 'accent', 'muted']).optional(),
++          }),
++        )
++        .optional(),
++      fonts: z
++        .array(z.object({ family: z.string(), path: z.string().optional(), license: z.string().min(1) }))
++        .optional(),
++    })
++    .optional(),
++  cta: z.object({ text: z.string(), url_or_handle: z.string().optional() }).optional(),
++  must_include: z.array(z.string()).optional(),
++  must_avoid: z.array(z.string()).optional(),
++  budget_usd: z.number().min(0).default(0),
++});
++export type Brief = z.infer<typeof BriefSchema>;
++
++// ------------------------------------------------------------------ script
++export const ScriptSchema = z.object({
++  run_id: z.string(),
++  version: z.number().int().min(1),
++  lines: z
++    .array(
++      z.object({
++        id: z.string(),
++        text: z.string().min(1), // what is said (or shown, if text_only)
++        spoken: z.string().optional(), // how TTS/aligner should read it ("5.5" → "five point five")
++        on_screen: z.string().optional(),
++        delivery: z.enum(['voiceover', 'avatar']).default('voiceover'),
++        section: z.string().min(1).optional(),
++        cite: z.array(httpUrl).min(1).optional(),
++      }),
++    )
++    .min(1),
++});
++export type Script = z.infer<typeof ScriptSchema>;
++
++// ------------------------------------------------------------------ look
++export const LookSchema = z.object({
++  id: z.string(),
++  based_on: z.array(z.string()),
++  idea: z.string(),
++  palette: z
++    .array(
++      z.object({
++        name: z.string(),
++        hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
++        role: z.enum(['bg', 'fg', 'accent', 'muted']),
++      }),
++    )
++    .min(1),
++  type: z
++    .array(
++      z.object({
++        role: z.enum(['display', 'body', 'mono', 'label']),
++        family: z.string(),
++        weights: z.array(z.number()),
++        license: z.string().min(1),
++      }),
++    )
++    .min(1),
++  motion: z.object({
++    character: z.string(),
++    easings: z.array(z.string()),
++    typical_beat_s: z.tuple([z.number(), z.number()]),
++    camera: z.string(),
++  }),
++  motifs: z.array(z.object({ id: z.string(), meaning: z.string(), code: z.string().optional() })),
++  post: z.record(z.string(), z.number()),
++  layout_rules: z.object({ landscape: z.string(), vertical: z.string(), square: z.string() }),
++});
++export type Look = z.infer<typeof LookSchema>;
++
++// ------------------------------------------------------------------ plan
++export const ScenePlanSchema = z.object({
++  scene_id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
++  section: z.string().optional(),
++  lines: z.array(z.string()).min(1),
++  cut_in: z.object({ anchor: z.string(), rule: z.enum(['pause_before', 'on_word', 'on_beat']) }),
++  intent: z.string(),
++  beats: z.array(
++    z.object({
++      on: z.string(), // word/phrase found by content, or "beat:12"
++      nth: z.number().int().min(0).optional(),
++      does: z.string(),
++      motif: z.string().optional(),
++      hold: z.boolean().optional(),
++    }),
++  ),
++  layout: formatRecord(z.string()),
++  transition_out: z.string(),
++  asset_ids: z.array(z.string()),
++  overrides: z.string().optional(),
++  input_hash: z.string(),
++});
++export type ScenePlan = z.infer<typeof ScenePlanSchema>;
++
++export const PlanSchema = z
++  .object({
++    run_id: z.string(),
++    version: z.number().int().min(1),
++    look_id: z.string(),
++    // Long-form (Phase 9) fills sections; reels leave them out.
++    sections: z
++      .array(z.object({ id: z.string().regex(/^[a-z][a-z0-9_-]*$/), title: z.string().min(1) }))
++      .min(1)
++      .optional(),
++    visuals_plan: z.object({ scenes: z.array(ScenePlanSchema).min(1) }),
++    asset_ids: z.array(z.string()),
++    formats: z.array(FormatIdSchema).min(1),
++  })
++  .superRefine((plan, ctx) => {
++    const known = new Set(plan.sections?.map((s) => s.id));
++    plan.visuals_plan.scenes.forEach((s, k) => {
++      if (s.section === undefined || known.has(s.section)) return;
++      ctx.addIssue({
++        code: 'custom',
++        message: `scene "${s.scene_id}" names unknown section "${s.section}"`,
++        path: ['visuals_plan', 'scenes', k, 'section'],
++      });
++    });
++  });
++export type Plan = z.infer<typeof PlanSchema>;
++
++// ------------------------------------------------------------------ assets
++export const AssetRefSchema = z.object({
++  asset_id: z.string(),
++  kind: z.enum(['image', 'video', 'audio', 'font', 'svg', 'data']),
++  path: z.string(),
++  source: z.string(),
++  license: z.string(),
++  usage: z.enum(['render', 'reference_only']),
++  origin: z.enum(['supplied', 'nav_video', 'captured', 'web', 'found', 'drawn']),
++});
++export type AssetRef = z.infer<typeof AssetRefSchema>;
++
++// ------------------------------------------------------------------ timing
++// data/timing.json: the engine's word-timed format (what align_vo.py writes as lyrics.json).
++const WordTimingSchema = z.object({
++  w: z.string(),
++  start: z.number(),
++  end: z.number(),
++  syl: z.array(z.tuple([z.number(), z.number()])).optional(),
++  conf: z.number().optional(),
++});
++export const TimingSchema = z.object({
++  source: z.string().optional(),
++  lines: z.array(z.object({ text: z.string(), start: z.number(), end: z.number(), words: z.array(WordTimingSchema) })),
++  beats: z.array(z.number()).optional(),
++});
++export type Timing = z.infer<typeof TimingSchema>;
++
++// ------------------------------------------------------------------ capture
++// capture/steps.json: the replay script for the product walk-through.
++const StepSchema = z
++  .object({
++    i: z.number().int().min(0),
++    url: httpUrl, // the replay opens it
++    action: z.enum(['click', 'type', 'scroll', 'wait']),
++    target: z.string(),
++    value: z.string().optional(),
++    expect: z.string(),
++  })
++  .refine((s) => s.action !== 'type' || s.value !== undefined, {
++    message: 'a type step needs a value',
++    path: ['value'],
++  });
++export const StepsSchema = z
++  .array(StepSchema)
++  .refine((steps) => steps.every((s, k) => k === 0 || s.i > (steps[k - 1]?.i ?? -1)), 'step numbers must go up');
++export type Steps = z.infer<typeof StepsSchema>;
++
++// capture/log.json: what the replay did for each step, with times on the nav-video timeline.
++export const CaptureLogSchema = z.array(
++  z
++    .object({
++      i: z.number().int().min(0),
++      t0: z.number().min(0),
++      t1: z.number().min(0),
++      box: z.object({ x: z.number(), y: z.number(), w: z.number().positive(), h: z.number().positive() }).optional(),
++      url: z.string(),
++      failed: z.string().optional(), // why the step failed, in words
++      fallback: z.string().optional(), // run-relative path of the nav-video frame used instead
++    })
++    .refine((e) => e.t1 >= e.t0, { message: 't1 is before t0', path: ['t1'] }),
++);
++export type CaptureLog = z.infer<typeof CaptureLogSchema>;
++
++// ~/.video-machine/doctor.json (VM_HOME, never in a run folder): tool versions and smoke-render timings.
++export const DoctorSchema = z.object({
++  checked_at: z.iso.datetime(),
++  tools: z.record(
++    z.string(),
++    z.object({
++      ok: z.boolean(),
++      version: z.string().optional(),
++      path: z.string().optional(),
++      detail: z.string().optional(),
++    }),
++  ),
++  smoke_s: z.record(z.string(), z.number().min(0)),
++});
++export type Doctor = z.infer<typeof DoctorSchema>;
++
++// ------------------------------------------------------------------ test results
++export const TestResultsSchema = z.object({
++  run_id: z.string(),
++  plan_version: z.number().int(),
++  output_paths: z.object({
++    stills: formatRecord(z.array(z.string())),
++    contact_sheets: formatRecord(z.string()),
++    drafts: formatRecord(z.string()),
++    deliverables: z.array(z.object({ deliverable: DeliverableSchema, path: z.string() })),
++    report: z.string(),
++  }),
++  checks: z.array(
++    z.object({
++      id: z.string(),
++      format: FormatIdSchema.optional(),
++      blocking: z.boolean(),
++      status: z.enum(['pass', 'fail', 'skip']),
++      detail: z.string(),
++      annotations: z.array(
++        z.object({
++          scene_id: z.string().optional(),
++          t: z.number().optional(),
++          problem: z.string(),
++          suggested_fix: z.string(),
++        }),
++      ),
++    }),
++  ),
++  summary: z.object({ blocking_failed: z.number().int(), warnings: z.number().int() }),
++});
++export type TestResults = z.infer<typeof TestResultsSchema>;
++
++// ------------------------------------------------------------------ adapter contracts (§4)
++export type Issue = { severity: 'error' | 'warning'; scene_id?: string; message: string };
++export type LayerPass = 'bg' | 'graphics' | 'type' | 'captions' | 'fx';
++
++export interface RenderAdapter {
++  name: string;
++  supports(format: FormatId): { ok: boolean; reason?: string };
++  lint(runDir: string): Promise<Issue[]>;
++  check(runDir: string): Promise<Issue[]>;
++  still(runDir: string, format: FormatId, t: number[], only?: string[]): Promise<string[]>;
++  contactSheet(runDir: string, format: FormatId, perScene: number): Promise<string>;
++  render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): Promise<string>;
++}
++export interface VoiceAdapter {
++  synth(lines: Script['lines'], voice_id: string): string;
++  costEstimate(lines: Script['lines']): number;
++}
++export interface MusicAdapter {
++  get(query: string, duration_s: number): AssetRef;
++  costEstimate?(query: string): number;
++}
++export interface AlignAdapter {
++  /** Resolves to the timing.json path. */
++  align(audioPath: string, lines: Script['lines'], spokenWords?: Record<string, string[]>): Promise<string>;
++}
++export interface AssetAdapter {
++  find(query: string, kind: AssetRef['kind']): AssetRef[];
++  make?(spec: string): AssetRef;
++  costEstimate?(spec: string): number;
++}
++export interface ExportAdapter {
++  kind: Deliverable['kind'];
++  export(runDir: string, d: Deliverable): string;
++}
+diff --git a/lib/core/config.test.ts b/lib/core/config.test.ts
+new file mode 100644
+index 0000000..4ebb95e
+--- /dev/null
++++ b/lib/core/config.test.ts
+@@ -0,0 +1,61 @@
++import { expect, test } from 'bun:test';
++import { existsSync } from 'node:fs';
++import { homedir } from 'node:os';
++import path from 'node:path';
++import { HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT, SECRET_ENV } from './config';
++
++test('HyperFrames is pinned to 0.8.143', () => {
++  expect(HYPERFRAMES_VERSION).toBe('0.8.143');
++});
++
++test('PLUGIN_ROOT is the repo root', () => {
++  expect(existsSync(path.join(PLUGIN_ROOT, 'package.json'))).toBe(true);
++  expect(existsSync(path.join(PLUGIN_ROOT, 'lib', 'core', 'config.ts'))).toBe(true);
++});
++
++test('vmHome defaults to ~/.video-machine', () => {
++  expect(loadConfig({}).vmHome).toBe(path.join(homedir(), '.video-machine'));
++});
++
++test('VM_HOME overrides vmHome', () => {
++  expect(loadConfig({ VM_HOME: 'some/vm-home' }).vmHome).toBe(path.resolve('some/vm-home'));
++});
++
++test('bun is the pinned bun inside the plugin', () => {
++  expect(loadConfig({}).bun.startsWith(path.join(PLUGIN_ROOT, 'node_modules', '.bin', 'bun'))).toBe(true);
++});
++
++test('toolEnv keeps the parent env and switches off telemetry, skills installs and cp1252 pipes', () => {
++  expect(loadConfig({ PATH: '/bin', FOO: 'bar' }).toolEnv).toMatchObject({
++    PATH: '/bin',
++    FOO: 'bar',
++    HYPERFRAMES_NO_TELEMETRY: '1',
++    HYPERFRAMES_SKIP_SKILLS: '1',
++    PYTHONUTF8: '1',
++  });
++});
++
++test('a parent setting cannot switch telemetry back on', () => {
++  expect(loadConfig({ HYPERFRAMES_NO_TELEMETRY: '0' }).toolEnv.HYPERFRAMES_NO_TELEMETRY).toBe('1');
++});
++
++test('toolEnv never hands API keys to child processes', () => {
++  expect(SECRET_ENV).toEqual(expect.arrayContaining(['HEYGEN_API_KEY', 'ELEVENLABS_API_KEY', 'GEMINI_API_KEY']));
++  const env = Object.fromEntries(SECRET_ENV.map((k) => [k, 'secret']));
++  const { toolEnv } = loadConfig({ ...env, PATH: '/bin' });
++  for (const k of SECRET_ENV) expect(toolEnv[k]).toBeUndefined();
++  expect(toolEnv.PATH).toBe('/bin');
++});
++
++test('keys, tokens and secrets are removed whatever their letter case, other keys survive', () => {
++  const { toolEnv } = loadConfig({
++    heygen_api_key: 'secret',
++    Gemini_Api_Key: 'secret',
++    Anthropic_Api_Key: 'secret',
++    hf_token: 'secret',
++    Some_Secret: 'secret',
++    Path: 'C:\\bin',
++  });
++  expect(Object.keys(toolEnv).filter((k) => /(_API_KEY|_TOKEN|_SECRET)$/i.test(k))).toEqual([]);
++  expect(toolEnv.Path).toBe('C:\\bin');
++});
+diff --git a/lib/core/config.ts b/lib/core/config.ts
+new file mode 100644
+index 0000000..f06adac
+--- /dev/null
++++ b/lib/core/config.ts
+@@ -0,0 +1,53 @@
++// The only file that reads the environment (AGENT_PROMPT §6).
++
++import { homedir } from 'node:os';
++import path from 'node:path';
++
++/** An environment: variable name to value. */
++export type Env = Record<string, string | undefined>;
++/** Settings every module gets from `loadConfig`. */
++export type Config = { pluginRoot: string; vmHome: string; bun: string; toolEnv: Env };
++
++/** The HyperFrames version every `npx hyperframes` call is pinned to. */
++export const HYPERFRAMES_VERSION = '0.8.143';
++
++/** Root of the plugin (the repo root). */
++export const PLUGIN_ROOT = path.resolve(import.meta.dir, '../..');
++
++/** Environment variables that hold API keys; child processes never see them. */
++export const SECRET_ENV = ['HEYGEN_API_KEY', 'ELEVENLABS_API_KEY', 'GEMINI_API_KEY'] as const;
++const SECRETS = new Set<string>(SECRET_ENV);
++const SECRET_PATTERN = /(_API_KEY|_TOKEN|_SECRET)$/i;
++
++/**
++ * Copy of `env` without API keys.
++ * Returns a new env; the input is not changed.
++ */
++export const stripSecrets = (env: Env): Env =>
++  // ponytail: known list + name pattern; add an allowlist if a tool ever needs a token.
++  // Windows env names ignore case, so match keys upper-cased.
++  Object.fromEntries(Object.entries(env).filter(([k]) => !SECRETS.has(k.toUpperCase()) && !SECRET_PATTERN.test(k)));
++
++/**
++ * The env for a child process: `env` without API keys, telemetry and skill installs off, UTF-8 Python.
++ * Returns a new env; the input is not changed.
++ */
++export const toToolEnv = (env: Env): Env => ({
++  ...stripSecrets(env),
++  // Set last so the parent cannot override them.
++  HYPERFRAMES_NO_TELEMETRY: '1',
++  HYPERFRAMES_SKIP_SKILLS: '1',
++  PYTHONUTF8: '1',
++});
++
++/**
++ * Read settings from `env` (default: the process environment).
++ * Returns the plugin root, the user data folder, the pinned bun and the env for child processes (`toToolEnv`).
++ */
++export const loadConfig = (env: Env = process.env): Config => ({
++  pluginRoot: PLUGIN_ROOT,
++  vmHome: path.resolve(env.VM_HOME ?? path.join(homedir(), '.video-machine')),
++  // The global bun (1.3.5) cannot launch Chrome; use the pinned one.
++  bun: path.join(PLUGIN_ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'bun.exe' : 'bun'),
++  toolEnv: toToolEnv(env),
++});
+diff --git a/lib/core/deps.ts b/lib/core/deps.ts
+new file mode 100644
+index 0000000..6ecbd28
+--- /dev/null
++++ b/lib/core/deps.ts
+@@ -0,0 +1,11 @@
++import { type Config, loadConfig } from './config';
++import { type Sh, sh } from './sh';
++
++/** What an adapter needs from the outside world; tests pass a fake `sh` and a config built from a fake env. */
++export type Deps = { sh: Sh; config: Config };
++
++/**
++ * The real dependencies: the process runner and the settings read from the process environment.
++ * Returns a new `Deps`; throws nothing.
++ */
++export const defaultDeps = (): Deps => ({ sh, config: loadConfig() });
+diff --git a/lib/core/errors.test.ts b/lib/core/errors.test.ts
+new file mode 100644
+index 0000000..846165f
+--- /dev/null
++++ b/lib/core/errors.test.ts
+@@ -0,0 +1,34 @@
++import { expect, test } from 'bun:test';
++import { ContractError, ToolError, UnsupportedError, VideoMachineError } from './errors';
++
++test('subclasses are VideoMachineErrors and carry their own name', () => {
++  for (const e of [new ContractError('x'), new UnsupportedError('y')]) {
++    expect(e).toBeInstanceOf(VideoMachineError);
++    expect(e).toBeInstanceOf(Error);
++  }
++  expect(new ContractError('x').name).toBe('ContractError');
++  expect(new UnsupportedError('y').name).toBe('UnsupportedError');
++});
++
++test('errors keep their cause', () => {
++  const cause = new SyntaxError('bad');
++  expect(new ContractError('wrap', { cause }).cause).toBe(cause);
++});
++
++test('ToolError keeps the command, exit code and only the last 2 KB of stderr', () => {
++  const e = new ToolError({ cmd: ['ffmpeg', '-i', 'x.mp4'], code: 3, stderr: `${'a'.repeat(5000)}END` });
++  expect(e.name).toBe('ToolError');
++  expect(e.cmd).toEqual(['ffmpeg', '-i', 'x.mp4']);
++  expect(e.code).toBe(3);
++  expect(e.timedOut).toBe(false);
++  expect(e.stderrTail.length).toBe(2048);
++  expect(e.stderrTail.endsWith('END')).toBe(true);
++  expect(e.message).toContain('ffmpeg -i x.mp4');
++  expect(e.message).toContain('exit 3');
++});
++
++test('ToolError says when the command timed out', () => {
++  const e = new ToolError({ cmd: ['hyperframes', 'render'], code: null, stderr: '', timedOut: true });
++  expect(e.timedOut).toBe(true);
++  expect(e.message).toContain('timed out');
++});
+diff --git a/lib/core/errors.ts b/lib/core/errors.ts
+new file mode 100644
+index 0000000..5a45ebf
+--- /dev/null
++++ b/lib/core/errors.ts
+@@ -0,0 +1,32 @@
++/** Base class of every error the Video Machine throws on purpose. */
++export class VideoMachineError extends Error {
++  constructor(message: string, options?: ErrorOptions) {
++    super(message, options);
++    this.name = new.target.name;
++  }
++}
++
++/** A run-folder file does not match its schema, or is not JSON at all. */
++export class ContractError extends VideoMachineError {}
++
++/** The caller asked for something this adapter does not do (never faked). */
++export class UnsupportedError extends VideoMachineError {}
++
++/** A child process failed, could not start, or timed out. */
++export class ToolError extends VideoMachineError {
++  readonly cmd: string[];
++  readonly code: number | null;
++  readonly stderrTail: string;
++  readonly timedOut: boolean;
++
++  /** Build the error from the command, its exit code (null if none) and stderr; only the last 2048 chars are kept. */
++  constructor(o: { cmd: string[]; code: number | null; stderr: string; timedOut?: boolean }, options?: ErrorOptions) {
++    const stderrTail = o.stderr.slice(-2048);
++    const how = o.timedOut ? 'timed out' : `exit ${o.code ?? 'none'}`;
++    super(`${how}: ${o.cmd.join(' ')}\n${stderrTail}`.trimEnd(), options);
++    this.cmd = o.cmd;
++    this.code = o.code;
++    this.stderrTail = stderrTail;
++    this.timedOut = o.timedOut ?? false;
++  }
++}
+diff --git a/lib/core/json.test.ts b/lib/core/json.test.ts
+new file mode 100644
+index 0000000..1b9e672
+--- /dev/null
++++ b/lib/core/json.test.ts
+@@ -0,0 +1,65 @@
++import { expect, test } from 'bun:test';
++import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import { z } from 'zod';
++import { ContractError } from './errors';
++import { readJson, writeJson } from './json';
++
++const Schema = z.object({ n: z.number(), tag: z.string().default('x') });
++const tmp = () => mkdtempSync(path.join(tmpdir(), 'vm-'));
++
++test('writeJson creates folders and writes 1-space JSON with LF and a trailing newline', () => {
++  const f = path.join(tmp(), 'a', 'b.json');
++  writeJson(f, Schema, { n: 1 });
++  expect(readFileSync(f, 'utf8')).toBe('{\n "n": 1,\n "tag": "x"\n}\n');
++});
++
++test('writeJson refuses invalid data and writes nothing', () => {
++  const f = path.join(tmp(), 'bad.json');
++  expect(() => writeJson(f, Schema, { n: 'one' } as never)).toThrow(ContractError);
++  expect(existsSync(f)).toBe(false);
++});
++
++test('readJson returns the parsed data with defaults applied', () => {
++  const f = path.join(tmp(), 'ok.json');
++  writeFileSync(f, '{"n": 2}');
++  expect(readJson(f, Schema)).toEqual({ n: 2, tag: 'x' });
++});
++
++test('readJson parses a file that starts with a BOM', () => {
++  const f = path.join(tmp(), 'bom.json');
++  writeFileSync(f, '﻿{"n": 3}');
++  expect(readJson(f, Schema)).toEqual({ n: 3, tag: 'x' });
++});
++
++test('writeJson replaces an existing file and leaves no .tmp behind', () => {
++  const dir = tmp();
++  const f = path.join(dir, 'a.json');
++  writeJson(f, Schema, { n: 1 });
++  writeJson(f, Schema, { n: 2 });
++  expect(readJson(f, Schema).n).toBe(2);
++  expect(readdirSync(dir)).toEqual(['a.json']);
++});
++
++test('readJson names the file when it does not match the schema', () => {
++  const f = path.join(tmp(), 'wrong.json');
++  writeFileSync(f, '{"n": "two"}');
++  expect(() => readJson(f, Schema)).toThrow(ContractError);
++  expect(() => readJson(f, Schema)).toThrow(f);
++});
++
++test('readJson turns malformed JSON into a ContractError that names the file and keeps the cause', () => {
++  const f = path.join(tmp(), 'broken.json');
++  writeFileSync(f, '{"n": ');
++  let caught: unknown;
++  try {
++    readJson(f, Schema);
++  } catch (e) {
++    caught = e;
++  }
++  expect(caught).toBeInstanceOf(ContractError);
++  expect((caught as Error).message).toContain(f);
++  expect((caught as Error).message).toContain(((caught as Error).cause as Error).message);
++  expect((caught as Error).cause).toBeInstanceOf(SyntaxError);
++});
+diff --git a/lib/core/json.ts b/lib/core/json.ts
+new file mode 100644
+index 0000000..a3b9ff8
+--- /dev/null
++++ b/lib/core/json.ts
+@@ -0,0 +1,38 @@
++import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
++import path from 'node:path';
++import { z } from 'zod';
++import { ContractError } from './errors';
++
++/**
++ * Read a JSON file and parse it against its schema.
++ * Returns the parsed data (defaults applied). Throws ContractError naming the file when the JSON is malformed
++ * or does not match the schema; a missing file throws the fs error, which already names the path.
++ */
++export function readJson<T extends z.ZodType>(file: string, schema: T): z.infer<T> {
++  let raw: unknown;
++  try {
++    // Windows tools (Notepad, PowerShell) write a BOM that JSON.parse rejects.
++    raw = JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
++  } catch (cause) {
++    if (!(cause instanceof SyntaxError)) throw cause;
++    throw new ContractError(`${file} is not valid JSON: ${cause.message}`, { cause });
++  }
++  const r = schema.safeParse(raw);
++  if (!r.success) throw new ContractError(`${file} does not match its schema:\n${z.prettifyError(r.error)}`);
++  return r.data;
++}
++
++/**
++ * Validate, then write (1-space indent, LF, trailing newline), creating folders.
++ * Returns the validated data. Throws ContractError when the data is invalid; nothing is written then.
++ */
++export function writeJson<T extends z.ZodType>(file: string, schema: T, data: z.input<T>): z.infer<T> {
++  const r = schema.safeParse(data);
++  if (!r.success) throw new ContractError(`refusing to write ${file}:\n${z.prettifyError(r.error)}`);
++  mkdirSync(path.dirname(file), { recursive: true });
++  // Write beside the target, then rename: a crash never leaves a half-written file.
++  const tmp = `${file}.tmp`;
++  writeFileSync(tmp, `${JSON.stringify(r.data, null, 1)}\n`);
++  renameSync(tmp, file);
++  return r.data;
++}
+diff --git a/lib/core/sh.test.ts b/lib/core/sh.test.ts
+new file mode 100644
+index 0000000..f373d4a
+--- /dev/null
++++ b/lib/core/sh.test.ts
+@@ -0,0 +1,127 @@
++import { expect, test } from 'bun:test';
++import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import { loadConfig } from './config';
++import { ToolError } from './errors';
++import { sh } from './sh';
++
++const js = (code: string) => [process.execPath, '-e', code]; // the bun running the tests
++
++test('returns code, stdout and stderr of a successful command', async () => {
++  const r = await sh(js("process.stdout.write('out'); process.stderr.write('err')"));
++  expect(r).toEqual({ code: 0, stdout: 'out', stderr: 'err' });
++});
++
++test('throws a ToolError with the exit code and stderr when the command fails', async () => {
++  const e = await sh(js("process.stderr.write('boom'); process.exit(3)")).catch((x: unknown) => x);
++  expect(e).toBeInstanceOf(ToolError);
++  expect((e as ToolError).code).toBe(3);
++  expect((e as ToolError).stderrTail).toBe('boom');
++});
++
++test('allowFail returns a failed result instead of throwing', async () => {
++  const r = await sh(js("process.stdout.write('{}'); process.exit(1)"), { allowFail: true });
++  expect(r).toEqual({ code: 1, stdout: '{}', stderr: '' });
++});
++
++test('a missing executable is a ToolError', async () => {
++  await expect(sh(['vm-no-such-tool-xyz'])).rejects.toBeInstanceOf(ToolError);
++});
++
++test('an empty command is rejected before anything is spawned', async () => {
++  await expect(sh([])).rejects.toBeInstanceOf(ToolError);
++});
++
++test('passes cwd and env to the child', async () => {
++  const dir = mkdtempSync(path.join(tmpdir(), 'vm-'));
++  const env = { ...loadConfig().toolEnv, VM_T: 'yes' };
++  const r = await sh(js("process.stdout.write(process.cwd() + '|' + process.env.VM_T)"), { cwd: dir, env });
++  expect(r.stdout.endsWith(`${path.basename(dir)}|yes`)).toBe(true);
++});
++
++test('without an env the child gets the tool env (telemetry off)', async () => {
++  const r = await sh(js('process.stdout.write(String(process.env.HYPERFRAMES_NO_TELEMETRY))'));
++  expect(r.stdout).toBe('1');
++});
++
++test('a command that outlives its timeout is killed and reported as timed out', async () => {
++  const e = await sh(js('setInterval(() => {}, 1e6)'), { timeoutMs: 500 }).catch((x: unknown) => x);
++  expect(e).toBeInstanceOf(ToolError);
++  expect((e as ToolError).timedOut).toBe(true);
++});
++
++test('an explicit env is stripped of API keys and still gets the tool vars', async () => {
++  const env = { ...process.env, OPENAI_API_KEY: 'sk-secret' };
++  const r = await sh(
++    js("process.stdout.write((process.env.OPENAI_API_KEY ?? 'unset') + '|' + process.env.PYTHONUTF8)"),
++    {
++      env,
++    },
++  );
++  expect(r.stdout).toBe('unset|1');
++});
++
++test('when stderr is empty the ToolError carries the stdout tail', async () => {
++  const e = await sh(js("process.stdout.write('oops'); process.exit(2)")).catch((x: unknown) => x);
++  expect((e as ToolError).stderrTail).toBe('oops');
++});
++
++test('large stdout and stderr both come back complete', async () => {
++  const n = 1_500_000;
++  const r = await sh(js(`process.stdout.write('a'.repeat(${n})); process.stderr.write('b'.repeat(${n}))`));
++  expect([r.stdout.length, r.stderr.length]).toEqual([n, n]);
++});
++
++test.skipIf(process.platform !== 'win32')(
++  'a timed-out command whose pipes stay open elsewhere still rejects shortly after the timeout',
++  async () => {
++    // z outlives the killed tree (its parent y exits at once) and keeps the inherited pipes open for 6 s
++    const z = 'setTimeout(() => {}, 6000)';
++    const spawnOf = (code: string, opts: string) =>
++      `require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(code)}], ${opts})`;
++    const y = `${spawnOf(z, "{ stdio: 'inherit', detached: true }")}.unref()`;
++    const x = `${spawnOf(y, "{ stdio: 'inherit' }")}; setInterval(() => {}, 1e6)`;
++    const started = Date.now();
++    const e = await sh(js(x), { timeoutMs: 1500 }).catch((err: unknown) => err);
++    expect((e as ToolError).timedOut).toBe(true);
++    expect(Date.now() - started).toBeLessThan(1500 + 3500);
++  },
++  15_000,
++);
++
++test.skipIf(process.platform !== 'win32')(
++  'a command that already exited resolves normally even if a grandchild keeps the pipes open',
++  async () => {
++    const z = 'setTimeout(() => {}, 6000)';
++    const y = `require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(z)}], { stdio: 'inherit', detached: true }).unref()`;
++    const started = Date.now();
++    const r = await sh(js(y), { timeoutMs: 1500 });
++    expect(r.code).toBe(0);
++    expect(Date.now() - started).toBeLessThan(1500 + 3500);
++  },
++  15_000,
++);
++
++test.skipIf(process.platform !== 'win32')(
++  'on Windows the timeout kills the whole process tree, not just the child',
++  async () => {
++    const pidFile = path.join(mkdtempSync(path.join(tmpdir(), 'vm-')), 'gc.pid').replaceAll('\\', '/');
++    const script = `require('fs').writeFileSync('${pidFile}', String(process.pid)); setInterval(() => {}, 1e6)`;
++    const e = await sh(['cmd', '/c', process.execPath, '-e', script], { timeoutMs: 2000 }).catch((x: unknown) => x);
++    expect((e as ToolError).timedOut).toBe(true);
++    expect(existsSync(pidFile)).toBe(true); // the grandchild really started
++    const grandchild = Number(readFileSync(pidFile, 'utf8'));
++    const isAlive = () => {
++      try {
++        process.kill(grandchild, 0);
++        return true;
++      } catch {
++        return false;
++      }
++    };
++    for (let i = 0; i < 50 && isAlive(); i++) await Bun.sleep(100);
++    expect(isAlive()).toBe(false);
++  },
++  15_000,
++);
+diff --git a/lib/core/sh.ts b/lib/core/sh.ts
+new file mode 100644
+index 0000000..f3de767
+--- /dev/null
++++ b/lib/core/sh.ts
+@@ -0,0 +1,80 @@
++import { type Env, loadConfig, toToolEnv } from './config';
++import { ToolError } from './errors';
++
++export type ShResult = { code: number; stdout: string; stderr: string };
++export type ShOptions = { cwd?: string; env?: Env; timeoutMs?: number; allowFail?: boolean };
++export type Sh = (cmd: string[], opts?: ShOptions) => Promise<ShResult>;
++
++export const DEFAULT_TIMEOUT_MS = 600_000;
++/** After a timeout kill, how long to keep waiting for the pipes before giving up on them. */
++const PIPE_GRACE_MS = 2000;
++
++// ponytail: the whole-tree kill is Windows-only in v1. On macOS/Linux this kills the direct child, then cancels the
++// pipes after the grace period; spawn detached and kill the process group if grandchildren leak.
++/** Kill a process and everything it started (Windows), or at least the process itself. */
++const killTree = (proc: Bun.Subprocess): void => {
++  if (process.platform === 'win32') {
++    // proc.kill() orphans grandchildren on Windows (cmd → node, bunx → vite; probed in Phase 0 and Phase 1)
++    const r = Bun.spawnSync(['taskkill', '/T', '/F', '/PID', String(proc.pid)]);
++    if (r.exitCode === 0 || proc.exitCode !== null) return;
++  }
++  proc.kill('SIGKILL');
++};
++
++/** Read a stream to a string. `cancel` ends the read early; `done` then resolves with what arrived so far. */
++const drain = (stream: ReadableStream<Uint8Array>) => {
++  const reader = stream.getReader();
++  const decoder = new TextDecoder();
++  const done = (async () => {
++    let text = '';
++    for (;;) {
++      const chunk = await reader.read();
++      if (chunk.done) return text + decoder.decode();
++      text += decoder.decode(chunk.value, { stream: true });
++    }
++  })();
++  return { done, cancel: () => void reader.cancel() };
++};
++
++/**
++ * Run a command with a timeout. Returns code, stdout and stderr.
++ * Throws ToolError when the command cannot start, times out (after killing its process tree and giving up on
++ * pipes that stay open), or exits non-zero (unless `allowFail`). The child gets the tool env
++ * (`toToolEnv`: no API keys, telemetry off), built from `opts.env` or from the process environment.
++ */
++export const sh: Sh = async (cmd, opts = {}) => {
++  const { cwd, timeoutMs = DEFAULT_TIMEOUT_MS, allowFail = false } = opts;
++  const env = opts.env ? toToolEnv(opts.env) : loadConfig().toolEnv;
++  if (cmd.length === 0) throw new ToolError({ cmd, code: null, stderr: 'empty command' });
++  let proc: Bun.Subprocess<'ignore', 'pipe', 'pipe'>;
++  try {
++    proc = Bun.spawn(cmd, { cwd, env, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' });
++  } catch (cause) {
++    throw new ToolError({ cmd, code: null, stderr: (cause as Error).message }, { cause });
++  }
++  const out = drain(proc.stdout);
++  const err = drain(proc.stderr);
++  let timedOut = false;
++  let graceTimer: ReturnType<typeof setTimeout> | undefined;
++  const timer = setTimeout(() => {
++    // An already-exited child is neither killed nor a timeout, but a grandchild may still hold its pipes.
++    if (proc.exitCode === null) {
++      timedOut = true;
++      killTree(proc);
++    }
++    // A grandchild that escaped the kill can hold the pipes open; stop waiting for them.
++    graceTimer = setTimeout(() => {
++      out.cancel();
++      err.cancel();
++    }, PIPE_GRACE_MS);
++  }, timeoutMs);
++  const [stdout, stderr, code] = await Promise.all([out.done, err.done, proc.exited]).finally(() => {
++    clearTimeout(timer);
++    clearTimeout(graceTimer);
++  });
++  // Many tools report failures on stdout; keep that tail when stderr says nothing.
++  const detail = stderr || stdout;
++  if (timedOut) throw new ToolError({ cmd, code: null, stderr: detail, timedOut: true });
++  if (code !== 0 && !allowFail) throw new ToolError({ cmd, code, stderr: detail });
++  return { code, stdout, stderr };
++};
+diff --git a/package.json b/package.json
+index 1506e68..a6fba35 100644
+--- a/package.json
++++ b/package.json
+@@ -1,12 +1,18 @@
+ {
+   "name": "video-machine",
+   "private": true,
+   "type": "module",
++  "scripts": {
++    "lint": "tsc --noEmit && biome check --error-on-warnings . && uv run ruff check",
++    "format": "biome check --write . && uv run ruff format"
++  },
+   "devDependencies": {
++    "@biomejs/biome": "2.5.15",
+     "@types/bun": "latest",
+-    "bun": "1.4.2"
++    "bun": "1.4.2",
++    "typescript": "7.0.2"
+   },
+   "dependencies": {
+     "zod": "^4.1.0"
+   }
+ }
+diff --git a/pyproject.toml b/pyproject.toml
+index fa82afc..68967af 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,8 +1,21 @@
+ [project]
+ name = "video-machine"
+ version = "0.1.0"
+ requires-python = ">=3.13"
+ dependencies = [
+     "numpy>=2.5.3",
+     "onnxruntime>=1.30.0",
+ ]
++
++[dependency-groups]
++dev = [
++    "ruff==0.16.10",
++]
++
++[tool.ruff]
++line-length = 120
++extend-exclude = ["lib/adapters/align/ctc-onnx/analysis", "tests/fixture", "runs"]  # vendored aligner scripts stay as lifted
++
++[tool.ruff.lint.per-file-ignores]
++# audio_vo.py is a flat script: align.py runs its patched source on purpose (see the ponytail note there)
++"lib/adapters/align/ctc-onnx/align.py" = ["S102"]
+diff --git a/skills/make-video/SKILL.md b/skills/make-video/SKILL.md
+new file mode 100644
+index 0000000..e26ca18
+--- /dev/null
++++ b/skills/make-video/SKILL.md
+@@ -0,0 +1,9 @@
++---
++name: make-video
++description: "Use when the creator wants a motion-graphics video (reel first; long-form later) made from a concept, with optional navigation videos, product URL, files or links."
++---
++
++# Make a video
++
++Phase 1 placeholder. The procedure arrives in Phase 2. Tell the creator that the Video Machine is still being built and
++that no video can be made yet. Do not try to make one by other means.
+diff --git a/tests/phase0.ts b/tests/phase0.ts
+index 4fd55ff..f1459a0 100644
+--- a/tests/phase0.ts
++++ b/tests/phase0.ts
+@@ -1,94 +1,102 @@
+ // Phase 0 acceptance test.
+ //   node_modules/.bin/bun tests/phase0.ts
+-// 1. 1920x1080 stills of the fixture through the pdoom adapter are byte-identical to tests/baseline/
+-// 2. aligning the fixture voiceover through the ctc-onnx adapter reproduces the fixture's word times within 10 ms
+-// 3. a 1080x1920 (reel) still renders with no plate or page errors
+-// 4. video-testing's file list and sizes (excluding app/node_modules) match the listing taken before Phase 0
++// 1. aligning the fixture voiceover through the ctc-onnx adapter reproduces the fixture's word times within 10 ms
++// 2. video-testing's file list and sizes (excluding app/node_modules) match the listing taken before Phase 0
++
++import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+ import path from 'node:path';
+-import { readFileSync, readdirSync, statSync, rmSync, mkdirSync, copyFileSync } from 'node:fs';
+-import { pdoom } from '../.claude/skills/video-machine/adapters/render/pdoom';
+-import { align } from '../.claude/skills/video-machine/adapters/align/ctc-onnx';
+-import { readJson, TimingSchema } from '../.claude/skills/video-machine/contracts/types';
++import { ctcOnnx } from '../lib/adapters/align/ctc-onnx';
++import { TimingSchema } from '../lib/contracts/types';
++import { readJson } from '../lib/core/json';
+ 
+ const WS = path.resolve(import.meta.dir, '..');
+ const FIXTURE = path.join(WS, 'tests/fixture');
+ const SOURCE = 'C:/Work-data/video-testing';
+-const TIMES = [5, 12.5, 40.2, 70, 90];
+-// The source engine's hairline text is not bit-stable on this GPU: the same code gives one of two images at t=5
+-// (~15 px differ by 1/255, see HANDOFF.md). Exact bytes are still required; a frame gets this many renders to hit them.
+-const ATTEMPTS = 3;
+ 
+ const results: { test: string; ok: boolean; detail: string }[] = [];
+-const check = (test: string, fn: () => string) => {
++const check = async (test: string, fn: () => string | Promise<string>) => {
+   const t0 = performance.now();
+-  try { results.push({ test, ok: true, detail: fn() }); }
+-  catch (e) { results.push({ test, ok: false, detail: String((e as Error).message ?? e) }); }
+-  console.log(`${results.at(-1)!.ok ? 'PASS' : 'FAIL'}  ${test}  (${((performance.now() - t0) / 1000).toFixed(1)}s)\n      ${results.at(-1)!.detail.replace(/\n/g, '\n      ')}`);
+-};
+-
+-check('1. landscape stills byte-identical to baseline', () => {
+-  rmSync(path.join(FIXTURE, 'out'), { recursive: true, force: true });
+-  const name = (t: number) => `f_${t.toFixed(2).padStart(7, '0')}.png`;
+-  const same = (t: number) => Bun.hash(readFileSync(path.join(FIXTURE, 'out/stills/landscape_1080p', name(t)))) === Bun.hash(readFileSync(path.join(WS, 'tests/baseline', name(t))));
+-  const tries = new Map<number, number>();
+-  let todo = TIMES;
+-  for (let a = 1; a <= ATTEMPTS && todo.length; a++) {
+-    pdoom.still(FIXTURE, 'landscape_1080p', todo);
+-    for (const t of todo) tries.set(t, a);
+-    todo = todo.filter((t) => !same(t));
++  let result: { test: string; ok: boolean; detail: string };
++  try {
++    result = { test, ok: true, detail: await fn() };
++  } catch (e) {
++    result = { test, ok: false, detail: String((e as Error).message ?? e) };
+   }
+-  const report = TIMES.map((t) => `t=${t}: ${todo.includes(t) ? `DIFFERENT after ${ATTEMPTS} renders` : `identical (render ${tries.get(t)})`}`).join('\n');
+-  if (todo.length) throw new Error(report);
+-  return report;
+-});
++  results.push(result);
++  console.log(
++    `${result.ok ? 'PASS' : 'FAIL'}  ${test}  (${((performance.now() - t0) / 1000).toFixed(1)}s)\n      ${result.detail.replace(/\n/g, '\n      ')}`,
++  );
++};
+ 
+-check('2. fixture alignment within 10 ms', () => {
++await check('1. fixture alignment within 10 ms', async () => {
+   const run = path.join(WS, 'tests/out/align');
+   rmSync(run, { recursive: true, force: true });
+   mkdirSync(path.join(run, 'audio'), { recursive: true });
+   copyFileSync(path.join(FIXTURE, 'audio/voiceover.mp3'), path.join(run, 'audio/voiceover.mp3'));
+   const want = readJson(path.join(FIXTURE, 'data/lyrics.json'), TimingSchema);
+   const spoken = JSON.parse(readFileSync(path.join(FIXTURE, 'spoken.json'), 'utf8'));
+-  const got = readJson(align(path.join(run, 'audio/voiceover.mp3'), want.lines.map((l, i) => ({ id: `l${i}`, text: l.text })), spoken), TimingSchema);
+-  const ww = want.lines.flatMap((l) => l.words), gw = got.lines.flatMap((l) => l.words);
++  const got = readJson(
++    await ctcOnnx().align(
++      path.join(run, 'audio/voiceover.mp3'),
++      want.lines.map((l, i) => ({ id: `l${i}`, text: l.text, delivery: 'voiceover' as const })),
++      spoken,
++    ),
++    TimingSchema,
++  );
++  const ww = want.lines.flatMap((l) => l.words),
++    gw = got.lines.flatMap((l) => l.words);
+   if (ww.length !== gw.length) throw new Error(`word count ${gw.length}, fixture ${ww.length}`);
+-  let worst = 0, at = '';
++  let worst = 0,
++    at = '';
+   ww.forEach((w, i) => {
+-    const g = gw[i]!;
++    const g = gw[i];
++    if (!g) throw new Error(`word ${i}: missing in aligned output`);
+     if (g.w !== w.w) throw new Error(`word ${i}: "${g.w}" vs fixture "${w.w}"`);
+-    const edges = [[g.start, w.start], [g.end, w.end], ...(w.syl ?? []).flatMap((s, k) => [[g.syl?.[k]?.[0] ?? NaN, s[0]], [g.syl?.[k]?.[1] ?? NaN, s[1]]])];
+-    for (const [a, b] of edges) { const d = Math.abs(a! - b!); if (!(d <= worst)) { worst = d; at = `"${w.w}" (word ${i})`; } }
++    const edges = [
++      [g.start, w.start],
++      [g.end, w.end],
++      ...(w.syl ?? []).flatMap((s, k) => [
++        [g.syl?.[k]?.[0] ?? NaN, s[0]],
++        [g.syl?.[k]?.[1] ?? NaN, s[1]],
++      ]),
++    ];
++    for (const [a = Number.NaN, b = Number.NaN] of edges) {
++      const d = Math.abs(a - b);
++      if (Number.isNaN(d)) throw new Error(`"${w.w}" (word ${i}): missing syllable edge`);
++      if (d > worst) {
++        worst = d;
++        at = `"${w.w}" (word ${i})`;
++      }
++    }
+   });
+-  if (!(worst <= 0.010)) throw new Error(`max deviation ${(worst * 1000).toFixed(1)} ms at ${at}`);
++  if (!(worst <= 0.01)) throw new Error(`max deviation ${(worst * 1000).toFixed(1)} ms at ${at}`);
+   return `${ww.length} words, max deviation ${(worst * 1000).toFixed(1)} ms`;
+ });
+ 
+-check('3. reel (1080x1920) still renders without errors', () => {
+-  const [f] = pdoom.still(FIXTURE, 'reel', [5]); // --strict: plate or page errors throw
+-  const png = readFileSync(f!);
+-  const w = png.readUInt32BE(16), h = png.readUInt32BE(20); // IHDR
+-  if (w !== 1080 || h !== 1920) throw new Error(`${f} is ${w}x${h}`);
+-  return `${path.relative(WS, f!)} is ${w}x${h}`;
+-});
+-
+-check('4. video-testing unchanged since before Phase 0', () => {
++await check('2. video-testing unchanged since before Phase 0', () => {
+   const now: string[] = [];
+   const walk = (d: string) => {
+     for (const e of readdirSync(d, { withFileTypes: true })) {
+-      const p = path.join(d, e.name), rel = './' + path.relative(SOURCE, p).replaceAll('\\', '/');
++      const p = path.join(d, e.name),
++        rel = `./${path.relative(SOURCE, p).replaceAll('\\', '/')}`;
+       if (rel === './app/node_modules') continue;
+       if (e.isDirectory()) walk(p);
+       else now.push(`${statSync(p).size} ${rel}`);
+     }
+   };
+   walk(SOURCE);
+-  const before = readFileSync(path.join(WS, 'tests/phase0/video-testing.before.txt'), 'utf8').split(/\r?\n/).filter(Boolean);
+-  const a = new Set(before), b = new Set(now);
+-  const gone = before.filter((l) => !b.has(l)), added = now.filter((l) => !a.has(l));
+-  if (gone.length || added.length) throw new Error([...gone.map((l) => `- ${l}`), ...added.map((l) => `+ ${l}`)].join('\n'));
++  const before = readFileSync(path.join(WS, 'tests/phase0/video-testing.before.txt'), 'utf8')
++    .split(/\r?\n/)
++    .filter(Boolean);
++  const a = new Set(before),
++    b = new Set(now);
++  const gone = before.filter((l) => !b.has(l)),
++    added = now.filter((l) => !a.has(l));
++  if (gone.length || added.length)
++    throw new Error([...gone.map((l) => `- ${l}`), ...added.map((l) => `+ ${l}`)].join('\n'));
+   return `${now.length} files, same names and sizes`;
+ });
+ 
+ const failed = results.filter((r) => !r.ok).length;
+ console.log(`\n${results.length - failed}/${results.length} passed`);
+ process.exit(failed ? 1 : 0);
+diff --git a/tests/phase1.ts b/tests/phase1.ts
+new file mode 100644
+index 0000000..afb8ec5
+--- /dev/null
++++ b/tests/phase1.ts
+@@ -0,0 +1,124 @@
++// Phase 1 acceptance test (real tools; takes several minutes because it runs Phase 0).
++//   node_modules/.bin/bun tests/phase1.ts
++// 1. unit tests pass                        2. lint is clean (tsc, Biome, ruff)
++// 3. Phase 0 acceptance still passes        4. plugin and marketplace manifests pass strict validation
++// 5. claude --plugin-dir . loads make-video  6. lib/ keeps its boundaries (env, processes, retired folders gone)
++// 7. the pinned HyperFrames version resolves (fills the npx cache, ~/.npm/_npx, on first run)
++// Check 6 scans TypeScript only on purpose: the vendored aligner Python under lib/adapters/align/ctc-onnx/analysis/
++// calls subprocess by design.
++import { existsSync, readdirSync, readFileSync } from 'node:fs';
++import path from 'node:path';
++import { HYPERFRAMES_VERSION, loadConfig, PLUGIN_ROOT } from '../lib/core/config';
++import { sh } from '../lib/core/sh';
++
++const WS = PLUGIN_ROOT;
++const { bun } = loadConfig();
++const MIN = 60_000;
++const lastLine = (s: string) => s.trim().split(/\r?\n/).at(-1) ?? '';
++
++const results: { test: string; ok: boolean; detail: string }[] = [];
++const check = async (test: string, fn: () => Promise<string>) => {
++  const t0 = performance.now();
++  let result: { test: string; ok: boolean; detail: string };
++  try {
++    result = { test, ok: true, detail: await fn() };
++  } catch (e) {
++    result = { test, ok: false, detail: String((e as Error).message ?? e) };
++  }
++  results.push(result);
++  const secs = ((performance.now() - t0) / 1000).toFixed(1);
++  console.log(`${result.ok ? 'PASS' : 'FAIL'}  ${test}  (${secs}s)\n      ${result.detail.replace(/\n/g, '\n      ')}`);
++};
++
++await check('1. unit tests pass', async () => {
++  const r = await sh([bun, 'test'], { cwd: WS, timeoutMs: 5 * MIN });
++  const summary = r.stderr || r.stdout; // bun test writes its summary to stderr
++  const pass = Number(/^\s*(\d+) pass\b/m.exec(summary)?.[1] ?? 0);
++  const fail = Number(/^\s*(\d+) fail\b/m.exec(summary)?.[1] ?? 0);
++  if (pass === 0 || fail > 0) throw new Error(`${pass} pass, ${fail} fail\n${lastLine(summary)}`);
++  return `${pass} pass, 0 fail`;
++});
++
++await check('2. lint is clean', async () => {
++  await sh([bun, 'run', 'lint'], { cwd: WS, timeoutMs: 5 * MIN });
++  return 'tsc, Biome and ruff report nothing';
++});
++
++await check('3. Phase 0 acceptance still passes', async () =>
++  lastLine((await sh([bun, 'tests/phase0.ts'], { cwd: WS, timeoutMs: 30 * MIN })).stdout),
++);
++
++await check('4. plugin and marketplace manifests pass strict validation', async () => {
++  const out: string[] = [];
++  for (const f of ['.claude-plugin/plugin.json', '.claude-plugin/marketplace.json']) {
++    const r = await sh(['claude', 'plugin', 'validate', f, '--strict', '--json'], {
++      cwd: WS,
++      allowFail: true,
++      timeoutMs: MIN,
++    });
++    let report: { success: boolean; manifest?: { errors?: unknown[]; warnings?: unknown[] } };
++    try {
++      report = JSON.parse(r.stdout);
++    } catch (cause) {
++      throw new Error(`${f}: output is not JSON\nstdout: ${r.stdout}\nstderr: ${r.stderr}`, { cause });
++    }
++    const { errors, warnings } = report.manifest ?? {};
++    if (r.code !== 0 || !report.success || errors?.length || warnings?.length)
++      throw new Error(`${f}: errors ${JSON.stringify(errors)}, warnings ${JSON.stringify(warnings)}`);
++    out.push(`${f}: no errors, no warnings`);
++  }
++  return out.join('\n');
++});
++
++await check('5. claude --plugin-dir . loads the make-video skill', async () => {
++  const r = await sh(['claude', '--plugin-dir', '.', 'plugin', 'details', 'video-machine'], {
++    cwd: WS,
++    timeoutMs: MIN,
++  });
++  const m = /^\s*Skills \((\d+)\)[ \t]+(.*)$/m.exec(r.stdout);
++  const skills = m?.[2]?.trim().split(/,\s*/) ?? [];
++  if (!skills.includes('make-video') || Number(m?.[1]) !== skills.length) throw new Error(r.stdout);
++  return `skills: ${skills.join(', ')}`;
++});
++
++await check('6. lib/ keeps its boundaries', async () => {
++  const files: string[] = [];
++  const walk = (d: string) => {
++    for (const e of readdirSync(d, { withFileTypes: true })) {
++      const p = path.join(d, e.name);
++      if (e.isDirectory()) walk(p);
++      else if (p.endsWith('.ts') && !p.endsWith('.test.ts')) files.push(p);
++    }
++  };
++  walk(path.join(WS, 'lib'));
++  const rel = (f: string) => path.relative(WS, f).replaceAll('\\', '/');
++  if (files.length === 0) throw new Error('no .ts files found under lib/');
++  const bad: string[] = [];
++  for (const f of files) {
++    const src = readFileSync(f, 'utf8');
++    if (
++      /\b(process|Bun)\s*(\.|\[\s*['"])env\b|from ['"](node:)?process['"]/.test(src) &&
++      rel(f) !== 'lib/core/config.ts'
++    )
++      bad.push(`${rel(f)} reads the environment`);
++    if (/\bchild_process\b|Bun\.(spawn|\$)/.test(src) && rel(f) !== 'lib/core/sh.ts')
++      bad.push(`${rel(f)} spawns a process`);
++  }
++  for (const gone of ['.claude/skills/video-machine', 'engine', 'lib/adapters/render/pdoom', 'tests/baseline'])
++    if (existsSync(path.join(WS, gone))) bad.push(`${gone} still exists`);
++  if (bad.length) throw new Error(bad.join('\n'));
++  return `${files.length} files checked`;
++});
++
++await check('7. pinned HyperFrames resolves', async () => {
++  const r = await sh(['npx', '--yes', `hyperframes@${HYPERFRAMES_VERSION}`, '--version'], {
++    cwd: WS,
++    timeoutMs: 5 * MIN,
++  });
++  if (lastLine(r.stdout) !== HYPERFRAMES_VERSION) throw new Error(`got "${lastLine(r.stdout)}"`);
++  return `hyperframes ${HYPERFRAMES_VERSION}`;
++});
++
++const failed = results.filter((r) => !r.ok).length;
++console.log(`\n${results.length - failed}/${results.length} passed`);
++process.exit(failed ? 1 : 0);
+diff --git a/tsconfig.json b/tsconfig.json
+new file mode 100644
+index 0000000..be9c47b
+--- /dev/null
++++ b/tsconfig.json
+@@ -0,0 +1,15 @@
++{
++  "compilerOptions": {
++    "target": "ESNext",
++    "module": "Preserve",
++    "moduleResolution": "bundler",
++    "strict": true,
++    "noEmit": true,
++    "skipLibCheck": true,
++    "noUncheckedIndexedAccess": true,
++    "verbatimModuleSyntax": true,
++    "types": ["bun"]
++  },
++  "include": ["lib", "tests"],
++  "exclude": ["tests/fixture", "tests/out", "runs", "node_modules"]
++}
