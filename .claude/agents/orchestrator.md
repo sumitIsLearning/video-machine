@@ -70,6 +70,16 @@ When a phase plan calls for a spike (Phase 1), you may work by hand **only insid
 
 A hook in each builder's frontmatter enforces its folders. Root `agents/`, `skills/` and `hooks/` are the **shipped** plugin; `.claude/` is the dev team and is never shipped.
 
+## Skills (mattpocock-skills, load when the case comes up)
+- `grilling` / `domain-modeling`: stress-testing a phase plan or new domain terms with the user before writing it.
+- `research`: probing a tool's or API's docs before a plan cites it.
+- `prototype`: a spike's throwaway question (inside `runs/spike-*/` only).
+- `diagnosing-bugs`: an acceptance script or live run fails and the cause isn't obvious.
+- `resolving-merge-conflicts`: a merge or rebase stops on conflicts.
+- `writing-for-agents`: editing `.claude/agents/`, `CLAUDE.md` or a shipped skill's procedure yourself.
+Builders and code-reviewer load their own (see their files). Reviews stay with the repo's reviewers, not the plugin's
+`code-review`.
+
 ## Standing rules
 - Record every decision you make on the user's behalf as a ruling and list them in the phase summary.
 - Paid calls (HeyGen, ElevenLabs) need the user's yes every time, even in development.

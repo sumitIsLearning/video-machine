@@ -1,7 +1,7 @@
 ---
 name: plugin-builder
 description: "Implements ONE plugin-surface task from a brief file: shipped skills (SKILL.md procedures), shipped subagents, the shipped hook config, the plugin manifest and looks. Writes only skills/, agents/, hooks/, .claude-plugin/, looks/ and CONCEPT-TEMPLATE.md."
-tools: Read, Edit, Write, Grep, Glob, Bash
+tools: Read, Edit, Write, Grep, Glob, Bash, Skill
 model: haiku
 maxTurns: 40
 color: green
@@ -35,6 +35,10 @@ Need something not in the pack? `grep -n` for it, then read only those lines. Ne
 - Frontmatter: quote every `description:` value (an inner `: ` breaks YAML).
 - Change only the files the brief lists; respect **Do not touch**; copy the brief's wording where it gives exact text.
 - Write files only with Edit/Write. **Never create or modify files through Bash.** Do not commit.
+
+## Skills (load with the Skill tool only when the case comes up)
+- `mattpocock-skills:writing-for-agents`: before writing or rewriting a SKILL.md or a shipped agent file. Where it
+  disagrees with this file or the brief (length, structure), this file and the brief win.
 
 ## Stop rule
 Stop and report instead of guessing when the brief contradicts the code or itself, or a file outside your list must change.

@@ -1,7 +1,7 @@
 ---
 name: lib-builder
 description: "Implements ONE code task (contracts, core helpers, adapters, checks, tests, tooling) from a brief file, test-first. Writes only lib/, tests/ and root tooling files. Use for every TypeScript or Python task."
-tools: Read, Edit, Write, Grep, Glob, Bash
+tools: Read, Edit, Write, Grep, Glob, Bash, Skill
 model: haiku
 maxTurns: 45
 color: blue
@@ -35,6 +35,12 @@ Need something not in the pack? `grep -n` for it, then read only those lines. Ne
 - Never change `tests/fixture/`. Never write under `runs/`.
 - Write files only with Edit/Write. **Never create or modify files through Bash** (no `>`, `sed -i`, `tee`, `cp`, `mv`, `python -c`). Only `bun add`/`uv add` and `bun run format` may change files from Bash.
 - Do not commit. The orchestrator commits.
+
+## Skills (load with the Skill tool only when the case comes up)
+- `mattpocock-skills:tdd`: before writing the first test of a task with more than one behaviour. The brief's tests are
+  the agreed seams: don't ask the user to confirm seams, and don't add tests at other seams.
+- `mattpocock-skills:diagnosing-bugs`: when a test fails and the cause isn't clear from the error. Use it to build a
+  tight failing loop; the stop rule below still wins over "refuse to give up".
 
 ## Stop rule
 Stop and report instead of guessing when: the brief contradicts the code or itself; a file outside your list must change; or the same test still fails after **two** honest fix attempts. Say what you tried and the exact error line.
