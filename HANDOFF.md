@@ -5,8 +5,9 @@
 **Where things are**
 - `master` is fast-forwarded to `phase-3-research-sources` (user request 2026-10-14). The phase is **not finished**, and
   `master` carries Phase 3 Tasks 1–5 plus Task 6 work in progress.
-- **Not pushed: the repo has no git remote.** `git remote -v` is empty. Add one (`git remote add origin <url>`), then
-  `git push -u origin master`.
+- **Pushed** to the private GitHub repo https://github.com/sumitIsLearning/video-machine (`origin`, `master` tracks
+  `origin/master`; created 2026-10-14 with `gh repo create`, user request). Only `master` is pushed; the local phase
+  branches are not.
 - Plan: `docs/superpowers/plans/phase-3-research-sources.md` (Tasks 1–10, rulings R1–R11, user-approved; BLUEPRINT
   edits in `87c3a8a`).
 - Ledger with every ruling and every deferred minor: `.superpowers/sdd/phase-3-research-sources/progress.md`. It is
