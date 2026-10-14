@@ -4,6 +4,8 @@ import {
   AssetsSchema,
   BriefSchema,
   CaptureLogSchema,
+  type CheckResult,
+  CheckResultSchema,
   DEFAULT_VOICE,
   DOCTOR_TOOLS,
   DoctorSchema,
@@ -454,4 +456,16 @@ test.each([
   ['page font path', PageCaptureSchema, { ...page, fonts: [{ family: 'Roboto', path: '..\\a.woff2' }] }],
 ])('an absolute or escaping path is rejected in %s', (_label, schema, value) => {
   expect(schema.safeParse(value).success).toBe(false);
+});
+
+test('CheckResultSchema is the element type of TestResults.checks', () => {
+  const check: CheckResult = {
+    id: 'plan.coverage',
+    blocking: true,
+    status: 'fail',
+    detail: 'd',
+    annotations: [{ problem: 'p', suggested_fix: 'f' }],
+  };
+  expect(CheckResultSchema.parse(check)).toEqual(check);
+  expect(() => CheckResultSchema.parse({ ...check, status: 'maybe' })).toThrow();
 });

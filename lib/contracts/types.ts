@@ -8,6 +8,11 @@ import { z } from 'zod';
 export const FormatIdSchema = z.enum(['landscape_1080p', 'reel', 'square', 'portrait_feed']);
 export type FormatId = z.infer<typeof FormatIdSchema>;
 
+export const DirectionIdSchema = z.enum(['A', 'B']);
+export type DirectionId = z.infer<typeof DirectionIdSchema>;
+export const BoardIdSchema = z.enum(['hook', 'product', 'ending']);
+export type BoardId = z.infer<typeof BoardIdSchema>;
+
 type Safe = { top: number; bottom: number; left: number; right: number };
 /** Fixed table; adding a format = one line here (and one in FormatIdSchema). */
 export const FORMATS: Record<FormatId, { w: number; h: number; fps: number; safe: Safe }> = {
@@ -427,6 +432,23 @@ export const DOCTOR_TOOLS = [
 export const failingTools = (d: Doctor): string[] => DOCTOR_TOOLS.filter((t) => !d.tools[t]?.ok);
 
 // ------------------------------------------------------------------ test results
+export const CheckResultSchema = z.strictObject({
+  id: z.string(),
+  format: FormatIdSchema.optional(),
+  blocking: z.boolean(),
+  status: z.enum(['pass', 'fail', 'skip']),
+  detail: z.string(),
+  annotations: z.array(
+    z.strictObject({
+      scene_id: z.string().optional(),
+      t: z.number().optional(),
+      problem: z.string(),
+      suggested_fix: z.string(),
+    }),
+  ),
+});
+export type CheckResult = z.infer<typeof CheckResultSchema>;
+
 export const TestResultsSchema = z.strictObject({
   run_id: z.string(),
   plan_version: z.number().int(),
@@ -437,23 +459,7 @@ export const TestResultsSchema = z.strictObject({
     deliverables: z.array(z.strictObject({ deliverable: DeliverableSchema, path: z.string() })),
     report: z.string(),
   }),
-  checks: z.array(
-    z.strictObject({
-      id: z.string(),
-      format: FormatIdSchema.optional(),
-      blocking: z.boolean(),
-      status: z.enum(['pass', 'fail', 'skip']),
-      detail: z.string(),
-      annotations: z.array(
-        z.strictObject({
-          scene_id: z.string().optional(),
-          t: z.number().optional(),
-          problem: z.string(),
-          suggested_fix: z.string(),
-        }),
-      ),
-    }),
-  ),
+  checks: z.array(CheckResultSchema),
   summary: z.strictObject({ blocking_failed: z.number().int(), warnings: z.number().int() }),
 });
 export type TestResults = z.infer<typeof TestResultsSchema>;
