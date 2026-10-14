@@ -12,6 +12,9 @@ export class ContractError extends VideoMachineError {}
 /** The creator's input can't be used (a missing file, a path outside the run folder, a value with no default). The message says what to fix. */
 export class InputError extends VideoMachineError {}
 
+/** The capture browser could not be opened or driven. The message names the profile and what to run. */
+export class CaptureError extends VideoMachineError {}
+
 /** The caller asked for something this adapter does not do (never faked). */
 export class UnsupportedError extends VideoMachineError {}
 

@@ -34,6 +34,22 @@ export const isPrivateHost = (hostname: string): boolean => {
 };
 
 /**
+ * True for a link-local host (169.254.0.0/16, fe80::/10), where cloud metadata services live; no setting allows these.
+ * Takes a URL hostname (IPv6 in brackets is fine); returns a boolean and throws nothing.
+ */
+export const isLinkLocalHost = (hostname: string): boolean => {
+  const h = hostname
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.$/, '')
+    .toLowerCase();
+  if (/^169\.254\.\d+\.\d+$/.test(h)) return true;
+  if (!h.includes(':')) return false;
+  const mapped = /^::ffff:([0-9a-f]{1,4}):[0-9a-f]{1,4}$/.exec(h); // URL writes ::ffff:169.254.1.1 this way
+  if (mapped) return Number.parseInt(mapped[1] ?? '', 16) === 0xa9fe;
+  return (Number.parseInt(h.split(':')[0] || '0', 16) & 0xffc0) === 0xfe80;
+};
+
+/**
  * Parse a URL and refuse what the machine must not visit; `what` ("page capture", "download") opens the message.
  * Returns the parsed URL. Throws InputError for a non-http(s) URL, credentials, or a local, private or link-local host;
  * never echoes a password.

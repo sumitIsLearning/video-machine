@@ -1,6 +1,20 @@
 import { expect, test } from 'bun:test';
 import { InputError } from './errors';
-import { assertPublicHttpUrl, isPrivateHost } from './url';
+import { assertPublicHttpUrl, isLinkLocalHost, isPrivateHost } from './url';
+
+test.each([
+  ['169.254.169.254', true],
+  ['169.254.0.1', true],
+  ['[fe80::1]', true],
+  ['[febf::1]', true],
+  ['[::ffff:169.254.169.254]', true],
+  ['127.0.0.1', false], // private, but not link-local
+  ['localhost', false],
+  ['169.255.0.1', false],
+  ['docs.astral.sh', false],
+])('isLinkLocalHost(%s) is %p', (host, expected) => {
+  expect(isLinkLocalHost(new URL(`http://${host}/`).hostname)).toBe(expected);
+});
 
 test.each([
   'not a url',
