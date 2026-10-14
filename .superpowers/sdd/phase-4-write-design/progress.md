@@ -23,5 +23,6 @@ Task 6: done f59216b (haiku build, spec PASS, code APPROVE w/ 🟠 unchecked std
 Task 7: done 21a0653 (haiku build, spec PASS w/ 2 minor misses, code CHANGES: 2 🟠 wording (storyboard board has no --assets; look field shapes) + 3 small; haiku fix; orchestrator grep-verified the 7 items instead of a re-spec — docs only)
 Ruling: make-video loops until M9 (not M6) so it continues through storyboard — cost if wrong: none
 Ruling: skill says beat `nth` 0 = first occurrence (schema min 0; no resolver yet) — cost if wrong: one-word skill edit when the resolver lands
-Next: Task 8 (acceptance tests/phase4.ts, real HyperFrames ~2 min). Brief: python3 .claude/tools/brief.py docs/superpowers/plans/phase-4-write-design.md 8, then fill Do-not-touch + Context pack.
-Unstaged noise: .claude/tools/brief.py reformatted by check.sh's formatter (not committed).
+Task 8: done 94a3d59 (haiku build 7/7, code CHANGES: 3 🟠 refusal checks passed for any refusal + lib 🟠 writePlan defaulted missing scenes to [] → misleading coverage error; haiku fix incl. plan.ts guard + test; orchestrator re-ran 7/7 + check.sh)
+Ruling: Task 8 fix touched lib/storyboard/plan.ts (missing/empty `scenes` → InputError naming scenes) — cost if wrong: none
+Next: phase end — show user `bun tests/phase4.ts` output (7/7, ~31 s), then code-reviewer model opus over the branch (briefs task-1..8 + rulings), one fix brief, one re-review, ask before merging.
