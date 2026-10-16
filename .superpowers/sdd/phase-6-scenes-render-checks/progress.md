@@ -8,4 +8,6 @@ Probes (2026-10-14, hf 0.8.143): nested comps via data-composition-src work; lin
 Status: user OK 2026-10-16. Pre-step done `0c809ac`.
 - T1 scene times `9d5efc1` — PASS spec, APPROVE review; orchestrator added the start-order test (brief's test hit the anchor error).
 - T2 text fit + VM `fed5d3f` — 1 fix round (Sonnet: 226 KB bundle via frameOf → `fitPx` moved to dep-free `lib/core/fit-px.ts`; empty `at` phrase; `</script>`-safe JSON; nth test; type import). PASS.
-- Next: Task 3 (assemble the project for one format).
+- T3 assemble project `d94a95e` — PASS spec, APPROVE review, no fix round. Accepted builder deviations: hosts carry `data-composition-src`; temp dir also cleared before write; `VM.scene` regex allows either quote/whitespace; `data-track-index` on audio + hosts. Skipped 🔵: `<template`/`data-composition-id` checks are case-sensitive (HF lint covers it).
+- T4 hyperframes render adapter `729bc58` — PASS spec; review 🟠 check() used the 120 s lint timeout → 1 Haiku fix round (CHECK_TIMEOUT_MS 10 min + test; ToolError detail uses stderr || stdout); fix verified by orchestrator grep, no second spec agent. Accepted deviations: `still(only)` and any non-empty `passes` → UnsupportedError; ToolError on frame-count mismatch / missing contact-sheet.jpg; absolute return paths; selector without time dropped.
+- Next: Task 5.
