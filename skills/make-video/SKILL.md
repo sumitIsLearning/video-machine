@@ -109,16 +109,18 @@ short table. Never hand-write `brief.json`.
 | `M2`, `M3`, `M4` | `video-machine:capture` (the parts the brief does not need are already skipped) |
 | `M6`, `M7`, `M8` | `video-machine:storyboard` |
 | `M9`, `M10` | `video-machine:voice` |
-| `M11`, `M12` | stop (below) |
+| `M11` | stop (below) |
+| `M12`, `M13`, `M14` | `video-machine:scenes` |
 
-After each part, run `where` again and repeat until it says `M11` or `M12`. Between parts, tell the creator in one line what
+After each part, run `where` again and repeat until it says `M11` or `M15`. Between parts, tell the creator in one line what
 finished and what comes next; ask before each part that takes minutes or downloads anything.
 
 Stop the loop when `next` is unchanged after a part ran, or when the creator declines a part. Tell the creator what is
 missing (for example "research.md was not written"). Never run the same part again without asking.
 
-At `M11` or `M12`, tell the creator the run folder path and what exists now (research, captures, assets panel, script,
-look, storyboard, voiceover and word timing), and that the scenes part arrives in the next version, then stop. Don't
+At `M11` or `M15`, tell the creator the run folder path and what exists now (research, captures, assets panel, script,
+look, storyboard, voiceover, word timing and scenes), and that the render-and-deliver part arrives in a later version,
+then stop. Don't
 write the script, voice the lines or make the video by other means. If `next` is any other part, say its name in words
 and that it arrives in a later version, then stop.
 
