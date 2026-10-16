@@ -77,10 +77,24 @@ test('an empty marker folder does not count as done', () => {
     'plan.json': '{}',
     'audio/vo.wav': 'RIFF',
     'data/timing.json': '{}',
-    'index.html': '<html>',
+    'build/reel/index.html': '<html>',
     'out/drafts/': '',
   };
   expect(whereAmI(runWith(done).dir).next).toBe('M13');
+});
+
+test('an empty build folder is not done', () => {
+  const files = {
+    'research.md': '',
+    'assets.json': '[]',
+    'script.json': JSON.stringify({ run_id: 'r', version: 1, lines: [{ id: 'l1', text: 'Hi.' }] }),
+    'look/look.json': '{}',
+    'plan.json': '{}',
+    'audio/vo.wav': 'RIFF',
+    'data/timing.json': '{}',
+    'build/': '',
+  };
+  expect(whereAmI(runWith(files).dir).next).toBe('M12');
 });
 
 test('every part done means done', () => {
@@ -92,7 +106,7 @@ test('every part done means done', () => {
     'plan.json': '{}',
     'audio/vo.wav': 'RIFF',
     'data/timing.json': '{}',
-    'index.html': '<html>',
+    'build/reel/index.html': '<html>',
     'out/drafts/reel.mp4': 'mp4',
     'test_results.json': '{}',
     'audio/mix.wav': 'RIFF',
@@ -188,7 +202,7 @@ test('an empty out/deliver folder is not done', () => {
     'plan.json': '{}',
     'audio/vo.wav': 'RIFF',
     'data/timing.json': '{}',
-    'index.html': '<html>',
+    'build/reel/index.html': '<html>',
     'out/drafts/reel.mp4': 'mp4',
     'test_results.json': '{}',
     'audio/mix.wav': 'RIFF',

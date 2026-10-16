@@ -46,7 +46,7 @@ const MARKER: Record<PartId, string> = {
   M9: 'audio/vo.wav',
   M10: 'data/timing.json',
   M11: 'avatar/',
-  M12: 'index.html',
+  M12: 'build/',
   M13: 'out/drafts/',
   M14: 'test_results.json',
   M16: 'audio/mix.wav',
