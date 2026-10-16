@@ -1,4 +1,5 @@
 // Builds every planned format of a run, checks the build for errors, then makes each format's contact sheet and draft.
+import { existsSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { type FormatId, type Issue, PlanSchema } from '../contracts/types';
 import { readJson } from '../core/json';
@@ -22,6 +23,15 @@ export const buildScenes = async (runDir: string, io: ScenesIo = {}): Promise<Bu
   const plan = readJson(path.join(runDir, 'plan.json'), PlanSchema);
   const builds = new Map<FormatId, string>();
   for (const format of plan.formats) builds.set(format, await assemble(runDir, format));
+
+  // A build folder for a format the plan dropped would look current to the next step, so it goes.
+  const buildDir = path.join(runDir, 'build');
+  if (existsSync(buildDir)) {
+    for (const entry of readdirSync(buildDir, { withFileTypes: true })) {
+      const stale = entry.isDirectory() && !entry.name.startsWith('.') && !plan.formats.some((f) => f === entry.name);
+      if (stale) rmSync(path.join(buildDir, entry.name), { recursive: true, force: true });
+    }
+  }
 
   const issues = await render.check(runDir);
   const errors = issues.filter((i) => i.severity === 'error');

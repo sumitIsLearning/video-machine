@@ -93,6 +93,22 @@ const issuesResult = (id: string, problems: Issue[], fix: string): CheckResult =
   })),
 });
 
+/** Names the scene playing at each time of a failed blocking check's annotation that has a time but no scene. */
+const pinScenes = (scenes: SceneTime[], checks: CheckResult[]): CheckResult[] =>
+  checks.map((c) => {
+    if (!c.blocking || c.status !== 'fail') return c;
+    return {
+      ...c,
+      annotations: c.annotations.map((a) => {
+        const t = a.t;
+        if (t === undefined || a.scene_id !== undefined) return a;
+        const started = scenes.filter((s) => s.start <= t);
+        const id = started[started.length - 1]?.scene_id;
+        return id === undefined ? a : { ...a, scene_id: id };
+      }),
+    };
+  });
+
 /** The times the layout and caption checks sample (R11), sorted, each once. */
 const layoutTimes = (scenes: SceneTime[], total: number): number[] => {
   const grid: number[] = [];
@@ -179,11 +195,15 @@ export const checkScenes = async (
 
   const scenes = sceneTimes(plan, timing);
   const total = Math.max(0, ...scenes.map((s) => s.start + s.duration));
-  const issues = await render.check(runDir);
-  const errors = issues.filter((i) => i.severity === 'error');
   const researchFile = path.join(runDir, 'research.md');
   if (!existsSync(researchFile)) throw new InputError('research.md is missing: run research (M5) first');
   const { urls } = parseResearch(readFileSync(researchFile, 'utf8'));
+  const issues = await render.check(runDir);
+  // The same error can come back once per format; one annotation per scene and message is enough.
+  const errorKey = (i: Issue): string => `${i.scene_id ?? ''}\n${i.message}`;
+  const errors = issues
+    .filter((i) => i.severity === 'error')
+    .filter((e, k, all) => all.findIndex((o) => errorKey(o) === errorKey(e)) === k);
   const fragments: [string, string][] = [];
   for (const s of plan.visuals_plan.scenes) {
     const file = path.join(runDir, 'scenes', `${s.scene_id}.html`);
@@ -215,7 +235,7 @@ export const checkScenes = async (
     'shrink or move the text so it fits its scene',
   );
   const noReference = checkNoReferenceOnly(pool.assets, Object.fromEntries(fragments));
-  const checks: CheckResult[] = [
+  const checks: CheckResult[] = pinScenes(scenes, [
     coverage,
     factsCited,
     lint,
@@ -235,7 +255,7 @@ export const checkScenes = async (
         m.text.some((s) => s.caption),
       ),
     ),
-  ];
+  ]);
 
   const failed = checks.filter((c) => c.status === 'fail' && c.blocking);
   const failing = failingScenes(

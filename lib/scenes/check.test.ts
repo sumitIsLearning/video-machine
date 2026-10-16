@@ -199,3 +199,73 @@ test('checkScenes throws InputError when the draft is not rendered', async () =>
   await expect(checkScenes(run, { render: renderStub(), measure })).rejects.toThrow(InputError);
   await expect(checkScenes(run, { render: renderStub(), measure })).rejects.toThrow('render the draft first');
 });
+
+test('checkScenes throws InputError before running the render check when research.md is missing', async () => {
+  const run = makeRun();
+  rmSync(path.join(run, 'research.md'));
+  let checked = false;
+  const render = {
+    ...renderStub(),
+    check: async () => {
+      checked = true;
+      return [];
+    },
+  };
+  await expect(checkScenes(run, { render, measure })).rejects.toThrow(InputError);
+  expect(checked).toBe(false);
+});
+
+test('checkScenes gives one annotation for an error repeated in the render check', async () => {
+  const run = makeRun();
+  const issue: Issue = { severity: 'error', scene_id: 'demo', message: 'layout text overflows its box' };
+  const clean = { ...badText, box: { x: 100, y: 800, w: 200, h: 100 } };
+  await checkScenes(run, {
+    render: renderStub([issue, { ...issue }]),
+    measure: { ...measure, text: async () => [clean] },
+  });
+  const results = readJson(path.join(run, 'test_results.json'), TestResultsSchema);
+  expect(results.checks.find((c) => c.id === 'layout.no_overflow')?.annotations).toHaveLength(1);
+});
+
+test('checkScenes names the scene of a blocking failure that has only a time', async () => {
+  const run = makeRun();
+  const plan = readJson(path.join(run, 'plan.json'), PlanSchema);
+  const demo = plan.visuals_plan.scenes[0];
+  if (demo === undefined) throw new Error('the fixture has a scene');
+  writeJson(path.join(run, 'plan.json'), PlanSchema, {
+    ...plan,
+    visuals_plan: {
+      scenes: [demo, { ...demo, scene_id: 'second', lines: ['l2'], cut_in: { anchor: 'l2', rule: 'pause_before' } }],
+    },
+  });
+  writeJson(path.join(run, 'script.json'), ScriptSchema, {
+    run_id: 'r',
+    version: 1,
+    lines: [
+      { id: 'l1', text: 'Hi.' },
+      { id: 'l2', text: 'Yo.' },
+    ],
+  });
+  writeJson(path.join(run, 'data', 'timing.json'), TimingSchema, {
+    lines: [
+      { id: 'l1', text: 'Hi.', start: 0, end: 0.1, words: [{ w: 'Hi', start: 0, end: 0.1 }] },
+      { id: 'l2', text: 'Yo.', start: 0.1, end: 3, words: [{ w: 'Yo', start: 0.1, end: 3 }] },
+    ],
+  });
+  const clean = { ...badText, box: { x: 100, y: 800, w: 200, h: 100 } };
+  let renders = 0;
+  const unstable = {
+    ...measure,
+    text: async () => [clean],
+    hashes: async (_dir: string, at: number[]) => {
+      renders++;
+      return at.map(() => (renders === 2 ? 'b' : 'a'));
+    },
+  };
+  const result = await checkScenes(run, { render: renderStub(), measure: unstable });
+  expect(result.failing_scenes).toEqual(['second']);
+  const results = readJson(path.join(run, 'test_results.json'), TestResultsSchema);
+  const det = results.checks.find((c) => c.id === 'render.deterministic');
+  expect(det?.status).toBe('fail');
+  expect(det?.annotations.every((a) => a.scene_id === 'second')).toBe(true);
+});

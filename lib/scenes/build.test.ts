@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { type FormatId, type Issue, PlanSchema, type RenderAdapter } from '../contracts/types';
@@ -95,6 +95,21 @@ test('buildScenes names the failing scene and makes no sheet or draft on an erro
   });
   expect(result).toEqual({ ok: false, failing_scenes: ['demo'], issues: [error] });
   expect(calls).toEqual([]);
+});
+
+test('buildScenes removes a build folder left for a format the plan no longer has', async () => {
+  const run = makeRun();
+  mkdirSync(path.join(run, 'build', 'old'), { recursive: true });
+  writeFileSync(path.join(run, 'build', 'old', 'index.html'), '<html>');
+  mkdirSync(path.join(run, 'build', 'reel'), { recursive: true });
+  writeFileSync(path.join(run, 'build', 'reel', 'index.html'), '<html>');
+  const { render } = recordingRender([]);
+  await buildScenes(run, {
+    render,
+    assemble: async (runDir, format) => path.join(runDir, 'build', format),
+  });
+  expect(existsSync(path.join(run, 'build', 'old'))).toBe(false);
+  expect(existsSync(path.join(run, 'build', 'reel', 'index.html'))).toBe(true);
 });
 
 test('buildScenes lets an assemble InputError propagate', async () => {
