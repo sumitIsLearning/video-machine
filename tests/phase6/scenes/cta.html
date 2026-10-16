@@ -1,0 +1,30 @@
+<style>
+  .cta-frame { position: absolute; inset: 0; overflow: hidden; background: #111111; }
+  .cta-bar { position: absolute; left: var(--vm-safe-left); bottom: var(--vm-safe-bottom); width: calc(var(--vm-w) - var(--vm-safe-left) - var(--vm-safe-right)); height: 8%; background: #FF4D00; transform-origin: left center; }
+  .cta-text {
+    position: absolute;
+    left: var(--vm-safe-left);
+    top: var(--vm-safe-top);
+    width: calc(var(--vm-w) - var(--vm-safe-left) - var(--vm-safe-right));
+    height: calc(var(--vm-h) * 0.3);
+    color: #FDFBF9;
+    font-family: Inter, sans-serif;
+    font-weight: 700;
+    line-height: 1.05;
+  }
+  .cta-drift { position: absolute; left: 0; top: 50%; width: 30%; height: 4%; background: #FF4D00; }
+</style>
+<div class="cta-frame">
+  <div class="cta-text">Try it on your very own site today.</div>
+  <div class="cta-bar"></div>
+  <div class="cta-drift"></div>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  window.__timelines["cta"] = tl;
+  const s = VM.scene("cta");
+  s.fit(document.querySelector(".cta-text"));
+  tl.fromTo(".cta-drift", { xPercent: -100 }, { xPercent: 300, duration: s.duration, ease: "none" }, 0);
+  tl.fromTo(".cta-bar", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power3.out" }, s.at("site"));
+  tl.to(".cta-bar", { backgroundColor: "#FDFBF9", duration: 0.3 }, s.at("today"));
+</script>

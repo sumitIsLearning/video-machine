@@ -10,11 +10,18 @@ import { vmScript } from './runtime/bundle';
 
 const round3 = (x: number): number => Math.round(x * 1000) / 1000;
 
+const NONDETERMINISM =
+  /\b(Math\.random|Date\.now|new Date|performance\.now|requestAnimationFrame|setTimeout|setInterval)\b/;
+
 // The rule a scene fragment breaks, or undefined when it is valid. The assembler owns the wrapper and the scene id.
 const fragmentRule = (id: string, html: string): string | undefined => {
   if (html.includes('<template')) return 'must not contain <template>; the assembler wraps the fragment';
   if (html.includes('data-composition-id')) return 'must not set data-composition-id; the assembler sets it';
   if (html.search(WEB_LOAD) !== -1) return 'loads from the web; use files under assets/';
+  const nondeterministic = html.match(NONDETERMINISM);
+  if (nondeterministic) {
+    return `uses ${nondeterministic[1]}; scenes must be deterministic (times come from VM.scene)`;
+  }
   if (!new RegExp(`VM\\.scene\\(\\s*["']${id}["']\\s*\\)`).test(html)) {
     return `must register its timeline with VM.scene("${id}")`;
   }
@@ -46,7 +53,7 @@ const rootHtml = (format: FormatId, times: SceneTime[], total: number): string =
   const hosts = times
     .map(
       (t, i) =>
-        `<div id="host-${t.scene_id}" data-composition-src="compositions/${t.scene_id}.html" data-start="${t.start}" data-duration="${t.duration}" data-track-index="${i + 1}"></div>`,
+        `<div id="host-${t.scene_id}" data-composition-id="${t.scene_id}" data-composition-src="compositions/${t.scene_id}.html" data-start="${t.start}" data-duration="${t.duration}" data-track-index="${i + 1}"></div>`,
     )
     .join('\n');
   return `<!doctype html>

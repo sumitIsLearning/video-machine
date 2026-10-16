@@ -133,6 +133,7 @@ test('index.html sets the frame, the audio, the scene hosts and the safe-area va
   const html = readFileSync(path.join(out, 'index.html'), 'utf8');
   expect(html).toContain('data-width="1080" data-height="1920" data-duration="5.5"');
   expect(html).toContain('src="vo.wav"');
+  expect(html).toMatch(/id="host-hook"[^>]*data-composition-id="hook"/);
   expect(html).toMatch(/id="host-hook"[^>]*data-start="0" data-duration="1.6"/);
   expect(html).toMatch(/id="host-demo"[^>]*data-start="1.6" data-duration="3.9"/);
   expect(html).toContain('--vm-safe-top: 269px');
@@ -180,6 +181,13 @@ test('an invalid fragment throws InputError naming the scene and the rule, and l
     expect((err as Error).message).toContain(`scene demo: ${rule}`);
     expect(readFileSync(path.join(d, 'build', 'reel', 'old.txt'), 'utf8')).toBe('keep');
   }
+});
+
+test('a fragment that uses Math.random throws InputError naming the scene', async () => {
+  const d = run({ scenes: { hook: HOOK, demo: `<script>const j = Math.random();</script>${DEMO}` } });
+  const err = await assembleProject(d, 'reel').catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(InputError);
+  expect((err as Error).message).toContain('scene demo: uses Math.random');
 });
 
 test('a text_only run throws UnsupportedError', async () => {
