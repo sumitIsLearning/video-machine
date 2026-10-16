@@ -12,7 +12,7 @@ import { assertRunDir, relInside, runFileOf } from '../../../core/paths';
 export const GSAP_FILE = path.join(PLUGIN_ROOT, 'node_modules', 'gsap', 'dist', 'gsap.min.js');
 
 // Any src/href, CSS url() or @import that points at the web (absolute or protocol-relative); group 1 is the URL.
-const WEB_LOAD =
+export const WEB_LOAD =
   /(?:\b(?:src|href)\s*=\s*["']?|\burl\(\s*["']?|@import\s+(?:url\(\s*)?["']?)((?:https?:)?\/\/[^"'\s)>]+)/gi;
 const LINT_TIMEOUT_MS = 120_000;
 const SNAPSHOT_TIMEOUT_MS = 300_000;

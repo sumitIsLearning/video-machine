@@ -1,18 +1,16 @@
 # Handoff
 
-## Now (2026-10-14, late): Phase 5 merged into master (`5b7381c`, no push); phase0 test fix on `phase0-test-fix`
+## Now (2026-10-16): Phase 6 running on `phase-6-scenes-render-checks`; phase end done, awaiting merge OK
 
-- Phase 4 merged into master locally (fast-forward to 7256ecb, no push; user OK 2026-10-14).
-- Plan: `docs/superpowers/plans/phase-5-voice-timing.md` (6 tasks, rulings R1–R9). Blueprint 2.5/2.7 updated for R1, R2,
-  R5. Ledger: `.superpowers/sdd/phase-5-voice-timing/progress.md`.
-- Done: all 6 tasks. 1 `cbb585d` timing/cost, 2 `7e1494e` aligner, 3 `c354ab8` voice adapters, 4 `1e656ae`
-  `lib/voice` CLI, 5 `faaa965` shipped skill `voice` + make-video routes M9/M10, 6 `703f43d` `tests/phase5.ts`
-  (5/5 PASS, ~25 s; rulings R10 stand-in M7/M8 markers for `where`, R11 dropped the video-testing check).
-- Phase-end opus review: 🟠 spoken map applied globally vs plain uses; fixed `ce2f764`. Merged (ff) to master 5b7381c.
-- `phase0-test-fix` `f0761ba`: check 1 now 95% of edges ≤10 ms, all ≤100 ms (Mac arm64 differs from the Windows
-  fixture by 1 CTC frame on 17/476 edges, 80 ms once); check 2 skips without `VM_VIDEO_TESTING`. 1/1 + 1 skip. Awaits merge OK.
-- Test run for later: `runs/2026-10-14-firecrawl-in-20-seconds-paste/` is at M6 (research, logged-in replay, captures,
-  assets panel).
-- Still open from Phase 3: live `claude --plugin-dir . -p "continue my video"` check (by hand); push (not yet asked).
+- User OK'd the plan 2026-10-16. Pre-step blueprint edits `0c809ac`; T1 scene times `9d5efc1`; T2 text fit + `VM`
+  `fed5d3f`; T3 assemble project `d94a95e`; T4 render adapter `729bc58`; T5 checks `99ca019`; T6 checks `118b174`; T7 measure `05c5d5f`; T8 scenes `08913a2`; T9 plugin scene-writer/scenes `dca8d67`; T10 acceptance `46716fd` (5/5 PASS). 718 tests. 718 tests pass, lint OK.
+- Plan: `docs/superpowers/plans/phase-6-scenes-render-checks.md` (10 tasks; rulings U1, U2, R1–R13).
+  Ledger: `.superpowers/sdd/phase-6-scenes-render-checks/progress.md`.
+- Phase end done: acceptance 5/5; Opus review fixes `3a73096` (skill) + `5eb61f6` (lib), re-review APPROVE; 724 tests. Next: user OK to merge into master.
+- Open for user: strict plugin validate fails on root CLAUDE.md warning (phase1 check 4); follow-up filter `reference_only` from `times`.
+- Note: BLUEPRINT 2.1 diagram line still says `index.html, scenes/*.html` (pre-step did not list it).
+- Test run for later: `runs/2026-10-14-firecrawl-in-20-seconds-paste/` is at M6.
+- Still open: live `claude --plugin-dir . -p "continue my video"` check (by hand, Phase 3); push (not yet asked);
+  delete merged branch `phase0-test-fix` (not yet asked).
 
 Older sections: `docs/handoff-archive.md`.

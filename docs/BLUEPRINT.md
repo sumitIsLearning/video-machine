@@ -189,7 +189,7 @@ Changes and additions:
 | `Doctor` (new) | `~/.video-machine/doctor.json`: tool versions, paths, smoke timings |
 
 Run folder layout: `concept.md, brief.json, input/, capture/, assets.json, research.md, script.json, directions/A|B/,
-look/, plan.json, boards/, audio/, data/timing.json, avatar/, index.html, scenes/, out/, test_results.json, report.md,
+look/, plan.json, boards/, audio/, data/timing.json, avatar/, scenes/ (fragments), build/<format>/ (generated HyperFrames project), out/, test_results.json, report.md,
 history/<n>/`. Renders, audio and capture media are gitignored.
 
 ## 2.5 Public functions / API
@@ -201,7 +201,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | `RenderAdapter.supports` | `format` | `{ok, reason?}` |
 | `RenderAdapter.lint` / `check` | `runDir` | `Issue[]` (blocking) |
 | `RenderAdapter.still` | `runDir, format, t[]` | PNG paths |
-| `RenderAdapter.contactSheet` | `runDir, format, perScene` | PNG path |
+| `RenderAdapter.contactSheet` | `runDir, format, perScene` | `out/sheets/<format>.jpg` (HyperFrames' contact sheet, JPEG) |
 | `RenderAdapter.render` | `runDir, format, "draft"\|"final", passes?` | MP4 path (passes unsupported → throw) |
 | `VoiceAdapter.synth` / `costEstimate` | `runDir, lines, voiceId` (`voice/supplied` is `importSupplied(deps, runDir, runPath)`, ruling 2026-10-14) | `<run>/audio/vo.wav` path / USD |
 | `AlignAdapter.align` | `audioPath, lines, spokenWords?` | `timing.json` path |
@@ -254,8 +254,9 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | align low-confidence line | mean word `conf` | `0.6` (below fails the align, naming the line) |
 | auto-fix rounds | number | `3` |
 | motion dead span | seconds | `1.5` |
+| motion change threshold | grey frame-diff YMAX | `8` |
 | beat tolerance | frames | `±2` |
-| min text size | % of frame height | vertical `3.5`, landscape `2.5` |
+| min text size | % of frame height | vertical `3.5`, landscape `2.5`, square `2.5` |
 | loudness | LUFS / dBTP | `−14 ±1` / `≤ −1` |
 
 ## 2.8 Checks
@@ -270,7 +271,7 @@ Each check is one file in `lib/checks/`, reads the run folder, and appends to `t
 | `brief.applied` | yes | brand colours/fonts unchanged in `look.json`; logo and pinned assets used; `cta` on the last scene; `must_avoid` absent |
 | `render.lint` | yes | HF: `hyperframes lint` + `check` return no errors |
 | `render.deterministic` | yes | render 5 random `t` twice, fresh page each time; pixel hashes match |
-| `render.seek_safe` | yes | still at `t` after playing from 0 == still at `t` after seeking straight to it |
+| `render.seek_safe` | yes | 5 times (seeded from the run id) snapshotted in one batch (seeking forward through earlier times) and each alone: sha256 per frame must match; not true playback |
 | `motion.no_dead_spans` | yes | frame difference over the draft; no span > 1.5 s below threshold unless the beat has `hold` |
 | `timing.beats_on_cues` | yes | each beat's visual change within ±2 frames of its word |
 | `timing.duration` | yes | final duration inside `duration_target_s` |
@@ -385,7 +386,7 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - Acceptance: changing one script word re-times every scene.
 
 ### Phase 6 — Scenes, render, checks (M12, M13, M14)
-- `scene-writer` agent + HyperFrames composition rules; root `index.html`; per-format CSS variables; labels from timing. A `text-fit` helper in `lib/core` sizes text to its box per format (spike: a fixed size wrapped and crowded the frame).
+- `scene-writer` agent + HyperFrames composition rules; root `index.html`; per-format CSS variables; labels from timing. A `text-fit` helper sizes text to its box per format: pure search in `lib/core`, run in the browser by `VM.fit` (spike: a fixed size wrapped and crowded the frame).
 - `render/hyperframes` adapter: lint, check, snapshot sheet, draft render.
 - Checks HyperFrames lacks: safe area, min text size, beats on cues, no dead spans, determinism, reference-only, licensed, facts cited, captions match; 3-round auto-fix.
 - Acceptance: concept alone → draft reel MP4 with no scene edited by hand; a deliberately broken scene fails exactly the right checks.

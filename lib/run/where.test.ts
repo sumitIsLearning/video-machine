@@ -10,6 +10,28 @@ afterEach(() => {
   for (const t of temps.splice(0)) rmSync(t, { recursive: true, force: true });
 });
 const BRIEF = { run_id: 'r', concept: 'c', goals: [], duration_target_s: [15, 30], timing_source: 'voiceover' };
+/** A test_results.json with `blocking` blocking failures and no checks: the smallest valid TestResultsSchema object. */
+const results = (blocking: number): string =>
+  JSON.stringify({
+    run_id: 'r',
+    plan_version: 1,
+    output_paths: { stills: {}, contact_sheets: {}, drafts: {}, deliverables: [], report: 'report.md' },
+    checks: [],
+    summary: { blocking_failed: blocking, warnings: 0 },
+  });
+const PASSING_RESULTS = results(0);
+/** Every part up to and including the draft (M13), with a test_results.json passed in by the caller. */
+const UP_TO_DRAFT = {
+  'research.md': '',
+  'assets.json': '[]',
+  'script.json': JSON.stringify({ run_id: 'r', version: 1, lines: [{ id: 'l1', text: 'Hi.' }] }),
+  'look/look.json': '{}',
+  'plan.json': '{}',
+  'audio/vo.wav': 'RIFF',
+  'data/timing.json': '{}',
+  'build/reel/index.html': '<html>',
+  'out/drafts/reel.mp4': 'mp4',
+};
 
 /** A run folder holding `files` (path → content; a trailing "/" makes a folder) and optionally a brief. */
 const runWith = (files: Record<string, string> = {}, brief: object | null = BRIEF, name = 'r') => {
@@ -77,10 +99,24 @@ test('an empty marker folder does not count as done', () => {
     'plan.json': '{}',
     'audio/vo.wav': 'RIFF',
     'data/timing.json': '{}',
-    'index.html': '<html>',
+    'build/reel/index.html': '<html>',
     'out/drafts/': '',
   };
   expect(whereAmI(runWith(done).dir).next).toBe('M13');
+});
+
+test('an empty build folder is not done', () => {
+  const files = {
+    'research.md': '',
+    'assets.json': '[]',
+    'script.json': JSON.stringify({ run_id: 'r', version: 1, lines: [{ id: 'l1', text: 'Hi.' }] }),
+    'look/look.json': '{}',
+    'plan.json': '{}',
+    'audio/vo.wav': 'RIFF',
+    'data/timing.json': '{}',
+    'build/': '',
+  };
+  expect(whereAmI(runWith(files).dir).next).toBe('M12');
 });
 
 test('every part done means done', () => {
@@ -92,13 +128,23 @@ test('every part done means done', () => {
     'plan.json': '{}',
     'audio/vo.wav': 'RIFF',
     'data/timing.json': '{}',
-    'index.html': '<html>',
+    'build/reel/index.html': '<html>',
     'out/drafts/reel.mp4': 'mp4',
-    'test_results.json': '{}',
+    'test_results.json': PASSING_RESULTS,
     'audio/mix.wav': 'RIFF',
     'out/deliver/reel.mp4': 'mp4',
   };
   expect(whereAmI(runWith(all).dir).next).toBe('done');
+});
+
+test('M14 is not done while test_results.json has a blocking failure', () => {
+  const files = { ...UP_TO_DRAFT, 'test_results.json': results(1) };
+  expect(whereAmI(runWith(files).dir).next).toBe('M14');
+});
+
+test('M14 is done once test_results.json has no blocking failure', () => {
+  const files = { ...UP_TO_DRAFT, 'test_results.json': PASSING_RESULTS };
+  expect(whereAmI(runWith(files).dir).next).toBe('M16');
 });
 
 test('an avatar line makes M11 needed once the script exists', () => {
@@ -188,9 +234,9 @@ test('an empty out/deliver folder is not done', () => {
     'plan.json': '{}',
     'audio/vo.wav': 'RIFF',
     'data/timing.json': '{}',
-    'index.html': '<html>',
+    'build/reel/index.html': '<html>',
     'out/drafts/reel.mp4': 'mp4',
-    'test_results.json': '{}',
+    'test_results.json': PASSING_RESULTS,
     'audio/mix.wav': 'RIFF',
     'out/deliver/': '',
   };

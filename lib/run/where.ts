@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { type Brief, BriefSchema, type Script, ScriptSchema } from '../contracts/types';
+import { type Brief, BriefSchema, type Script, ScriptSchema, TestResultsSchema } from '../contracts/types';
 import { ContractError } from '../core/errors';
 import { readJson } from '../core/json';
 import { assertRunDir } from '../core/paths';
@@ -46,7 +46,7 @@ const MARKER: Record<PartId, string> = {
   M9: 'audio/vo.wav',
   M10: 'data/timing.json',
   M11: 'avatar/',
-  M12: 'index.html',
+  M12: 'build/',
   M13: 'out/drafts/',
   M14: 'test_results.json',
   M16: 'audio/mix.wav',
@@ -56,11 +56,21 @@ const MARKER: Record<PartId, string> = {
 // An empty file is a failed write, not a finished part.
 const NON_EMPTY_FILE: readonly PartId[] = ['M9', 'M16'];
 
+// M14 is done only when its checks passed: a test_results.json that does not parse is not done.
+const checksPassed = (file: string): boolean => {
+  try {
+    return readJson(file, TestResultsSchema).summary.blocking_failed === 0;
+  } catch {
+    return false;
+  }
+};
+
 const isDone = (runDir: string, part: PartId): boolean => {
   const marker = MARKER[part];
   const full = path.join(runDir, ...marker.split('/').filter(Boolean));
   if (!existsSync(full)) return false;
   if (marker.endsWith('/')) return statSync(full).isDirectory() && readdirSync(full).length > 0;
+  if (part === 'M14') return checksPassed(full);
   return !NON_EMPTY_FILE.includes(part) || statSync(full).size > 0;
 };
 

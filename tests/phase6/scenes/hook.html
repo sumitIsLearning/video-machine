@@ -1,0 +1,32 @@
+<style>
+  .hook-frame { position: absolute; inset: 0; overflow: hidden; background: #111111; }
+  .hook-photo { position: absolute; left: 0; top: 0; width: 100%; height: 50%; object-fit: cover; }
+  .hook-panel { position: absolute; left: 0; bottom: 0; width: 100%; height: 40%; background: #FF4D00; transform-origin: left center; }
+  .hook-text {
+    position: absolute;
+    left: var(--vm-safe-left);
+    top: var(--vm-safe-top);
+    width: calc(var(--vm-w) - var(--vm-safe-left) - var(--vm-safe-right));
+    height: calc(var(--vm-h) * 0.3);
+    color: #FDFBF9;
+    font-family: Inter, sans-serif;
+    font-weight: 700;
+    line-height: 1.05;
+  }
+  .hook-drift { position: absolute; left: 0; bottom: 0; width: 30%; height: 4%; background: #FDFBF9; }
+</style>
+<div class="hook-frame">
+  <img class="hook-photo" src="assets/photo.png" alt="">
+  <div class="hook-panel"></div>
+  <div class="hook-text">Firecrawl turns any website into clean data.</div>
+  <div class="hook-drift"></div>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  window.__timelines["hook"] = tl;
+  const s = VM.scene("hook");
+  s.fit(document.querySelector(".hook-text"));
+  tl.fromTo(".hook-drift", { xPercent: -100 }, { xPercent: 300, duration: s.duration, ease: "none" }, 0);
+  tl.to(".hook-panel", { scaleX: 0.4, duration: 0.5, ease: "power3.out" }, s.at("Firecrawl"));
+  tl.to(".hook-panel", { scaleX: 1, duration: 0.5, ease: "power3.out" }, s.at("clean"));
+</script>
