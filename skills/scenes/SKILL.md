@@ -37,6 +37,11 @@ Run `check`. If `blocking_failed` is greater than 0, re-dispatch only `failing_s
 its annotations from `runs/<run_id>/test_results.json` (`scene_id`, `t`, `problem`, `suggested_fix`). Then run `build` and `check`
 again.
 
+If `build` returns `ok: false` with no `failing_scenes` and no `scene <id>:` lines, or `check` reports
+`blocking_failed` greater than 0 with `failing_scenes` empty, do not re-dispatch and do not run them again: the
+problem is not in one scene (for example the duration or a missing citation). Stop, show the creator the `issues`
+(build) or the failed sections of `runs/<run_id>/report.md` (check), and ask how to proceed.
+
 Allow at most 3 fix rounds across steps 2 and 3 together (blueprint 2.7). After the third round, stop and tell the
 creator which scenes still fail and why.
 
