@@ -1,12 +1,14 @@
 # Handoff
 
-## Now (2026-10-16): Phase 6 merged into master `be5e27c`; next session: write the Phase 7 plan
+## Now (2026-10-17): Phase 7 plan written, waiting for the user's OK
 
-- User OK'd the plan 2026-10-16. Pre-step blueprint edits `0c809ac`; T1 scene times `9d5efc1`; T2 text fit + `VM`
-  `fed5d3f`; T3 assemble project `d94a95e`; T4 render adapter `729bc58`; T5 checks `99ca019`; T6 checks `118b174`; T7 measure `05c5d5f`; T8 scenes `08913a2`; T9 plugin scene-writer/scenes `dca8d67`; T10 acceptance `46716fd` (5/5 PASS). 718 tests. 718 tests pass, lint OK.
-- Plan: `docs/superpowers/plans/phase-6-scenes-render-checks.md` (10 tasks; rulings U1, U2, R1–R13).
-  Ledger: `.superpowers/sdd/phase-6-scenes-render-checks/progress.md`.
-- Phase end done: acceptance 5/5; Opus review fixes `3a73096` (skill) + `5eb61f6` (lib), re-review APPROVE; 724 tests. Merged `be5e27c` (user OK 2026-10-16). Next: Phase 7 plan.
+- Plan: `docs/superpowers/plans/phase-7-revise-sound-deliver.md` (pre-step + 12 tasks; rulings U1, U2, R1–R12).
+  User rulings 2026-10-17: U1 AE package = per-scene ProRes 4444 clips (layer passes → Phase 10); U2 Phase 7 adds
+  contracts.valid only of the deferred checks (brief.applied + judges → Phase 10).
+- Probed 2026-10-17: ffmpeg 9.0.2 has sidechaincompress/loudnorm/ebur128 but no libass (no ffmpeg-burned captions);
+  two-pass loudnorm → −13.9 LUFS after AAC mux; ProRes 4444 `-ss … -frames:v n -c copy` cuts are frame-exact.
+- Next after OK: orchestrator pre-step (blueprint edits), branch `phase-7`, then Task 1.
+- Phase 6 merged `be5e27c` (724 tests).
 - Open for user (deferred 2026-10-16): strict plugin validate fails on root CLAUDE.md warning (phase1 check 4); follow-up filter `reference_only` from `times`.
 - Note: BLUEPRINT 2.1 diagram line still says `index.html, scenes/*.html` (pre-step did not list it).
 - Test run for later: `runs/2026-10-14-firecrawl-in-20-seconds-paste/` is at M6.
