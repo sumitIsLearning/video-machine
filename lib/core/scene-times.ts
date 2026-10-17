@@ -123,3 +123,14 @@ export function sceneTimes(plan: Plan, timing: Timing): SceneTime[] {
     };
   });
 }
+
+/**
+ * The first frame and frame count of every scene at `fps`. Each scene's end is rounded the same way as its start,
+ * so consecutive scenes leave no gap or overlap. Returns one entry per scene; never throws.
+ */
+export function sceneFrames(times: SceneTime[], fps: number): { scene_id: string; f0: number; n: number }[] {
+  return times.map((t) => {
+    const f0 = Math.round(t.start * fps);
+    return { scene_id: t.scene_id, f0, n: Math.round((t.start + t.duration) * fps) - f0 };
+  });
+}
