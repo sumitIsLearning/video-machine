@@ -184,6 +184,20 @@ test('render refuses layer passes', async () => {
   await expect(hyperframesRender(deps).render(d, 'reel', 'draft', ['bg'])).rejects.toThrow(UnsupportedError);
 });
 
+test('render with container mov passes --format mov and writes out/final/<format>.mov', async () => {
+  const d = run();
+  const { deps, calls } = fakeDeps((cmd) => {
+    if (sub(cmd) === 'render') writeFileSync(outOf(cmd), 'mov');
+    return { code: 0, stdout: '' };
+  });
+  const dest = await hyperframesRender(deps).render(d, 'reel', 'final', [], 'mov');
+  expect(dest).toBe(path.join(d, 'out', 'final', 'reel.mov'));
+  const cmd = calls.find((c) => sub(c) === 'render') ?? [];
+  expect(cmd.slice(cmd.indexOf('--format'), cmd.indexOf('--format') + 2)).toEqual(['--format', 'mov']);
+  expect(outOf(cmd)).toBe(path.join(d, 'out', 'final', 'reel.tmp.mov'));
+  expect(existsSync(path.join(d, 'out', 'final', 'reel.mp4'))).toBe(false);
+});
+
 test('supports reports every format as ok', () => {
   const { deps } = fakeDeps(() => ({ code: 0, stdout: '' }));
   expect(hyperframesRender(deps).supports('square')).toEqual({ ok: true });

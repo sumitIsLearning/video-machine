@@ -483,7 +483,13 @@ export interface RenderAdapter {
   check(runDir: string): Promise<Issue[]>;
   still(runDir: string, format: FormatId, t: number[], only?: string[]): Promise<string[]>;
   contactSheet(runDir: string, format: FormatId, perScene: number): Promise<string>;
-  render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): Promise<string>;
+  render(
+    runDir: string,
+    format: FormatId,
+    quality: 'draft' | 'final',
+    passes?: LayerPass[],
+    container?: 'mp4' | 'mov',
+  ): Promise<string>;
 }
 export interface VoiceAdapter {
   synth(runDir: string, lines: Script['lines'], voice_id: string): Promise<string>;
