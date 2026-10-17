@@ -1,14 +1,12 @@
 # Handoff
 
-## Now (2026-10-17): Phase 7 plan written, waiting for the user's OK
+## Now (2026-10-17): Phase 7 in progress on branch `phase-7`; next Task 3
 
-- Plan: `docs/superpowers/plans/phase-7-revise-sound-deliver.md` (pre-step + 12 tasks; rulings U1, U2, R1–R12).
-  User rulings 2026-10-17: U1 AE package = per-scene ProRes 4444 clips (layer passes → Phase 10); U2 Phase 7 adds
-  contracts.valid only of the deferred checks (brief.applied + judges → Phase 10).
-- Probed 2026-10-17: ffmpeg 9.0.2 has sidechaincompress/loudnorm/ebur128 but no libass (no ffmpeg-burned captions);
-  two-pass loudnorm → −13.9 LUFS after AAC mux; ProRes 4444 `-ss … -frames:v n -c copy` cuts are frame-exact.
-- Next after OK: orchestrator pre-step (blueprint edits), branch `phase-7`, then Task 1.
-- Phase 6 merged `be5e27c` (724 tests).
+- Plan: `docs/superpowers/plans/phase-7-revise-sound-deliver.md` (12 tasks; U1, U2, R1–R12). User OK 2026-10-17.
+  Ledger: `.superpowers/sdd/phase-7-revise-sound-deliver/progress.md`.
+- Done: pre-step `6ecd5b8`; T1 report move `9455b3b`; T2 media probes `e30a67a`.
+- Next: Task 3 (checks audio/deliver/contracts). Tasks 4 and 5 touch separate files and can run beside it.
+- Phase 6 merged `be5e27c`.
 - Open for user (deferred 2026-10-16): strict plugin validate fails on root CLAUDE.md warning (phase1 check 4); follow-up filter `reference_only` from `times`.
 - Note: BLUEPRINT 2.1 diagram line still says `index.html, scenes/*.html` (pre-step did not list it).
 - Test run for later: `runs/2026-10-14-firecrawl-in-20-seconds-paste/` is at M6.
