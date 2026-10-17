@@ -1,11 +1,11 @@
 # Handoff
 
-## Now (2026-10-17): Phase 7 done and reviewed on branch `phase-7`; awaiting user OK to merge
+## Now (2026-10-17): Phase 7 merged into master `4db4a03`; next Phase 8 plan
 
 - Plan: `docs/superpowers/plans/phase-7-revise-sound-deliver.md` (12 tasks; U1, U2, R1–R14).
   Ledger: `.superpowers/sdd/phase-7-revise-sound-deliver/progress.md`.
 - All 12 tasks committed (T12 `5d7b61a`); whole-branch review APPROVE; fix round `837eed8`; `bun tests/phase7.ts` 7/7 PASS.
-- Next: user OK → merge `phase-7` into master; then Phase 8 plan.
+- Next: write the Phase 8 plan. Branch `phase-7` kept (delete not yet asked); not pushed.
 - Check 7 (video-testing listing) skips on macOS: default path is `C:/Work-data/video-testing`; set `VM_VIDEO_TESTING`.
 - Tooling note for user: check.sh shows the first 60 lint lines, and biome infos (6 pre-existing) can hide the real
   error; builders misread it in T6 and T10. Possible fix: `--diagnostic-level=warn` in package.json lint (asked, not done).
