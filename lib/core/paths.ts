@@ -1,6 +1,6 @@
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { RunPathSchema } from '../contracts/types';
+import { type FormatId, RunPathSchema } from '../contracts/types';
 import { InputError } from './errors';
 
 /** Check that the folder is a run. Throws InputError when it has no concept.md. */
@@ -30,3 +30,7 @@ export function runFileOf(runDir: string, runPath: string, hint?: string): strin
     throw new InputError(`${runPath} resolves outside the run folder`);
   return file;
 }
+
+/** The staging folder a deliverable of `format` is written into before it is renamed into place. */
+export const deliverStageOf = (runDir: string, format: FormatId): string =>
+  path.join(runDir, 'out', 'deliver.tmp', format);

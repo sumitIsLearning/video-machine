@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { InputError } from './errors';
-import { relInside, runFileOf } from './paths';
+import { deliverStageOf, relInside, runFileOf } from './paths';
 
 const temps: string[] = [];
 afterEach(() => {
@@ -50,4 +50,8 @@ test('runFileOf refuses a file behind a junction that points out of the run', ()
   mkdirSync(path.join(run, 'input'));
   symlinkSync(outside, path.join(run, 'input', 'junc'), 'junction');
   expect(() => runFileOf(run, 'input/junc/secret.txt')).toThrow(/resolves outside the run folder/);
+});
+
+test('deliverStageOf is out/deliver.tmp/<format> inside the run', () => {
+  expect(deliverStageOf('/r', 'reel')).toBe(path.join('/r', 'out', 'deliver.tmp', 'reel'));
 });
