@@ -152,7 +152,8 @@ test('mixSound loops a supplied music bed under the voice, ducked and at -12 dB'
   const graph = pre[pre.indexOf('-filter_complex') + 1] ?? '';
   expect(graph).toContain('volume=-12dB');
   expect(graph).toContain('sidechaincompress=threshold=0.05:ratio=8:attack=20:release=300');
-  expect(graph).toContain('amix=inputs=2:normalize=0');
+  expect(graph).toContain('amix=inputs=2:duration=first:normalize=0');
+  expect(graph).toMatch(/apad=whole_dur=[\d.]+,atrim=0:[\d.]+,asplit/);
 });
 
 test('mixSound takes the one pinned audio asset as music', async () => {

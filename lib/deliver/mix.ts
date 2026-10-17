@@ -65,7 +65,7 @@ const pass1Of = (cmd: string[], stderr: string): z.infer<typeof Pass1Schema> => 
 /** The pre-mix filter graph: the voice padded to the reel length, with the music ducked under it when there is music. */
 const preGraph = (T: number, music: boolean): string =>
   music
-    ? `[1:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:${T},afade=t=in:d=0.5,afade=t=out:st=${T - 1}:d=1,volume=${MUSIC_GAIN_DB}dB[m];[0:a]aresample=48000,aformat=channel_layouts=stereo,apad=whole_dur=${T},asplit=2[v][sc];[m][sc]sidechaincompress=threshold=0.05:ratio=8:attack=20:release=300[d];[v][d]amix=inputs=2:normalize=0[mix]`
+    ? `[1:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:${T},afade=t=in:d=0.5,afade=t=out:st=${Math.max(0, T - 1)}:d=1,volume=${MUSIC_GAIN_DB}dB[m];[0:a]aresample=48000,aformat=channel_layouts=stereo,apad=whole_dur=${T},atrim=0:${T},asplit=2[v][sc];[m][sc]sidechaincompress=threshold=0.05:ratio=8:attack=20:release=300[d];[v][d]amix=inputs=2:duration=first:normalize=0[mix]`
     : `[0:a]aresample=48000,aformat=channel_layouts=stereo,apad=whole_dur=${T},atrim=0:${T}[mix]`;
 
 /**

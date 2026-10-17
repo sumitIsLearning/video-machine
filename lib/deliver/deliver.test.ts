@@ -88,9 +88,10 @@ const makeRun = (o: { deliverables: Deliverable[]; blockingFailed?: number; noMi
 };
 
 /** Stubs: render writes the file it returns; srt/ae write their outputs; probe answers by extension. */
-const stubs = (o: { loud?: Loudness } = {}) => {
+const stubs = (o: { loud?: Loudness; clipProfile?: string } = {}) => {
   const renders: unknown[][] = [];
   const sh: string[][] = [];
+  const probes: string[] = [];
   const io: DeliverIo = {
     deps: {
       config: loadConfig({ PATH: '/bin', VM_HOME: tmpdir() }),
@@ -140,8 +141,9 @@ const stubs = (o: { loud?: Loudness } = {}) => {
       },
     },
     loudness: async () => o.loud ?? { i: -14.1, tp: -2 },
-    probe: async (_deps, file) =>
-      file.endsWith('.mp4')
+    probe: async (_deps, file) => {
+      probes.push(file);
+      return file.endsWith('.mp4')
         ? {
             duration: TOTAL,
             video: { codec: 'h264', w: 1080, h: 1920, fps: 30 },
@@ -151,10 +153,11 @@ const stubs = (o: { loud?: Loudness } = {}) => {
           ? { duration: 0, subtitle: { codec: 'subrip' } }
           : {
               duration: (FRAMES.find((f) => file.includes(f.scene_id))?.n ?? 0) / 30,
-              video: { codec: 'prores', profile: '4444', w: 1080, h: 1920, fps: 30 },
-            },
+              video: { codec: 'prores', profile: o.clipProfile ?? '4444', w: 1080, h: 1920, fps: 30 },
+            };
+    },
   };
-  return { io, renders, sh };
+  return { io, renders, sh, probes };
 };
 
 test('deliver with no deliverables listed makes the MP4 and the SRT per format and publishes out/deliver', async () => {
@@ -207,10 +210,33 @@ test('deliver with no deliverables listed makes the MP4 and the SRT per format a
 
 test('an ae_package renders the MOV and checks every clip', async () => {
   const run = makeRun({ deliverables: [{ format: 'reel', kind: 'ae_package', captions: 'separate' }] });
-  const { io, renders } = stubs();
+  const { io, renders, probes } = stubs();
   const r = await deliver(run, io);
   expect(r).toMatchObject({ ok: true, deliverables: ['out/deliver/reel/ae'] });
   expect(renders).toEqual([[run, 'reel', 'final', [], 'mov']]);
+  const scenes = path.join(run, 'out', 'deliver.tmp', 'reel', 'ae', 'scenes');
+  expect(probes).toContain(path.join(scenes, `01-${FRAMES[0]?.scene_id}.mov`));
+  const clips = FRAMES.map((f, k) => path.join(scenes, `${String(k + 1).padStart(2, '0')}-${f.scene_id}.mov`));
+  expect(probes).toEqual(expect.arrayContaining(clips));
+});
+
+test('an ae_package whose clip is not ProRes 4444 fails deliver.files', async () => {
+  const run = makeRun({ deliverables: [{ format: 'reel', kind: 'ae_package', captions: 'separate' }] });
+  const r = await deliver(run, stubs({ clipProfile: '422' }).io);
+  expect(r).toMatchObject({
+    ok: false,
+    failed: expect.arrayContaining([expect.objectContaining({ id: 'deliver.files' })]),
+  });
+});
+
+test('a second deliver leaves the same check ids in test_results.json, none blocking', async () => {
+  const run = makeRun({ deliverables: [] });
+  expect((await deliver(run, stubs().io)).ok).toBe(true);
+  const first = readJson(path.join(run, 'test_results.json'), TestResultsSchema).checks.map((c) => c.id);
+  expect((await deliver(run, stubs().io)).ok).toBe(true);
+  const after = readJson(path.join(run, 'test_results.json'), TestResultsSchema);
+  expect(after.checks.map((c) => c.id)).toEqual(first);
+  expect(after.summary.blocking_failed).toBe(0);
 });
 
 test('a failing deliver check keeps out/deliver.tmp, publishes nothing and leaves test_results.json alone', async () => {

@@ -13,6 +13,8 @@ const SNAPSHOT_FILES = [
   'brief.json',
   'script.json',
   'plan.json',
+  'assets.json',
+  'capture/steps.json',
   'data/timing.json',
   'test_results.json',
   'report.md',

@@ -32,6 +32,8 @@ const CONTRACT_FILES: [string, z.ZodType][] = [
 /**
  * Parses every run file of the contract list that exists against its schema; returns a blocking CheckResult
  * with one annotation per file that is not valid JSON or breaks its schema. Never throws for a bad file.
+ * When run from the scenes checks, `plan.json`, `brief.json` and `assets.json` are already parsed first, so a broken
+ * copy of those throws `ContractError` before this check runs; it flags the other files.
  */
 export const checkContractsValid = (runDir: string): CheckResult => {
   const annotations: CheckResult['annotations'] = [];

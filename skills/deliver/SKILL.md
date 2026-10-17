@@ -15,7 +15,7 @@ Every command prints one JSON line. Read its `ok` field, never the exit code. An
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/deliver/cli.ts" mix runs/<run_id>
 ```
 
-The result has `music` (the music bed's name, or `null`), `i` (integrated loudness, LUFS) and `tp` (true peak). Tell
+The result has `music` (the music bed's run path, or `null`), `i` (integrated loudness, LUFS) and `tp` (true peak). Tell
 the creator in one line whether a music bed is used and what the loudness is.
 
 ## 2. Export (M17)
@@ -27,7 +27,7 @@ the creator in one line whether a music bed is used and what the loudness is.
 On `ok: true`, go to step 3. On `ok: false`, show each `failed` entry: its `id`, its `format` when it has one, and each
 of its `problems`. Then:
 
-- A loudness problem: run `mix` again once, then `export` again. If it fails again, show the problems and ask.
+- A loudness problem: show the measured numbers and ask the creator. The mix is deterministic, so re-mixing gives the same result.
 - Any other problem: stop and ask the creator how to proceed.
 
 ## 3. Gate G4: the creator checks the delivery
