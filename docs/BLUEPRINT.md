@@ -163,14 +163,14 @@ Verify each call against the **installed** version before a phase plan uses it. 
 | Integration | Calls used | Where |
 |---|---|---|
 | HyperFrames CLI | `doctor --json`, `browser ensure`, `models install parakeet --json`, `init <name> --example blank --resolution portrait --non-interactive` (smoke test only), `capture <url> -o <dir> --skip-vision --json`, `transcribe <f> -d <dir> --json`, `tts <text> -o <wav> -v <voice> --json`, `remove-background <f> -o <out> --json`, `lint --json <dir>`, `check --json --no-browser-gpu <dir>`, `snapshot <dir> --at t1,t2 --no-end --describe false -o <dir>`, `render <dir> --quality draft\|delivery --no-browser-gpu -o <f>` (+ `--format webm\|mov\|png-sequence` for alpha) | M0, M2, M5, M9, M11, M13, M17 |
-| HyperFrames probe results (0.8.143) | `doctor --json` exits 0 with top-level `ok:false` when optional tools are missing: read `checks[]`. `lint`/`check --json` → `{ok, errorCount, warningCount, findings[{code, severity, message, selector, time}]}`, exit 1 on error; a lint error makes `check` skip its browser stages (`browserSkipped`). `check` reports contrast as an error (with `suggestedColor`) but off-canvas only as info (`panel_out_of_canvas`), so `layout.safe_area` stays ours. `snapshot` writes `frame-NN-at-Xs.png` + `contact-sheet.jpg`. Transparent background works in WebM (VP9 alpha) and MOV (ProRes 4444, exact colour) → AE gets layers. Frames are identical run to run in GPU and in software mode, but differ between the two modes. 30 s draft: 15 s GPU / 33 s software (simple scene). `tts` needs Python `kokoro-onnx` + `soundfile` (via `HYPERFRAMES_PYTHON`), outputs 24 kHz mono, warm ≈ 5 s per line. `transcribe`: whisper-cpp has no Windows install path, Parakeet works (640 MB), output `<dir>/transcript.json` = `[{id, text, start, end}]`. `capture` → `extracted/tokens.json` (colors, fonts, cssVariables), `visible-text.txt`, `screenshots/`. `remove-background` runs on CPU only here (≈ 0.6 s/frame). | M0–M17 |
+| HyperFrames probe results (0.8.143) | `doctor --json` exits 0 with top-level `ok:false` when optional tools are missing: read `checks[]`. `lint`/`check --json` → `{ok, errorCount, warningCount, findings[{code, severity, message, selector, time}]}`, exit 1 on error; a lint error makes `check` skip its browser stages (`browserSkipped`). `check` reports contrast as an error (with `suggestedColor`) but off-canvas only as info (`panel_out_of_canvas`), so `layout.safe_area` stays ours. `snapshot` writes `frame-NN-at-Xs.png` + `contact-sheet.jpg`. Transparent background works in WebM (VP9 alpha) and MOV (ProRes 4444, exact colour) → AE gets layers. Frames are identical run to run in GPU and in software mode, but differ between the two modes. 30 s draft: 15 s GPU / 33 s software (simple scene). `tts` needs Python `kokoro-onnx` + `soundfile` (via `HYPERFRAMES_PYTHON`), outputs 24 kHz mono, warm ≈ 5 s per line. `transcribe`: whisper-cpp has no Windows install path, Parakeet works (640 MB), output `<dir>/transcript.json` = `[{id, text, start, end}]`. `capture` → `extracted/tokens.json` (colors, fonts, cssVariables), `visible-text.txt`, `screenshots/`. `remove-background` runs on CPU only here (≈ 0.6 s/frame); `--device auto\|cpu\|coreml\|cuda --json` → last stdout line `{ok, outputPath, framesProcessed, avgMsPerFrame, provider}`, output VP9 with `ALPHA_MODE=1` and no audio (CoreML on an M1: 146 ms/frame). A root-level `<video class="clip" muted>` with `data-start` plays alpha over the scenes in `snapshot` and `render --no-browser-gpu`, media time `t − data-start`, seek-safe (probed 2026-10-17). | M0–M17 |
 | HyperFrames composition contract | root `data-composition-id` + `data-start="0"` + `data-width/height`, `data-duration`; one `gsap.timeline({paused:true})` registered at `window.__timelines[id]`, built synchronously; `<video>`/`<audio>` playback owned by the framework. GSAP (3.14.2, as `init` scaffolds) is vendored into the run folder, never loaded from the CDN | M12 |
 | Playwright | `chromium.launchPersistentContext(profileDir, {viewport, recordVideo})`, `getByRole` / `getByText`, `boundingBox()`, `innerText('body')` | M3 |
 | ctc-onnx aligner | `align(audioPath, lines, spokenWords)` → `data/timing.json` + `data/audio.json` (exists). Model: `Xenova/wav2vec2-base-960h` @ `a19f851b3d42865797e410752b4c570c871e4825`, `onnx/model_quantized.onnx`, 95 286 046 bytes, sha256 `cd5040c1…60a3`, fetched by setup into `<VM_HOME>/models/` | M0, M10 |
 | ffmpeg / ffprobe | `select='gte(scene,0)'` scores, frames at score > **0.05** plus every 2 s (user ruling R1: UI navigations score 0.06–0.09, so 0.3 finds nothing), segment by time, `-r 30 -g 1` re-encode, `loudnorm` two-pass, `ebur128`, `tile` | M2, M3, M13, M16, M17 |
 | Claude Code WebSearch / WebFetch | Called by Claude from the skills (not from `lib/`); every used fact keeps its URL | M5, M8 |
 | Free-licence media source | **Openverse API** (`api.openverse.org/v1/images\|audio`, no key; anonymous 20/min, 200/day; each result has `license`, `license_version`, `license_url`, `attribution`, `creator`, `foreign_landing_url`). Pexels (free key in `.env`) only if Openverse coverage proves thin | M5, M8 |
-| HeyGen (optional, paid) | avatar generation, ~$1/min | M11, behind the cost gate |
+| HeyGen (optional, paid) | avatar generation, ~$1/min (estimate; the docs publish no rate). API v3 (v1/v2 removed 2026-10-31): `https://api.heygen.com`, header `x-api-key`; `POST /v3/assets` (multipart `file`) → `asset_id`; `POST /v3/videos` `{type:"image", image:{type:"asset_id",…}, audio_asset_id, aspect_ratio, resolution, background}` → `video_id`; `GET /v3/videos/{id}` → `status` `pending\|processing\|completed\|failed`, `video_url`; 25 fps; errors `{error:{code,message,request_id}}`, 429 with `Retry-After` | M11, behind the cost gate |
 
 ## 2.4 Data models
 All in `lib/contracts/types.ts` as Zod schemas, validated on write **and** read (`writeJson` / `readJson`). Existing
@@ -182,14 +182,14 @@ Changes and additions:
 | `Script.lines[]` | add `delivery: "voiceover" \| "avatar"` (default `"voiceover"`), `section?: string`, `cite?: string[]` (source URLs for any fact or number the line states) |
 | `PlatePlan` → `ScenePlan` | rename (`plate_id` → `scene_id`); `Plan.visuals_plan.plates` → `scenes`; `ScenePlan.section?: string` |
 | `Plan` | add `sections?: {id, title}[]` (chapters; reels leave it out) |
-| `Brief` | add `sources: {kind: "nav_video"\|"product_url"\|"file"\|"link", path_or_url, note?}[]` (default `[]`; `product_url` and `link` http(s) only) and `avatar?: {source, adapter?, portrait?}`; **remove** `source_material`, `assets`, `references` (folded into `sources`); `formats` default `["reel"]` |
+| `Brief` | add `sources: {kind: "nav_video"\|"product_url"\|"file"\|"link", path_or_url, note?}[]` (default `[]`; `product_url` and `link` http(s) only) and `avatar?: {source: "supplied", clip} | {source: "adapter", adapter, portrait}` (a supplied clip runs along the whole `vo.wav`; user ruling 2026-10-17); **remove** `source_material`, `assets`, `references` (folded into `sources`); `formats` default `["reel"]` |
 | `AssetRef` | add `origin: "supplied"\|"nav_video"\|"captured"\|"web"\|"found"\|"drawn"`; `license` may be `"unknown"` in the pool but never renders; `status: pool\|pinned\|dropped` (default pool), `attribution?`, `title?` (user ruling R3). `assets.json` = `{ run_id, assets: AssetRef[] }`, unique ids |
 | `Steps` (new) | `capture/steps.json`: `{ i, url, action: click\|type\|scroll\|wait, target, value?, expect, frame? }[]` (`frame`: the nav-video frame the step was read from, the fallback when replay fails) |
 | `CaptureLog` (new) | `capture/log.json`: per step `{ i, t0, t1, box?, url, failed?, fallback? }`; times are on the replay recording (`capture/replay.webm`), which the clips are cut from |
 | `Doctor` (new) | `~/.video-machine/doctor.json`: tool versions, paths, smoke timings |
 
 Run folder layout: `concept.md, brief.json, input/, capture/, assets.json, research.md, script.json, directions/A|B/,
-look/, plan.json, boards/, audio/, data/timing.json, avatar/, scenes/ (fragments, `hashes.json`, `redo.json`), build/<format>/ (generated HyperFrames project), out/ (`drafts/`, `sheets/`, `final/`, `deliver/<format>/`), test_results.json, report.md,
+look/, plan.json, boards/, audio/, data/timing.json, avatar/ (`<seg>.webm`, `segments.json`, `placement.json`), scenes/ (fragments, `hashes.json`, `redo.json`), build/<format>/ (generated HyperFrames project), out/ (`drafts/`, `sheets/`, `final/`, `deliver/<format>/`), test_results.json, report.md,
 history/<n>/` (text files + `feedback.json`, never media). Renders, audio and capture media are gitignored.
 
 ## 2.5 Public functions / API
@@ -206,7 +206,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | `VoiceAdapter.synth` / `costEstimate` | `runDir, lines, voiceId` (`voice/supplied` is `importSupplied(deps, runDir, runPath)`, ruling 2026-10-14) | `<run>/audio/vo.wav` path / USD |
 | `AlignAdapter.align` | `audioPath, lines, spokenWords?` | `timing.json` path |
 | `CaptureAdapter.replay` | `runDir, steps, profile` | `log.json` path |
-| `AvatarAdapter.make` / `costEstimate` | `portrait, audioPath` | video path / USD |
+| `AvatarAdapter.make` / `costEstimate` | `job: {seg, start, end, audio}, out` (the adapter is built with its portrait or clip) / `audio_s` | opaque video path (M11 removes the background) / USD |
 | `ExportAdapter.export` | `runDir, deliverable` | path |
 | `whereAmI` | `runDir` | next part id |
 
@@ -260,6 +260,8 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | loudness | LUFS / dBTP | `−14 ±1` / `≤ −1` |
 | loudnorm target | dBTP | `−1.5` (margin for AAC; the check stays `≤ −1`) |
 | music bed | dB, duck | `−12`; sidechain threshold 0.05, ratio 8, attack 20 ms, release 300 ms |
+| avatar presets | box in the safe area | `corner-br`, `corner-bl` (h = 45 % of safe height, 3:4), `bottom` (full safe width), `full` (whole safe area); Phase 8 plan R5 |
+| HeyGen rate | USD/min | `1` (estimate) |
 | SRT cue | characters | `42` |
 
 ## 2.8 Checks
@@ -278,7 +280,7 @@ Each check is one file in `lib/checks/`, reads the run folder, and appends to `t
 | `motion.no_dead_spans` | yes | frame difference over the draft; no span > 1.5 s below threshold unless the beat has `hold` |
 | `timing.beats_on_cues` | yes | each beat's visual change within ±2 frames of its word |
 | `timing.duration` | yes | final duration inside `duration_target_s` |
-| `layout.safe_area` | yes | every text box inside the format's safe area (Instagram UI zones on the reel) |
+| `layout.safe_area` | yes | every text box inside the format's safe area (Instagram UI zones on the reel) and out of any avatar box while that segment is on |
 | `layout.min_text_size` | yes on reel | text height ≥ 3.5 % of frame height on vertical, 2.5 % on landscape |
 | `layout.no_overflow` | yes | HF: no text box leaves the frame or overlaps another |
 | `assets.no_reference_only` | yes | no `reference_only` path (e.g. a nav video not flipped to fallback) in any scene or render input |
@@ -314,6 +316,7 @@ video-machine/                      # repo = the plugin and its own marketplace
     capture/SKILL.md                # M2–M4
     storyboard/SKILL.md             # M7–M8
     review/SKILL.md                 # M15 routing rules
+    avatar/SKILL.md                 # M11
     status/SKILL.md                 # /video-machine:status (setup health + each run's next part)
   agents/                           # SHIPPED subagents
     scene-writer.md                 # M12
@@ -404,6 +407,7 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 ### Phase 8 — Avatar (M11)
 - `avatar-director` agent; one local audio-driven adapter (pick after a GPU test on the reference laptop), `supplied`, HeyGen behind the cost gate.
 - `hyperframes remove-background` → transparent `.webm`; placement per scene.
+- User rulings 2026-10-17: the local adapter is picked by a GPU test the creator runs on the reference laptop, after the rest of the phase; a supplied avatar is one clip synced to `vo.wav`; the `avatar-director` picks a named preset per segment, the build lays the `.webm` on top, and `layout.safe_area` keeps text out of it; HeyGen is tested with mocked HTTP plus an optional live call.
 
 ### Phase 9 — Long-form (16:9 with chapters)
 - `landscape_1080p` end to end; `Plan.sections` / `Script.lines[].section` as chapters; chapter cards; long-form duration
