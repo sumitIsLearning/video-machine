@@ -9,9 +9,11 @@ Run every command with the Bash tool (Git Bash on Windows), from the creator's w
 Every command prints one JSON line. Read its `ok` field, never the exit code. Any `ok:false` means: show the creator the
 `message`. The run folder is the relative path `runs/<run_id>`. Nothing is written under `${CLAUDE_PLUGIN_ROOT}`.
 
-The commands are `times`, `build` and `check`:
+The commands are `todo`, `done`, `times`, `build` and `check`:
 
 ```bash
+"${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/scenes/cli.ts" todo runs/<run_id>
+"${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/scenes/cli.ts" done runs/<run_id> <scene_id>...
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/scenes/cli.ts" times runs/<run_id>
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/scenes/cli.ts" build runs/<run_id>
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/scenes/cli.ts" check runs/<run_id>
@@ -21,8 +23,12 @@ Only the `scene-writer` agent writes scene files. This skill never edits `scenes
 
 ## 1. Write the scenes
 
-Run `times` once. Then dispatch one `scene-writer` per scene in parallel, using the Agent tool with
-`subagent_type: "video-machine:scene-writer"`. Give each one the run folder and its `scene_id`. Wait for all of them.
+Run `todo`. It returns `{ok, todo: [{scene_id, reason: "new"|"feedback"|"changed", feedback?}]}`, one entry per scene
+still to write (on a fresh run, every scene is `new`). If `todo` is empty, skip to step 2 (Build). Otherwise dispatch one
+`scene-writer` per entry only, in parallel, using the Agent tool with `subagent_type: "video-machine:scene-writer"`. Give
+each one the run folder and its `scene_id`. When the entry's `reason` is not `new`, tell the writer the scene file
+already exists and to edit it. When the entry has a `feedback`, pass that too. Wait for all of them. Then run `done` with
+the `scene_id`s whose writer finished. `build` refuses while any scene is still to write.
 
 ## 2. Build
 
@@ -54,3 +60,4 @@ Tell the creator, in a few lines:
 - the summary from `report.md` (the `report` path that `check` returns).
 
 Then ask whether the scenes look right. Wait for a yes. Do not render anything else or move on without it.
+If the creator gives feedback instead, run the `review` skill (`video-machine:review`) with it. Do not edit scenes here.

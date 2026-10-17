@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { Plan, Timing } from '../contracts/types';
 import { InputError, UnsupportedError } from './errors';
-import { sceneTimes, TAIL_S } from './scene-times';
+import { sceneFrames, sceneTimes, TAIL_S } from './scene-times';
 
 const w = (w: string, start: number, end: number) => ({ w, start, end });
 const timing: Timing = {
@@ -134,4 +134,18 @@ describe('sceneTimes', () => {
     expect(run).toThrow(InputError);
     expect(run).toThrow(/scene back: starts at 0.2s, not after/);
   });
+});
+
+test('sceneFrames rounds each scene start and end to whole frames with no gap', () => {
+  const frames = sceneFrames(
+    [
+      { scene_id: 'a', start: 0, duration: 1.31, lines: [], beats: [], words: [] },
+      { scene_id: 'b', start: 1.31, duration: 5.46, lines: [], beats: [], words: [] },
+    ],
+    30,
+  );
+  expect(frames).toEqual([
+    { scene_id: 'a', f0: 0, n: 39 },
+    { scene_id: 'b', f0: 39, n: 164 },
+  ]);
 });

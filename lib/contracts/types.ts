@@ -272,6 +272,23 @@ export const PlanSchema = z
   });
 export type Plan = z.infer<typeof PlanSchema>;
 
+// ------------------------------------------------------------------ review
+
+export const FeedbackSchema = z.strictObject({
+  n: z.number().int().min(1),
+  at: z.string(),
+  text: z.string().min(1),
+  route: z.enum(['words', 'plan', 'scenes']),
+  scenes: z.array(z.string()),
+});
+export type Feedback = z.infer<typeof FeedbackSchema>;
+
+/** `scenes/redo.json`: scene id to the feedback note for it. */
+export const SceneNotesSchema = z.record(z.string(), z.string());
+
+/** `scenes/hashes.json`: scene id to its input hash. */
+export const SceneHashesSchema = z.record(z.string(), z.string());
+
 // ------------------------------------------------------------------ assets
 export const AssetRefSchema = z.strictObject({
   asset_id: z.string(),
@@ -483,7 +500,13 @@ export interface RenderAdapter {
   check(runDir: string): Promise<Issue[]>;
   still(runDir: string, format: FormatId, t: number[], only?: string[]): Promise<string[]>;
   contactSheet(runDir: string, format: FormatId, perScene: number): Promise<string>;
-  render(runDir: string, format: FormatId, quality: 'draft' | 'final', passes?: LayerPass[]): Promise<string>;
+  render(
+    runDir: string,
+    format: FormatId,
+    quality: 'draft' | 'final',
+    passes?: LayerPass[],
+    container?: 'mp4' | 'mov',
+  ): Promise<string>;
 }
 export interface VoiceAdapter {
   synth(runDir: string, lines: Script['lines'], voice_id: string): Promise<string>;

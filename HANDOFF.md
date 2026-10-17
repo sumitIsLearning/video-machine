@@ -1,12 +1,15 @@
 # Handoff
 
-## Now (2026-10-16): Phase 6 merged into master `be5e27c`; next session: write the Phase 7 plan
+## Now (2026-10-17): Phase 7 done and reviewed on branch `phase-7`; awaiting user OK to merge
 
-- User OK'd the plan 2026-10-16. Pre-step blueprint edits `0c809ac`; T1 scene times `9d5efc1`; T2 text fit + `VM`
-  `fed5d3f`; T3 assemble project `d94a95e`; T4 render adapter `729bc58`; T5 checks `99ca019`; T6 checks `118b174`; T7 measure `05c5d5f`; T8 scenes `08913a2`; T9 plugin scene-writer/scenes `dca8d67`; T10 acceptance `46716fd` (5/5 PASS). 718 tests. 718 tests pass, lint OK.
-- Plan: `docs/superpowers/plans/phase-6-scenes-render-checks.md` (10 tasks; rulings U1, U2, R1–R13).
-  Ledger: `.superpowers/sdd/phase-6-scenes-render-checks/progress.md`.
-- Phase end done: acceptance 5/5; Opus review fixes `3a73096` (skill) + `5eb61f6` (lib), re-review APPROVE; 724 tests. Merged `be5e27c` (user OK 2026-10-16). Next: Phase 7 plan.
+- Plan: `docs/superpowers/plans/phase-7-revise-sound-deliver.md` (12 tasks; U1, U2, R1–R14).
+  Ledger: `.superpowers/sdd/phase-7-revise-sound-deliver/progress.md`.
+- All 12 tasks committed (T12 `5d7b61a`); whole-branch review APPROVE; fix round `837eed8`; `bun tests/phase7.ts` 7/7 PASS.
+- Next: user OK → merge `phase-7` into master; then Phase 8 plan.
+- Check 7 (video-testing listing) skips on macOS: default path is `C:/Work-data/video-testing`; set `VM_VIDEO_TESTING`.
+- Tooling note for user: check.sh shows the first 60 lint lines, and biome infos (6 pre-existing) can hide the real
+  error; builders misread it in T6 and T10. Possible fix: `--diagnostic-level=warn` in package.json lint (asked, not done).
+- Phase 6 merged `be5e27c`.
 - Open for user (deferred 2026-10-16): strict plugin validate fails on root CLAUDE.md warning (phase1 check 4); follow-up filter `reference_only` from `times`.
 - Note: BLUEPRINT 2.1 diagram line still says `index.html, scenes/*.html` (pre-step did not list it).
 - Test run for later: `runs/2026-10-14-firecrawl-in-20-seconds-paste/` is at M6.

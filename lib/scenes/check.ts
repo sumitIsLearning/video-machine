@@ -1,16 +1,18 @@
 // Runs the render checks (R13) on a built run and writes test_results.json and report.md. Checks only read the run.
-import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { hyperframesRender } from '../adapters/render/hyperframes';
 import { frameDiffs, hfRuntimeFile, measureText, snapshotHashes } from '../adapters/render/hyperframes/measure';
 import { assembleProject } from '../adapters/render/hyperframes/project';
 import { checkLicensed, checkNoReferenceOnly } from '../checks/assets';
 import { type CaptionSample, checkCaptions } from '../checks/captions';
+import { checkContractsValid } from '../checks/contracts';
 import { checkCoverage } from '../checks/coverage';
 import { checkDuration } from '../checks/duration';
 import { checkFactsCited } from '../checks/facts-cited';
 import { checkMinTextSize, checkSafeArea, type TextSample } from '../checks/layout';
 import { checkBeatsOnCues, checkDeadSpans } from '../checks/motion';
+import { writeReport } from '../checks/report';
 import { checkDeterministic, checkSeekSafe, sampleTimes } from '../checks/stability';
 import {
   AssetsSchema,
@@ -236,6 +238,7 @@ export const checkScenes = async (
   );
   const noReference = checkNoReferenceOnly(pool.assets, Object.fromEntries(fragments));
   const checks: CheckResult[] = pinScenes(scenes, [
+    checkContractsValid(runDir),
     coverage,
     factsCited,
     lint,
@@ -278,29 +281,4 @@ export const checkScenes = async (
   });
   writeReport(runDir, checks, failed.length);
   return { blocking_failed: failed.length, failing_scenes: failing, report: 'report.md' };
-};
-
-/** One line per problem, naming the scene and time when there are any. */
-const lineOf = (a: CheckResult['annotations'][number]): string => {
-  const where = a.scene_id === undefined ? '' : `scene ${a.scene_id}${a.t === undefined ? '' : ` at ${a.t} s`}: `;
-  return `- ${where}${a.problem} → ${a.suggested_fix}`;
-};
-
-/** Writes report.md through a temp name and a rename, so a crash never leaves a half-written report. */
-const writeReport = (runDir: string, checks: CheckResult[], blocking: number): void => {
-  const label = (c: CheckResult) => (c.format === undefined ? c.id : `${c.id} (${c.format})`);
-  const fails = checks.filter((c) => c.status === 'fail').sort((a, b) => Number(b.blocking) - Number(a.blocking));
-  const sections = fails.map((c) => {
-    const body = c.annotations.length === 0 ? `- ${c.detail}` : c.annotations.map(lineOf).join('\n');
-    return `## ${label(c)}\n${body}`;
-  });
-  const passed = `## Passed\n${checks
-    .filter((c) => c.status === 'pass')
-    .map((c) => `- ${label(c)}`)
-    .join('\n')}`;
-  const text = [`# Checks: ${blocking} blocking failed`, ...sections, passed].join('\n\n');
-  const dest = path.join(runDir, 'report.md');
-  const tmp = `${dest}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${text}\n`);
-  renameSync(tmp, dest);
 };

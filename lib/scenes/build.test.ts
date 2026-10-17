@@ -39,6 +39,8 @@ const makeRun = (): string => {
     asset_ids: [],
     formats: ['reel'],
   });
+  mkdirSync(path.join(run, 'scenes'), { recursive: true });
+  writeFileSync(path.join(run, 'scenes', 'demo.html'), '<div></div>');
   return run;
 };
 
@@ -123,4 +125,21 @@ test('buildScenes lets an assemble InputError propagate', async () => {
       },
     }),
   ).rejects.toThrow(InputError);
+});
+
+test('buildScenes throws InputError naming the scenes still to write, before assembling', async () => {
+  const run = makeRun();
+  rmSync(path.join(run, 'scenes', 'demo.html'));
+  const { render } = recordingRender([]);
+  let assembleCalls = 0;
+  await expect(
+    buildScenes(run, {
+      render,
+      assemble: async (runDir, format) => {
+        assembleCalls++;
+        return path.join(runDir, 'build', format);
+      },
+    }),
+  ).rejects.toThrow('write these scenes first: demo');
+  expect(assembleCalls).toBe(0);
 });

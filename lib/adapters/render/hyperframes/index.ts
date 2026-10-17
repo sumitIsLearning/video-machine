@@ -182,23 +182,24 @@ export const hyperframesRender = (deps: Deps = defaultDeps()): RenderAdapter => 
     return dest;
   },
 
-  async render(runDir, format, quality, passes: LayerPass[] = []) {
+  async render(runDir, format, quality, passes: LayerPass[] = [], container: 'mp4' | 'mov' = 'mp4') {
     if (passes.length)
       throw new UnsupportedError(`hyperframes render can't render layer passes (${passes.join(', ')}) yet`);
     const build = buildOf(runDir, format);
     const { dir, flag } = QUALITY[quality];
     const outDir = path.join(runDir, 'out', dir);
-    const dest = path.join(outDir, `${format}.mp4`);
-    const tmp = path.join(outDir, `${format}.tmp.mp4`);
+    const dest = path.join(outDir, `${format}.${container}`);
+    const tmp = path.join(outDir, `${format}.tmp.${container}`);
+    const formatArgs = container === 'mov' ? ['--format', 'mov'] : [];
     mkdirSync(outDir, { recursive: true });
     // A failed render must not leave the previous video looking current.
     rmSync(dest, { force: true });
     rmSync(tmp, { force: true });
     try {
-      await deps.sh([...HF_CMD, 'render', build, '--quality', flag, '--no-browser-gpu', '--quiet', '-o', tmp], {
-        env: deps.config.toolEnv,
-        timeoutMs: RENDER_TIMEOUT_MS,
-      });
+      await deps.sh(
+        [...HF_CMD, 'render', build, '--quality', flag, ...formatArgs, '--no-browser-gpu', '--quiet', '-o', tmp],
+        { env: deps.config.toolEnv, timeoutMs: RENDER_TIMEOUT_MS },
+      );
     } catch (cause) {
       rmSync(tmp, { force: true });
       throw cause;

@@ -130,7 +130,7 @@ concept.md (required) + input/* (any mix of nav videos, files) + URLs/links (opt
    │ M9 voice ──────────────► audio/vo.wav               │  (hyperframes tts = Kokoro)
    │ M10 align ─────────────► data/timing.json           │  (ctc-onnx, exists)
    │ M11 avatar (optional) ─► avatar/<seg>.webm          │
-   │ M12 scene writer ──────► index.html, scenes/*.html  │  (one subagent per scene)
+   │ M12 scene writer ──────► scenes/<id>.html, build/<format>/ │  (one subagent per scene)
    │ M13 render ────────────► out/stills, sheet, drafts  │  (hyperframes lint/check/snapshot/render)
    │ M14 checks ────────────► test_results.json, report.md ── G3 ── M15 feedback router ──┘
    │ M16 sound ─────────────► audio/mix.wav, out/captions.srt
@@ -189,8 +189,8 @@ Changes and additions:
 | `Doctor` (new) | `~/.video-machine/doctor.json`: tool versions, paths, smoke timings |
 
 Run folder layout: `concept.md, brief.json, input/, capture/, assets.json, research.md, script.json, directions/A|B/,
-look/, plan.json, boards/, audio/, data/timing.json, avatar/, scenes/ (fragments), build/<format>/ (generated HyperFrames project), out/, test_results.json, report.md,
-history/<n>/`. Renders, audio and capture media are gitignored.
+look/, plan.json, boards/, audio/, data/timing.json, avatar/, scenes/ (fragments, `hashes.json`, `redo.json`), build/<format>/ (generated HyperFrames project), out/ (`drafts/`, `sheets/`, `final/`, `deliver/<format>/`), test_results.json, report.md,
+history/<n>/` (text files + `feedback.json`, never media). Renders, audio and capture media are gitignored.
 
 ## 2.5 Public functions / API
 Skills call adapters only through their CLIs (`bun ${CLAUDE_PLUGIN_ROOT}/lib/adapters/<kind>/<name>/cli.ts ...`), which print
@@ -202,7 +202,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | `RenderAdapter.lint` / `check` | `runDir` | `Issue[]` (blocking) |
 | `RenderAdapter.still` | `runDir, format, t[]` | PNG paths |
 | `RenderAdapter.contactSheet` | `runDir, format, perScene` | `out/sheets/<format>.jpg` (HyperFrames' contact sheet, JPEG) |
-| `RenderAdapter.render` | `runDir, format, "draft"\|"final", passes?` | MP4 path (passes unsupported → throw) |
+| `RenderAdapter.render` | `runDir, format, "draft"\|"final", passes?, container? ("mp4"\|"mov")` | MP4 / MOV path (passes unsupported → throw) |
 | `VoiceAdapter.synth` / `costEstimate` | `runDir, lines, voiceId` (`voice/supplied` is `importSupplied(deps, runDir, runPath)`, ruling 2026-10-14) | `<run>/audio/vo.wav` path / USD |
 | `AlignAdapter.align` | `audioPath, lines, spokenWords?` | `timing.json` path |
 | `CaptureAdapter.replay` | `runDir, steps, profile` | `log.json` path |
@@ -258,6 +258,9 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | beat tolerance | frames | `±2` |
 | min text size | % of frame height | vertical `3.5`, landscape `2.5`, square `2.5` |
 | loudness | LUFS / dBTP | `−14 ±1` / `≤ −1` |
+| loudnorm target | dBTP | `−1.5` (margin for AAC; the check stays `≤ −1`) |
+| music bed | dB, duck | `−12`; sidechain threshold 0.05, ratio 8, attack 20 ms, release 300 ms |
+| SRT cue | characters | `42` |
 
 ## 2.8 Checks
 Each check is one file in `lib/checks/`, reads the run folder, and appends to `test_results.json`. "HF" marks checks that
@@ -393,8 +396,9 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 
 ### Phase 7 — Revise, sound, deliver (M15, M16, M17)
 - Feedback router + `history/` snapshots + `input_hash` partial regeneration.
-- Music bed with ducking, burned captions, −14 LUFS / −1 dBTP mix, SRT.
-- Export: MP4, SRT, AE package (layers if transparent rendering works, else flattened scenes) + `build_comp.jsx`.
+- Music bed with ducking, burned captions (drawn by the scenes; ffmpeg here has no libass), −14 LUFS / −1 dBTP mix, SRT.
+- Export: MP4, SRT, AE package = one ProRes 4444 clip per scene + mix + SRT + `build_comp.jsx` with word markers (user ruling 2026-10-17; layer passes → Phase 10).
+- Checks added: `contracts.valid`, `audio.loudness`, `deliver.files`.
 - Acceptance: "make scene 3 slower" touches only scene 3; every deliverable passes ffprobe checks.
 
 ### Phase 8 — Avatar (M11)
@@ -408,6 +412,7 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 
 ### Phase 10 — Polish
 - README, install guide, marketplace publish, licence check, end-to-end run on a second machine.
+- Deferred from Phase 7 (user ruling 2026-10-17): AE layer passes, `brief.applied`, `intent.judge`, `look.judge`, MP4 deliverables without burned captions.
 
 ### Future
 Paid AI image / video generation (behind the cost gate), Chatterbox voice-clone adapter, vlog / raw-footage editing,
