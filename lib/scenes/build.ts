@@ -2,8 +2,10 @@
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { type FormatId, type Issue, PlanSchema } from '../contracts/types';
+import { InputError } from '../core/errors';
 import { readJson } from '../core/json';
 import { failingScenes, relRun, resolveIo, type ScenesIo } from './check';
+import { scenesTodo } from './todo';
 
 /** What the build reports per format: run-relative paths and the render warnings. */
 export type BuildResult =
@@ -16,11 +18,14 @@ export type BuildResult =
 /**
  * Assembles each planned format, then makes its contact sheet (two stills per scene) and draft. A render error stops
  * the build before any sheet or draft is made. Returns the paths per format, or the failing scenes and the errors.
- * Throws InputError when a scene fragment or vo.wav is missing and UnsupportedError for a non-voiceover run.
+ * Throws InputError when a scene is still to write (see `scenesTodo`) or vo.wav is missing, and UnsupportedError for a
+ * non-voiceover run.
  */
 export const buildScenes = async (runDir: string, io: ScenesIo = {}): Promise<BuildResult> => {
   const { render, assemble } = resolveIo(io);
   const plan = readJson(path.join(runDir, 'plan.json'), PlanSchema);
+  const todo = scenesTodo(runDir);
+  if (todo.length > 0) throw new InputError(`write these scenes first: ${todo.map((t) => t.scene_id).join(', ')}`);
   const builds = new Map<FormatId, string>();
   for (const format of plan.formats) builds.set(format, await assemble(runDir, format));
 

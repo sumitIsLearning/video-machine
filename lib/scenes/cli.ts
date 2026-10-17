@@ -8,8 +8,10 @@ import { sceneTimes } from '../core/scene-times';
 import { minTextPx } from '../core/text-fit';
 import { buildScenes } from './build';
 import { checkScenes, type ScenesIo } from './check';
+import { markDone, scenesTodo } from './todo';
 
-const USAGE = 'usage: cli.ts times <run_dir> | build <run_dir> | check <run_dir>';
+const USAGE =
+  'usage: cli.ts times <run_dir> | build <run_dir> | check <run_dir> | todo <run_dir> | done <run_dir> <scene_id>...';
 
 /** The first format's frame and each scene's start, duration, beats, words and assets (src is run-relative). */
 const timesOf = (runDir: string): Record<string, unknown> => {
@@ -47,12 +49,12 @@ const timesOf = (runDir: string): Record<string, unknown> => {
 };
 
 /**
- * Run a scenes command: times, build or check. Returns the fields of the CLI's JSON result. Throws InputError for a
- * usage mistake, a missing draft (check) or a missing plan format; the library functions throw their own errors.
+ * Run a scenes command: times, build, check, todo or done. Returns the fields of the CLI's JSON result. Throws InputError
+ * for a usage mistake, a missing draft (check) or a missing plan format; the library functions throw their own errors.
  */
 export const main = async (argv: string[], io: ScenesIo = {}): Promise<Record<string, unknown>> => {
   const [command, runDir, ...rest] = argv;
-  if (runDir === undefined || rest.length > 0) throw new InputError(USAGE);
+  if (runDir === undefined || (command !== 'done' && rest.length > 0)) throw new InputError(USAGE);
   switch (command) {
     case 'times':
       return timesOf(runDir);
@@ -60,6 +62,11 @@ export const main = async (argv: string[], io: ScenesIo = {}): Promise<Record<st
       return buildScenes(runDir, io);
     case 'check':
       return checkScenes(runDir, io);
+    case 'todo':
+      return { todo: scenesTodo(runDir) };
+    case 'done':
+      markDone(runDir, rest);
+      return { done: rest };
     default:
       throw new InputError(USAGE);
   }

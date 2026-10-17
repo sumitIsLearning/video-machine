@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -80,7 +80,7 @@ test('an unknown command is a usage error', async () => {
   const run = makeRun();
   await expect(main(['nope', run])).rejects.toThrow(InputError);
   await expect(main(['nope', run])).rejects.toThrow(
-    'usage: cli.ts times <run_dir> | build <run_dir> | check <run_dir>',
+    'usage: cli.ts times <run_dir> | build <run_dir> | check <run_dir> | todo <run_dir> | done <run_dir> <scene_id>...',
   );
 });
 
@@ -91,6 +91,8 @@ test('check calls through to checkScenes and so needs the draft first', async ()
 
 test('build calls through to buildScenes and returns its failing scenes on an error issue', async () => {
   const run = makeRun();
+  mkdirSync(path.join(run, 'scenes'));
+  writeFileSync(path.join(run, 'scenes', 'demo.html'), '<div></div>');
   const error: Issue = { severity: 'error', scene_id: 'demo', message: 'lint: bad markup' };
   const render: RenderAdapter = {
     name: 'stub',
@@ -106,4 +108,17 @@ test('build calls through to buildScenes and returns its failing scenes on an er
     assemble: async (runDir, format) => path.join(runDir, 'build', format),
   });
   expect(result).toEqual({ ok: false, failing_scenes: ['demo'], issues: [error] });
+});
+
+test('todo lists the scenes to write', async () => {
+  const run = makeRun();
+  expect(await main(['todo', run])).toEqual({ todo: [{ scene_id: 'demo', reason: 'new' }] });
+});
+
+test('done takes scene ids and refuses none', async () => {
+  const run = makeRun();
+  mkdirSync(path.join(run, 'scenes'));
+  writeFileSync(path.join(run, 'scenes', 'demo.html'), '<div></div>');
+  expect(await main(['done', run, 'demo'])).toEqual({ done: ['demo'] });
+  await expect(main(['done', run])).rejects.toThrow(InputError);
 });
