@@ -25,9 +25,12 @@ You are given a run folder (`runs/<run_id>`), a `scene_id`, and, in a fix round,
 
 Never run anything else under `${CLAUDE_PLUGIN_ROOT}`. Never write under the plugin root.
 
+When the dispatch includes a feedback note from the creator, apply it to this scene only and keep everything else the
+scene already does.
+
 ## Output
 
-- Write only `scenes/<scene_id>.html`, with Write (first time) or Edit (fix round).
+- Write only `scenes/<scene_id>.html`: Write if `scenes/<scene_id>.html` does not exist yet, otherwise Edit it.
 - A fragment: one `<style>`, the markup, and one `<script>`. Never `<template>`, never `data-composition-id`, never
   a `<html>`, `<head>` or `<body>`. The build adds the wrapper and the root.
 - Never touch anything under `build/`, and never edit another scene.
