@@ -24,6 +24,7 @@ afterEach(() => {
 });
 
 const CHECK_ORDER = [
+  'contracts.valid',
   'plan.coverage',
   'script.facts_cited',
   'render.lint',
@@ -144,6 +145,15 @@ test('checkScenes writes test_results.json with every check in order and the saf
   expect(safe?.status).toBe('fail');
   expect(safe?.annotations[0]?.scene_id).toBe('demo');
   expect(results.summary.blocking_failed).toBe(1);
+});
+
+test('checkScenes fails contracts.valid when a run file breaks its schema', async () => {
+  const run = makeRun();
+  mkdirSync(path.join(run, 'capture'), { recursive: true });
+  writeFileSync(path.join(run, 'capture', 'steps.json'), '[{}]');
+  await checkScenes(run, { render: renderStub(), measure });
+  const results = readJson(path.join(run, 'test_results.json'), TestResultsSchema);
+  expect(results.checks[0]).toMatchObject({ id: 'contracts.valid', status: 'fail' });
 });
 
 test('checkScenes writes report.md with the failing count first and the failing scene listed', async () => {

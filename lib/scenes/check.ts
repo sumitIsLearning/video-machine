@@ -6,6 +6,7 @@ import { frameDiffs, hfRuntimeFile, measureText, snapshotHashes } from '../adapt
 import { assembleProject } from '../adapters/render/hyperframes/project';
 import { checkLicensed, checkNoReferenceOnly } from '../checks/assets';
 import { type CaptionSample, checkCaptions } from '../checks/captions';
+import { checkContractsValid } from '../checks/contracts';
 import { checkCoverage } from '../checks/coverage';
 import { checkDuration } from '../checks/duration';
 import { checkFactsCited } from '../checks/facts-cited';
@@ -237,6 +238,7 @@ export const checkScenes = async (
   );
   const noReference = checkNoReferenceOnly(pool.assets, Object.fromEntries(fragments));
   const checks: CheckResult[] = pinScenes(scenes, [
+    checkContractsValid(runDir),
     coverage,
     factsCited,
     lint,
