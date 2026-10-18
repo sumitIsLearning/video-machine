@@ -13,3 +13,6 @@ Status: plan `75a1df9` OK'd by user ("continue" 2026-10-18).
 - T4 done `644c883` (Haiku build, spec PASS, review 🟠 unreadable clip said "runs 0s" + 🟡 no cleanup test; 2 fix rounds (2nd: test asserts message), PASS).
 - T5 done `b87b1b8` (Haiku build, spec PASS, review 🟠 NaN Retry-After + 🟠 empty-key scrub + 🟡 non-JSON + 🔵 completed w/o url; 2 fix rounds (2nd: missing-header + cleanup tests), PASS; header-comment 🔵 skipped).
 - T6 done `1975185` (Haiku build, spec PASS, review APPROVE; 1 🔵 rm-before-rename skipped). Ruling R11: make.ts reads HEYGEN_API_KEY from io.env ?? process.env as the plan briefed, though AGENT_PROMPT §6 says only config.ts reads env; follow-up: expose via loadConfig.
+- T7 done `5273d05` (Haiku build, spec PASS, review APPROVE, no fix round; test placement typed Record<string, AvatarPreset> for TS2322).
+- T8 done `96b6f79` (Haiku build, spec PASS, review APPROVE, no fix round; 🔵 timing read when segments exist, kept).
+- T9 done (Haiku build, spec FAIL on 1 mismatch: bottom allowed for text scenes; review 🟠 director paths bare → would write at workspace root; 1 fix round, verified by grep, no spec-reviewer dispatch; extras kept: .env wording per BLUEPRINT secrets row, Rules section like voice). Pre-existing: phase1 check 6 fails on make.ts env read (R11, from T6).

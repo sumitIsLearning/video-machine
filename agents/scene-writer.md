@@ -51,6 +51,8 @@ scene already does.
   fragment (the `assets.no_reference_only` check blocks it).
 - Put all text inside `var(--vm-safe-top)`, `var(--vm-safe-right)`, `var(--vm-safe-bottom)`, `var(--vm-safe-left)`
   insets. Use `var(--vm-w)` and `var(--vm-h)` for layout; no pixel constants.
+- When the entry has `avatar`, no text (captions included) may sit inside an entry's `box` (`{x, y, w, h}`, pixels of
+  its `format`) during that entry's `start` to `end` (seconds from the scene start). `layout.safe_area` fails it.
 - Every text box has a fixed width and height. Size each one with `s.fit(el)` after it is in the DOM.
 - No text smaller than `var(--vm-min-text)`.
 - Something visibly changes on every beat word. A `hold` beat may stay still. Start each beat's visible change exactly
