@@ -29,6 +29,7 @@ import {
   TestResultsSchema,
   TimingSchema,
 } from '../contracts/types';
+import { avatarBoxesOf } from '../core/avatar';
 import { type Deps, defaultDeps } from '../core/deps';
 import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
@@ -247,7 +248,7 @@ export const checkScenes = async (
     ...perFormat((m) => checkDeadSpans(m.diffs, FORMATS[m.format].fps, scenes)),
     ...perFormat((m) => checkBeatsOnCues(m.diffs, FORMATS[m.format].fps, scenes)),
     duration,
-    ...perFormat((m) => checkSafeArea(m.text, m.format)),
+    ...perFormat((m) => checkSafeArea(m.text, m.format, avatarBoxesOf(runDir, m.format))),
     ...perFormat((m) => checkMinTextSize(m.text, m.format)),
     overflow,
     noReference,

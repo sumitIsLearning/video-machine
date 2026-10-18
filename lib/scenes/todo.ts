@@ -1,14 +1,62 @@
 // The scenes still to write before a build: no fragment yet, a feedback note, or a plan hash that moved since the last build.
 import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { PlanSchema, SceneHashesSchema, SceneNotesSchema } from '../contracts/types';
+import {
+  type FormatId,
+  type Plan,
+  PlanSchema,
+  SceneHashesSchema,
+  SceneNotesSchema,
+  TimingSchema,
+} from '../contracts/types';
+import { avatarBoxesOf } from '../core/avatar';
 import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
+import { type SceneTime, sceneTimes } from '../core/scene-times';
 
-/** One scene to write, with the reason and the feedback note when there is one. */
-export type Todo = { scene_id: string; reason: 'new' | 'feedback' | 'changed'; feedback?: string };
+/** One scene to write, with the reason, the feedback note when there is one, and the avatar boxes over it. */
+export type Todo = {
+  scene_id: string;
+  reason: 'new' | 'feedback' | 'changed';
+  feedback?: string;
+  avatar?: {
+    format: FormatId;
+    seg: string;
+    start: number;
+    end: number;
+    box: { x: number; y: number; w: number; h: number };
+  }[];
+};
+
+const round3 = (x: number): number => Math.round(x * 1000) / 1000;
 
 const fragmentOf = (runDir: string, id: string): string => path.join(runDir, 'scenes', `${id}.html`);
+
+/** The avatar boxes over a scene's window in every plan format, clipped to it and relative to its start. */
+const avatarWindowsOf = (runDir: string, plan: Plan, time: SceneTime): NonNullable<Todo['avatar']> =>
+  plan.formats.flatMap((format) =>
+    avatarBoxesOf(runDir, format)
+      .map((b) => ({ b, start: Math.max(b.start, time.start), end: Math.min(b.end, time.start + time.duration) }))
+      .filter(({ start, end }) => end > start)
+      .map(({ b, start, end }) => ({
+        format,
+        seg: b.seg,
+        start: round3(start - time.start),
+        end: round3(end - time.start),
+        box: { x: b.x, y: b.y, w: b.w, h: b.h },
+      })),
+  );
+
+/** Adds the `avatar` windows to each todo scene, or returns the todo as is when the run has no avatar segments. */
+const withAvatars = (runDir: string, plan: Plan, todo: Todo[]): Todo[] => {
+  if (!existsSync(path.join(runDir, 'avatar', 'segments.json'))) return todo;
+  const times = sceneTimes(plan, readJson(path.join(runDir, 'data', 'timing.json'), TimingSchema));
+  return todo.map((t) => {
+    const time = times.find((x) => x.scene_id === t.scene_id);
+    const avatar = time === undefined ? [] : avatarWindowsOf(runDir, plan, time);
+    return avatar.length === 0 ? t : { ...t, avatar };
+  });
+};
 
 /** `scenes/hashes.json`, or no hashes when the file does not exist yet. */
 const hashesOf = (runDir: string): Record<string, string> => {
@@ -42,7 +90,7 @@ export const scenesTodo = (runDir: string): Todo[] => {
       todo.push({ scene_id, reason: 'changed' });
     }
   }
-  return todo;
+  return withAvatars(runDir, plan, todo);
 };
 
 /**
