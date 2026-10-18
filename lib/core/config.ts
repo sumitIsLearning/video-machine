@@ -11,6 +11,9 @@ export type Config = { pluginRoot: string; vmHome: string; venvDir: string; bun:
 /** The HyperFrames version every `npx hyperframes` call is pinned to. */
 export const HYPERFRAMES_VERSION = '0.8.143';
 
+/** HeyGen list price per minute of avatar video, in USD. The docs don't publish a rate, so this is our estimate. */
+export const HEYGEN_USD_PER_MIN = 1;
+
 /** Root of the plugin (the repo root). */
 export const PLUGIN_ROOT = path.resolve(import.meta.dir, '../..');
 
