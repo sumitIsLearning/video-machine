@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { BriefSchema, FORMATS, type FormatId, PlanSchema, TimingSchema } from '../../../contracts/types';
+import { type AvatarBox, avatarBoxesOf } from '../../../core/avatar';
 import { InputError, UnsupportedError } from '../../../core/errors';
 import { readJson } from '../../../core/json';
 import { type SceneTime, sceneTimes } from '../../../core/scene-times';
@@ -47,8 +48,8 @@ const readFragments = (runDir: string, ids: string[]): Map<string, string> => {
   return found;
 };
 
-// The root page: vendored scripts, the frame variables, one host per scene and the voiceover audio.
-const rootHtml = (format: FormatId, times: SceneTime[], total: number): string => {
+// The root page: vendored scripts, the frame variables, one host per scene, the avatar layer and the voiceover audio.
+const rootHtml = (format: FormatId, times: SceneTime[], total: number, avatars: AvatarBox[]): string => {
   const { w, h, safe } = FORMATS[format];
   const hosts = times
     .map(
@@ -56,6 +57,12 @@ const rootHtml = (format: FormatId, times: SceneTime[], total: number): string =
         `<div id="host-${t.scene_id}" data-composition-id="${t.scene_id}" data-composition-src="compositions/${t.scene_id}.html" data-start="${t.start}" data-duration="${t.duration}" data-track-index="${i + 1}"></div>`,
     )
     .join('\n');
+  const avatarLines = avatars
+    .map(
+      (a, k) =>
+        `\n<video id="avatar-${a.seg}" class="clip" src="avatar/${a.seg}.webm" muted playsinline data-start="${a.start}" data-duration="${round3(a.end - a.start)}" data-track-index="${times.length + 1 + k}" style="position:absolute;left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px;object-fit:contain;object-position:${a.fit};z-index:10"></video>`,
+    )
+    .join('');
   return `<!doctype html>
 <html>
 <head>
@@ -70,7 +77,7 @@ html, body { margin: 0; background: #000; }
 <body>
 <div id="root" data-composition-id="root" data-start="0" data-width="${w}" data-height="${h}" data-duration="${total}">
 <audio id="vo" src="vo.wav" data-start="0" data-duration="${total}" data-track-index="0"></audio>
-${hosts}
+${hosts}${avatarLines}
 </div>
 <script>window.__timelines = window.__timelines || {}; window.__timelines.root = gsap.timeline({ paused: true });</script>
 </body>
@@ -105,6 +112,12 @@ export async function assembleProject(runDir: string, format: FormatId): Promise
     times.map((t) => t.scene_id),
   );
 
+  const avatars = avatarBoxesOf(runDir, format);
+  for (const a of avatars) {
+    const webm = path.join(runDir, 'avatar', `${a.seg}.webm`);
+    if (!existsSync(webm)) throw new InputError(`avatar/${a.seg}.webm is missing: make the avatar again`);
+  }
+
   const { w, h } = FORMATS[format];
   const total = round3(Math.max(...times.map((t) => t.start + t.duration)));
   const assetIds = [...new Set(plan.visuals_plan.scenes.flatMap((s) => s.asset_ids))];
@@ -114,7 +127,7 @@ export async function assembleProject(runDir: string, format: FormatId): Promise
 
   try {
     rmSync(tmp, { recursive: true, force: true });
-    writeComposition(runDir, buildRel, rootHtml(format, times, total), assetIds);
+    writeComposition(runDir, buildRel, rootHtml(format, times, total, avatars), assetIds);
     mkdirSync(path.join(tmp, 'compositions'), { recursive: true });
     for (const t of times) {
       writeFileSync(
@@ -128,6 +141,12 @@ export async function assembleProject(runDir: string, format: FormatId): Promise
     });
     writeFileSync(path.join(tmp, 'vendor', 'vm.js'), vm);
     copyFileSync(voice, path.join(tmp, 'vo.wav'));
+    if (avatars.length > 0) {
+      mkdirSync(path.join(tmp, 'avatar'), { recursive: true });
+      for (const a of avatars) {
+        copyFileSync(path.join(runDir, 'avatar', `${a.seg}.webm`), path.join(tmp, 'avatar', `${a.seg}.webm`));
+      }
+    }
     writeFileSync(
       path.join(tmp, 'scenes.json'),
       JSON.stringify(times.map(({ scene_id, start, duration }) => ({ scene_id, start, duration }))),
