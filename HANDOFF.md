@@ -4,7 +4,7 @@
 
 - Plan: `docs/superpowers/plans/phase-8-avatar.md` (T1–T10 + deferred T11 local adapter; U1–U4, R1–R10).
   Ledger: `.superpowers/sdd/phase-8-avatar/progress.md`. Plan `75a1df9`, blueprint pre-step `7bf6f7d`.
-- Plan OK'd ("continue" 2026-10-18). T1 `291529e`, T2 `99d5f8a`, T3 `a9b42fc`, T4 `644c883`, T5 `b87b1b8`, T6 `1975185`. Next: T7 (avatar layer in the build).
+- Plan OK'd ("continue" 2026-10-18). T1 `291529e`, T2 `99d5f8a`, T3 `a9b42fc`, T4 `644c883`, T5 `b87b1b8`, T6 `1975185`, T7 `5273d05`, T8 `96b6f79`. Next: T9.
 - Follow-up (R11): `lib/avatar/make.ts` reads `HEYGEN_API_KEY` from `process.env`; move it into `loadConfig`.
 - T11 waits on the creator's GPU test on the reference laptop (procedure in the plan's Task 11).
 - HeyGen v1/v2 API is removed 2026-10-31; the plan targets v3.
