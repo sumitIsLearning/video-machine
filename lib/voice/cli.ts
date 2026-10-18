@@ -13,7 +13,7 @@ import {
   type VoiceAdapter,
 } from '../contracts/types';
 import { runCli } from '../core/cli';
-import { costGate } from '../core/cost';
+import { approvedOf, costGate } from '../core/cost';
 import { type Deps, defaultDeps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
 import { readJson } from '../core/json';
@@ -21,23 +21,14 @@ import { lineConf } from '../core/timing';
 import { spokenWordsOf } from './spoken';
 
 const USAGE = 'usage: cli.ts synth <run_dir> [--approve-spend usd] | align <run_dir>';
-const AMOUNT_PATTERN = /^\d+(\.\d+)?$/;
 // ponytail: a fixed slack for the duration check; a per-format tolerance waits for a real case.
 const EPSILON_S = 1e-6;
 
 type Io = { deps?: Deps; voice?: VoiceAdapter; align?: AlignAdapter };
 
-/** The spend the creator approved with `--approve-spend usd`, or 0 when the flag is absent. Throws InputError otherwise. */
-const approvedOf = (rest: string[]): number => {
-  if (rest.length === 0) return 0;
-  if (rest.length !== 2 || rest[0] !== '--approve-spend') throw new InputError(USAGE);
-  if (!AMOUNT_PATTERN.test(rest[1] ?? '')) throw new InputError('--approve-spend must be a number');
-  return Number(rest[1]);
-};
-
 /** Voice every line (or import the supplied voice) into audio/vo.wav after the spend check. */
 const synth = async (runDir: string, rest: string[], io: Io): Promise<Record<string, unknown>> => {
-  const approved = approvedOf(rest);
+  const approved = approvedOf(rest, USAGE);
   const brief = readJson(path.join(runDir, 'brief.json'), BriefSchema);
   const script = readJson(path.join(runDir, 'script.json'), ScriptSchema);
   if (brief.timing_source !== 'voiceover')
