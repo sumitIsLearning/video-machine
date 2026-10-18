@@ -109,6 +109,26 @@ test('a plan review also clears the mix; a words review also clears the voice an
   expect(exists(words, 'history/1/data/timing.json')).toBe(true);
 });
 
+test('a words review clears the avatar and keeps its JSON in history; a plan review keeps the avatar', () => {
+  const plan = makeRun();
+  for (const rel of ['avatar/a01.webm', 'avatar/segments.json', 'avatar/placement.json']) {
+    mkdirSync(path.dirname(path.join(plan, rel)), { recursive: true });
+    writeFileSync(path.join(plan, rel), rel);
+  }
+  const words = makeRun();
+  for (const rel of ['avatar/a01.webm', 'avatar/segments.json', 'avatar/placement.json']) {
+    mkdirSync(path.dirname(path.join(words, rel)), { recursive: true });
+    writeFileSync(path.join(words, rel), rel);
+  }
+  review(plan, { text: 'swap scenes 1 and 2', route: 'plan' });
+  expect(exists(plan, 'avatar/a01.webm')).toBe(true);
+  review(words, { text: 'say "fast" not "quick"', route: 'words' });
+  expect(exists(words, 'avatar')).toBe(false);
+  for (const rel of ['avatar/segments.json', 'avatar/placement.json']) {
+    expect(exists(words, `history/1/${rel}`)).toBe(true);
+  }
+});
+
 test('review refuses a folder that is not a run and creates nothing in it', () => {
   const parent = mkdtempSync(path.join(tmpdir(), 'vm-review-'));
   dirs.push(parent);

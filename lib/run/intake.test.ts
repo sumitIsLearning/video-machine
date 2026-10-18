@@ -14,7 +14,7 @@ import path from 'node:path';
 import { BriefSchema } from '../contracts/types';
 import { ContractError, InputError } from '../core/errors';
 import { readJson } from '../core/json';
-import { importFiles, newRun, slugOf, writeBrief } from './intake';
+import { briefPaths, importFiles, newRun, slugOf, writeBrief } from './intake';
 
 const temps: string[] = [];
 afterEach(() => {
@@ -242,4 +242,12 @@ test('writeBrief refuses a folder that is not a run', () => {
   const d = temp();
   mkdirSync(path.join(d, 'input'));
   expect(() => writeBrief(d, {})).toThrow(InputError);
+});
+
+const BRIEF = { run_id: 'r', concept: 'c', goals: [], duration_target_s: [15, 30], timing_source: 'voiceover' };
+
+test('briefPaths lists the supplied avatar clip or the portrait', () => {
+  const b = (avatar: unknown) => BriefSchema.parse({ ...BRIEF, avatar });
+  expect(briefPaths(b({ source: 'supplied', clip: 'input/me.mp4' }))).toContain('input/me.mp4');
+  expect(briefPaths(b({ source: 'adapter', adapter: 'heygen', portrait: 'input/me.png' }))).toContain('input/me.png');
 });

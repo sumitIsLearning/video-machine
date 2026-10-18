@@ -107,13 +107,11 @@ export const BriefSchema = z.strictObject({
   formats: z.array(FormatIdSchema).min(1).default(['reel']),
   deliverables: z.array(DeliverableSchema).default([]),
   sources: z.array(SourceSchema).default([]),
-  // ponytail: Phase 8 decides where a supplied avatar clip's path lives; only the portrait is modelled now.
   avatar: z
-    .strictObject({
-      source: z.enum(['adapter', 'supplied']),
-      adapter: z.string().optional(),
-      portrait: RunPathSchema.optional(),
-    })
+    .discriminatedUnion('source', [
+      z.strictObject({ source: z.literal('supplied'), clip: RunPathSchema }),
+      z.strictObject({ source: z.literal('adapter'), adapter: z.string().min(1), portrait: RunPathSchema }),
+    ])
     .optional(),
   look_hint: z.string().optional(),
   brand: z
@@ -271,6 +269,49 @@ export const PlanSchema = z
     });
   });
 export type Plan = z.infer<typeof PlanSchema>;
+
+export const AVATAR_PRESETS = ['corner-br', 'corner-bl', 'bottom', 'full'] as const;
+export const AvatarPresetSchema = z.enum(AVATAR_PRESETS);
+export type AvatarPreset = z.infer<typeof AvatarPresetSchema>;
+
+/** `avatar/segments.json`: the talking-head clips, one per avatar segment. */
+export const AvatarSegmentsSchema = z
+  .strictObject({
+    run_id: z.string(),
+    adapter: z.string(),
+    segments: z
+      .array(
+        z.strictObject({
+          seg: z.string().regex(/^a\d{2}$/),
+          line_ids: z.array(z.string()).min(1),
+          start: z.number().min(0),
+          end: z.number(),
+          file: RunPathSchema,
+        }),
+      )
+      .min(1),
+  })
+  .superRefine((avatar, ctx) => {
+    addDuplicateIssues(
+      avatar.segments.map((s) => s.seg),
+      'segment',
+      ctx,
+      ['segments'],
+    );
+    avatar.segments.forEach((s, k) => {
+      if (s.end > s.start) return;
+      ctx.addIssue({
+        code: 'custom',
+        message: `segment "${s.seg}" ends at or before it starts`,
+        path: ['segments', k, 'end'],
+      });
+    });
+  });
+export type AvatarSegments = z.infer<typeof AvatarSegmentsSchema>;
+
+/** `avatar/placement.json`: the screen preset for each avatar segment. */
+export const AvatarPlacementSchema = z.strictObject({ segments: z.record(z.string(), AvatarPresetSchema) });
+export type AvatarPlacement = z.infer<typeof AvatarPlacementSchema>;
 
 // ------------------------------------------------------------------ review
 
@@ -531,4 +572,11 @@ export interface CaptureAdapter {
 export interface ExportAdapter {
   kind: Deliverable['kind'];
   export(runDir: string, d: Deliverable): Promise<string>;
+}
+export type AvatarJob = { seg: string; start: number; end: number; audio: string };
+export interface AvatarAdapter {
+  name: string;
+  /** Writes an opaque talking clip for the job to `out`; resolves to `out`. */
+  make(job: AvatarJob, out: string): Promise<string>;
+  costEstimate(audio_s: number): number;
 }

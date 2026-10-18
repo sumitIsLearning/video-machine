@@ -148,10 +148,10 @@ test('M14 is done once test_results.json has no blocking failure', () => {
 });
 
 test('an avatar line makes M11 needed once the script exists', () => {
-  const brief = { ...BRIEF, avatar: { source: 'supplied', portrait: 'input/me.png' } };
+  const brief = { ...BRIEF, avatar: { source: 'supplied', clip: 'input/me.mp4' } };
   const script = JSON.stringify({ run_id: 'r', version: 1, lines: [{ id: 'l1', text: 'Hi.', delivery: 'avatar' }] });
   const files = {
-    'input/me.png': 'p',
+    'input/me.mp4': 'v',
     'research.md': '',
     'assets.json': '[]',
     'script.json': script,
@@ -161,6 +161,24 @@ test('an avatar line makes M11 needed once the script exists', () => {
     'data/timing.json': '{}',
   };
   expect(whereAmI(runWith(files, brief).dir).next).toBe('M11');
+});
+
+test('M11 is done only when avatar/placement.json exists, not when the segments do', () => {
+  const brief = { ...BRIEF, avatar: { source: 'supplied', clip: 'input/me.mp4' } };
+  const script = JSON.stringify({ run_id: 'r', version: 1, lines: [{ id: 'l1', text: 'Hi.', delivery: 'avatar' }] });
+  const files = {
+    'input/me.mp4': 'v',
+    'research.md': '',
+    'assets.json': '[]',
+    'script.json': script,
+    'look/look.json': '{}',
+    'plan.json': '{}',
+    'audio/vo.wav': 'RIFF',
+    'data/timing.json': '{}',
+    'avatar/segments.json': '{}',
+  };
+  expect(whereAmI(runWith(files, brief).dir).next).toBe('M11');
+  expect(whereAmI(runWith({ ...files, 'avatar/placement.json': '{}' }, brief).dir).next).toBe('M12');
 });
 
 test('a folder without concept.md is not a run', () => {
@@ -219,7 +237,7 @@ test('an invalid script.json is a ContractError', () => {
 });
 
 test('an avatar brief skips M11 when the script has no avatar line, and keeps it before the script exists', () => {
-  const brief = { ...BRIEF, avatar: { source: 'supplied', portrait: 'input/me.png' } };
+  const brief = { ...BRIEF, avatar: { source: 'supplied', clip: 'input/me.mp4' } };
   const script = JSON.stringify({ run_id: 'r', version: 1, lines: [{ id: 'l1', text: 'Hi.' }] });
   expect(whereAmI(runWith({ 'script.json': script }, brief).dir).skipped).toContain('M11');
   expect(whereAmI(runWith({}, brief).dir).skipped).not.toContain('M11');
