@@ -1,10 +1,10 @@
 # Handoff
 
-## Now (2026-10-18): Phase 8 on branch `phase-8`, T1–T2 committed
+## Now (2026-10-18): Phase 8 on branch `phase-8`, T1–T4 committed
 
 - Plan: `docs/superpowers/plans/phase-8-avatar.md` (T1–T10 + deferred T11 local adapter; U1–U4, R1–R10).
   Ledger: `.superpowers/sdd/phase-8-avatar/progress.md`. Plan `75a1df9`, blueprint pre-step `7bf6f7d`.
-- Plan OK'd ("continue" 2026-10-18). T1 `291529e`, T2 `99d5f8a`. Next: T3 (background removal, `matte.ts`).
+- Plan OK'd ("continue" 2026-10-18). T1 `291529e`, T2 `99d5f8a`, T3 `a9b42fc`, T4 `644c883`. Next: T5 (HeyGen adapter, mocked; no paid calls).
 - T11 waits on the creator's GPU test on the reference laptop (procedure in the plan's Task 11).
 - HeyGen v1/v2 API is removed 2026-10-31; the plan targets v3.
 - Phase 7 merged `4db4a03`. Branch `phase-7` kept (delete not yet asked); not pushed.
