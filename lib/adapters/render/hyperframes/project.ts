@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { BriefSchema, FORMATS, type FormatId, PlanSchema, TimingSchema } from '../../../contracts/types';
+import { BriefSchema, FORMATS, type FormatId, PlanSchema, ScriptSchema, TimingSchema } from '../../../contracts/types';
 import { type AvatarBox, avatarBoxesOf } from '../../../core/avatar';
 import { InputError, UnsupportedError } from '../../../core/errors';
 import { readJson } from '../../../core/json';
@@ -104,6 +104,11 @@ export async function assembleProject(runDir: string, format: FormatId): Promise
   }
   const voice = path.join(runDir, 'audio', 'vo.wav');
   if (!existsSync(voice)) throw new InputError(`${voice} is missing: voice the script first`);
+  // Without this check the build would drop the avatar lines silently; a run with no avatar line never needs one.
+  if (brief.avatar !== undefined && !existsSync(path.join(runDir, 'avatar', 'segments.json'))) {
+    const script = readJson(path.join(runDir, 'script.json'), ScriptSchema);
+    if (script.lines.some((line) => line.delivery === 'avatar')) throw new InputError('make the avatar first (M11)');
+  }
 
   const plan = readJson(path.join(runDir, 'plan.json'), PlanSchema);
   const times = sceneTimes(plan, readJson(path.join(runDir, 'data', 'timing.json'), TimingSchema));

@@ -309,6 +309,10 @@ export const AvatarSegmentsSchema = z
   });
 export type AvatarSegments = z.infer<typeof AvatarSegmentsSchema>;
 
+/** `spend.json`: what the run has spent on paid steps so far, one entry per paid call. */
+export const SpendLogSchema = z.array(z.strictObject({ what: z.string(), usd: z.number().min(0) }));
+export type SpendLog = z.infer<typeof SpendLogSchema>;
+
 /** `avatar/placement.json`: the screen preset for each avatar segment. */
 export const AvatarPlacementSchema = z.strictObject({ segments: z.record(z.string(), AvatarPresetSchema) });
 export type AvatarPlacement = z.infer<typeof AvatarPlacementSchema>;

@@ -2,11 +2,11 @@ import { afterEach, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { BriefSchema, ScriptSchema, TimingSchema, type VoiceAdapter } from '../contracts/types';
+import { BriefSchema, ScriptSchema, SpendLogSchema, TimingSchema, type VoiceAdapter } from '../contracts/types';
 import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
-import { writeJson } from '../core/json';
+import { readJson, writeJson } from '../core/json';
 import { main } from './cli';
 
 const runs: string[] = [];
@@ -111,6 +111,31 @@ test('synth over budget refuses with the amount and --approve-spend; the flag le
     usd: 1.5,
   });
   expect(synthed).toBe(1);
+});
+
+test('synth refuses when the run has already spent enough to break the budget', async () => {
+  const run = makeRun({ budget_usd: 5 });
+  writeJson(path.join(run, 'spend.json'), SpendLogSchema, [{ what: 'avatar a01 (heygen)', usd: 4.5 }]);
+  let synthed = 0;
+  const voice: VoiceAdapter = {
+    costEstimate: () => 1,
+    synth: async () => {
+      synthed++;
+      return path.join(run, 'audio', 'vo.wav');
+    },
+  };
+  await expect(main(['synth', run], { deps: fakeDeps().deps, voice })).rejects.toThrow('$4.50 is already spent');
+  expect(synthed).toBe(0);
+});
+
+test('a paid synth appends its cost to spend.json', async () => {
+  const run = makeRun({ budget_usd: 5 });
+  const voice: VoiceAdapter = {
+    costEstimate: () => 1.5,
+    synth: async () => path.join(run, 'audio', 'vo.wav'),
+  };
+  await main(['synth', run, '--approve-spend', '1.5'], { deps: fakeDeps().deps, voice });
+  expect(readJson(path.join(run, 'spend.json'), SpendLogSchema)).toEqual([{ what: 'voice (hf-tts)', usd: 1.5 }]);
 });
 
 test('--approve-spend must be a number', async () => {

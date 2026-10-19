@@ -10,6 +10,7 @@ import {
   BriefSchema,
   type Plan,
   PlanSchema,
+  ScriptSchema,
   TimingSchema,
 } from '../../../contracts/types';
 import { InputError, UnsupportedError } from '../../../core/errors';
@@ -188,6 +189,27 @@ test('a run without avatar/ has no video layer; a missing webm or placement thro
   const noPlacement = withAvatar(run());
   rmSync(path.join(noPlacement, 'avatar', 'placement.json'));
   await expect(assembleProject(noPlacement, 'reel')).rejects.toThrow(InputError);
+});
+
+test('an avatar brief with an avatar line and no avatar/ refuses to build', async () => {
+  const d = run();
+  writeJson(path.join(d, 'brief.json'), BriefSchema, {
+    run_id: 'r',
+    concept: 'c',
+    goals: [],
+    duration_target_s: [5, 6],
+    timing_source: 'voiceover',
+    avatar: { source: 'adapter', adapter: 'heygen', portrait: 'input/me.png' },
+  });
+  writeJson(path.join(d, 'script.json'), ScriptSchema, {
+    run_id: 'r',
+    version: 1,
+    lines: [
+      { id: 'l1', text: 'Meet Firecrawl today', delivery: 'voiceover' },
+      { id: 'l2', text: 'Crawl any site', delivery: 'avatar' },
+    ],
+  });
+  await expect(assembleProject(d, 'reel')).rejects.toThrow('make the avatar first (M11)');
 });
 
 test('vm.js inlines the timing data and scenes.json lists each scene window', async () => {

@@ -45,10 +45,14 @@ const removeTemps = () => {
     }
   }
 };
-process.on('SIGINT', () => {
+// The CLI processes that are running now; a signal kills them so none outlives the run.
+const procs = new Set<ReturnType<typeof Bun.spawn>>();
+const onSignal = (signal: 'SIGINT' | 'SIGTERM') => {
+  for (const proc of procs) proc.kill();
   removeTemps();
-  process.exit(130);
-});
+  process.exit(signal === 'SIGINT' ? 130 : 143);
+};
+for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => onSignal(signal));
 const lastLine = (s: string) => s.trim().split(/\r?\n/).at(-1) ?? '';
 
 const results: { test: string; ok: boolean; detail: string }[] = [];
@@ -139,11 +143,13 @@ const callWithEnv = async (cli: Cli, args: string[], extraEnv: Record<string, st
     stdout: 'pipe',
     stderr: 'pipe',
   });
+  procs.add(proc);
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
+  procs.delete(proc);
   try {
     return { code, out: JSON.parse(lastLine(stdout)) as Json };
   } catch (cause) {
@@ -460,8 +466,12 @@ try {
     await makeDisc(path.join(A.dir, 'avatar', 'a01.webm'), seg.end - seg.start);
     writeFragments(A);
     await callOk('scenes', ['done', A.dir, ...SCENE_IDS]);
-    const { draft, checks } = await buildAndCheck(A);
+    const { draft, checks, blocking } = await buildAndCheck(A);
     checksAt4 = checks;
+    if (blocking !== 0) {
+      const ids = checks.filter((c) => c.blocking && c.status === 'fail').map((c) => c.id);
+      throw new Error(`blocking checks failed: ${ids.join(', ')}`);
+    }
     const mid = (seg.start + seg.end) / 2;
     const during = await pixelAt(draft, mid, BOX_CENTRE.x, BOX_CENTRE.y);
     const before = await pixelAt(draft, seg.start - 0.3, BOX_CENTRE.x, BOX_CENTRE.y);

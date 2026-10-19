@@ -14,8 +14,7 @@ import {
   TimingSchema,
 } from '../contracts/types';
 import { type AvatarSpan, avatarSegments } from '../core/avatar';
-import type { Env } from '../core/config';
-import { costGate } from '../core/cost';
+import { costGate, recordSpend, spentOf } from '../core/cost';
 import { type Deps, defaultDeps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
@@ -26,14 +25,13 @@ export type MakeIo = {
   adapter?: AvatarAdapter;
   matte?: typeof removeBackground;
   approved_usd?: number;
-  env?: Env;
 };
 
 /** The adapter the brief names: `supplied` cuts the creator's clip, `heygen` needs HEYGEN_API_KEY. Throws InputError or UnsupportedError. */
-const adapterOf = (runDir: string, avatar: NonNullable<Brief['avatar']>, deps: Deps, env: Env): AvatarAdapter => {
+const adapterOf = (runDir: string, avatar: NonNullable<Brief['avatar']>, deps: Deps): AvatarAdapter => {
   if (avatar.source === 'supplied') return suppliedAvatar(deps, runFileOf(runDir, avatar.clip));
   if (avatar.adapter === 'heygen') {
-    const apiKey = env.HEYGEN_API_KEY;
+    const apiKey = deps.config.heygenApiKey;
     if (!apiKey) throw new UnsupportedError('set HEYGEN_API_KEY to use HeyGen');
     return heygen({ apiKey, portrait: runFileOf(runDir, avatar.portrait) });
   }
@@ -63,7 +61,8 @@ export const makeAvatar = async (
   if (spans.length === 0) throw new InputError('no script line has delivery "avatar"');
 
   const deps = io.deps ?? defaultDeps();
-  const adapter = io.adapter ?? adapterOf(runDir, brief.avatar, deps, io.env ?? process.env);
+  const adapter = io.adapter ?? adapterOf(runDir, brief.avatar, deps);
+  const spent = spentOf(runDir);
   const { total_usd, ok } = costGate(
     spans.map((s: AvatarSpan) => ({
       what: `avatar ${s.seg} (${adapter.name})`,
@@ -71,10 +70,11 @@ export const makeAvatar = async (
     })),
     brief.budget_usd,
     io.approved_usd ?? 0,
+    spent,
   );
   if (!ok)
     throw new InputError(
-      `the avatar costs $${total_usd.toFixed(2)} and the budget is $${brief.budget_usd.toFixed(2)}; ask the creator, then re-run with --approve-spend ${total_usd}`,
+      `the avatar costs $${total_usd.toFixed(2)}, $${spent.toFixed(2)} is already spent and the budget is $${brief.budget_usd.toFixed(2)}; ask the creator, then re-run with --approve-spend ${total_usd}`,
     );
 
   const avatarDir = path.join(runDir, 'avatar');
@@ -107,6 +107,10 @@ export const makeAvatar = async (
         { env: deps.config.toolEnv },
       );
       await adapter.make({ seg: span.seg, start: span.start, end: span.end, audio: wav }, raw);
+      // Recorded per segment: money spent on segment 1 stays on the ledger if segment 2 fails.
+      recordSpend(runDir, [
+        { what: `avatar ${span.seg} (${adapter.name})`, usd: adapter.costEstimate(span.end - span.start) },
+      ]);
       await matte(deps, raw, webm);
       rmSync(wav, { force: true });
       rmSync(raw, { force: true });

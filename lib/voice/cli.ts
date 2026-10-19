@@ -13,7 +13,7 @@ import {
   type VoiceAdapter,
 } from '../contracts/types';
 import { runCli } from '../core/cli';
-import { approvedOf, costGate } from '../core/cost';
+import { approvedOf, costGate, recordSpend, spentOf } from '../core/cost';
 import { type Deps, defaultDeps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
 import { readJson } from '../core/json';
@@ -41,16 +41,19 @@ const synth = async (runDir: string, rest: string[], io: Io): Promise<Record<str
   const adapter = io.voice ?? (voice.adapter === 'hf-tts' ? hfTts(io.deps ?? defaultDeps()) : undefined);
   if (adapter === undefined)
     throw new UnsupportedError(`voice adapter "${voice.adapter}" is not available; use hf-tts`);
+  const spent = spentOf(runDir);
   const { total_usd, ok } = costGate(
     [{ what: `voice (${voice.adapter})`, usd: adapter.costEstimate(script.lines) }],
     brief.budget_usd,
     approved,
+    spent,
   );
   if (!ok)
     throw new InputError(
-      `the voice costs $${total_usd.toFixed(2)} and the budget is $${brief.budget_usd.toFixed(2)}; ask the creator, then re-run with --approve-spend ${total_usd}`,
+      `the voice costs $${total_usd.toFixed(2)}, $${spent.toFixed(2)} is already spent and the budget is $${brief.budget_usd.toFixed(2)}; ask the creator, then re-run with --approve-spend ${total_usd}`,
     );
   await adapter.synth(runDir, script.lines, voice.voice_id);
+  recordSpend(runDir, [{ what: `voice (${voice.adapter})`, usd: total_usd }]);
   return { vo: 'audio/vo.wav', source: 'tts', voice: voice.voice_id, lines: script.lines.length, usd: total_usd };
 };
 

@@ -2,7 +2,14 @@ import { afterEach, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { type AvatarAdapter, AvatarSegmentsSchema, BriefSchema, ScriptSchema, TimingSchema } from '../contracts/types';
+import {
+  type AvatarAdapter,
+  AvatarSegmentsSchema,
+  BriefSchema,
+  ScriptSchema,
+  SpendLogSchema,
+  TimingSchema,
+} from '../contracts/types';
 import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
@@ -99,6 +106,22 @@ test('makeAvatar refuses an over-budget adapter before making anything', async (
   expect(ok.usd).toBe(2.65);
 });
 
+test('makeAvatar refuses when the run has already spent enough to break the budget', async () => {
+  const dir = run({ budget_usd: 5 });
+  writeJson(path.join(dir, 'spend.json'), SpendLogSchema, [{ what: 'voice (hf-tts)', usd: 4 }]);
+  const made: string[] = [];
+  await expect(makeAvatar(dir, { deps: fakeDeps([]), adapter: fakeAdapter(1, made) })).rejects.toThrow(
+    '$4.00 is already spent',
+  );
+  expect(made).toEqual([]);
+});
+
+test('a paid makeAvatar appends each segment cost to spend.json', async () => {
+  const dir = run({ budget_usd: 5 });
+  await makeAvatar(dir, { deps: fakeDeps([]), adapter: fakeAdapter(1, []) });
+  expect(readJson(path.join(dir, 'spend.json'), SpendLogSchema)).toEqual([{ what: 'avatar a01 (fake)', usd: 2.65 }]);
+});
+
 test('a failed make keeps the previous avatar/ and leaves no avatar.tmp', async () => {
   const dir = run();
   mkdirSync(path.join(dir, 'avatar'));
@@ -128,7 +151,6 @@ test('makeAvatar refuses runs it cannot serve', async () => {
   await expect(
     makeAvatar(run({ avatar: { source: 'adapter', adapter: 'heygen', portrait: 'input/me.png' } }), {
       deps: fakeDeps([]),
-      env: {},
     }),
   ).rejects.toThrow(/HEYGEN_API_KEY/);
 });
