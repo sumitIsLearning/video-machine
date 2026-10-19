@@ -21,3 +21,5 @@ tests/fixture/out/
 
 # spike runs are throwaway
 runs/spike-*/
+.env
+.env.*
