@@ -1,5 +1,6 @@
 import type { CheckResult, FormatId } from '../contracts/types';
 import { FORMATS } from '../contracts/types';
+import type { AvatarBox } from '../core/avatar';
 import { minTextPx } from '../core/text-fit';
 
 /** One text box on screen at time `t`, as sampled from the render. */
@@ -48,10 +49,11 @@ const report = (
 };
 
 /**
- * Checks that every text box stays inside the format's safe area; returns a blocking CheckResult.
- * Skips on no samples; never throws.
+ * Checks that every text box stays inside the format's safe area and clear of the avatar boxes; returns a blocking
+ * CheckResult. A text box overlaps an avatar only while its segment is on (`start <= t < end`) and by more than
+ * SAFE_TOLERANCE_PX on both axes. Skips on no samples; never throws.
  */
-export const checkSafeArea = (samples: TextSample[], format: FormatId): CheckResult => {
+export const checkSafeArea = (samples: TextSample[], format: FormatId, avatars: AvatarBox[] = []): CheckResult => {
   const { w, h, safe } = FORMATS[format];
   const x0 = w * safe.left;
   const x1 = w * (1 - safe.right);
@@ -64,8 +66,17 @@ export const checkSafeArea = (samples: TextSample[], format: FormatId): CheckRes
     if (y + bh > y1 + SAFE_TOLERANCE_PX) edges.push('bottom');
     if (x < x0 - SAFE_TOLERANCE_PX) edges.push('left');
     if (x + bw > x1 + SAFE_TOLERANCE_PX) edges.push('right');
-    if (edges.length === 0) return undefined;
-    return `"${s.text}" crosses the ${edges.join(', ')} edge of the safe area`;
+    const problems: string[] = [];
+    if (edges.length > 0) problems.push(`"${s.text}" crosses the ${edges.join(', ')} edge of the safe area`);
+    const under = avatars.find(
+      (a) =>
+        s.t >= a.start &&
+        s.t < a.end &&
+        Math.min(a.x + a.w, x + bw) - Math.max(a.x, x) > SAFE_TOLERANCE_PX &&
+        Math.min(a.y + a.h, y + bh) - Math.max(a.y, y) > SAFE_TOLERANCE_PX,
+    );
+    if (under !== undefined) problems.push(`"${s.text}" sits under the avatar (${under.seg})`);
+    return problems.length === 0 ? undefined : problems.join('; ');
   };
   return report('layout.safe_area', format, true, samples, problemOf, 'move the text inside var(--vm-safe-*)');
 };

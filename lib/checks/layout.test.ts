@@ -38,3 +38,32 @@ test('min text size fails under 3.5 % on reel (blocking) and 2.5 % on landscape 
 test('no samples is a skip, not a pass', () => {
   expect(checkSafeArea([], 'reel').status).toBe('skip');
 });
+const box = { seg: 'a01', start: 2, end: 4, x: 587, y: 966, w: 428, h: 570, fit: 'right bottom' };
+const sample = (t: number, x: number, y: number, text = 'Ship it') => ({
+  t,
+  scene_id: 's1',
+  text,
+  box: { x, y, w: 300, h: 80 },
+  font_px: 80,
+  caption: false,
+});
+
+test('layout.safe_area fails text under an avatar box only while the segment is on', () => {
+  const under = sample(3, 600, 1000);
+  const r = checkSafeArea([under, sample(1, 600, 1000, 'Before'), sample(4, 600, 1000, 'After')], 'reel', [box]);
+  expect(r.status).toBe('fail');
+  expect(r.annotations).toEqual([
+    {
+      scene_id: 's1',
+      t: 3,
+      problem: '"Ship it" sits under the avatar (a01)',
+      suggested_fix: 'move the text inside var(--vm-safe-*)',
+    },
+  ]);
+});
+
+test('layout.safe_area allows text that only touches the avatar box within 2 px', () => {
+  const beside = sample(3, 587 - 300 + 2, 1000); // right edge 2 px into the box
+  expect(checkSafeArea([beside], 'reel', [box]).status).toBe('pass');
+  expect(checkSafeArea([sample(3, 600, 1000)], 'reel').status).toBe('pass');
+});

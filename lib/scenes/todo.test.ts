@@ -2,7 +2,14 @@ import { afterEach, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { PlanSchema, SceneHashesSchema, SceneNotesSchema } from '../contracts/types';
+import {
+  AvatarPlacementSchema,
+  AvatarSegmentsSchema,
+  PlanSchema,
+  SceneHashesSchema,
+  SceneNotesSchema,
+  TimingSchema,
+} from '../contracts/types';
 import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
 import { markDone, scenesTodo } from './todo';
@@ -38,6 +45,64 @@ const makeRun = (written: string[]): string => {
   for (const id of written) writeFileSync(path.join(run, 'scenes', `${id}.html`), `<div>${id}</div>`);
   return run;
 };
+
+const w = (text: string, start: number, end: number) => ({ w: text, start, end });
+const timedScene = (scene_id: string, lines: string[]) => ({
+  scene_id,
+  lines,
+  cut_in: { anchor: '', rule: 'pause_before' as const },
+  intent: 'x',
+  beats: [],
+  layout: { reel: 'x' },
+  transition_out: 'cut',
+  asset_ids: [],
+  input_hash: 'h',
+});
+/** A run with hook [l1] (0-1.6 s) and demo [l2, l3] (1.6-5.5 s), and avatar a01 on 2-4.25 s at corner-br. */
+const avatarRun = (): string => {
+  const run = mkdtempSync(path.join(tmpdir(), 'vm-todo-'));
+  dirs.push(run);
+  mkdirSync(path.join(run, 'data'));
+  mkdirSync(path.join(run, 'avatar'));
+  writeJson(path.join(run, 'plan.json'), PlanSchema, {
+    run_id: 'r',
+    version: 2,
+    look_id: 'l',
+    asset_ids: [],
+    formats: ['reel'],
+    visuals_plan: { scenes: [timedScene('hook', ['l1']), timedScene('demo', ['l2', 'l3'])] },
+  });
+  writeJson(path.join(run, 'data', 'timing.json'), TimingSchema, {
+    lines: [
+      {
+        id: 'l1',
+        text: 'Meet Firecrawl today',
+        start: 0.2,
+        end: 1.4,
+        words: [w('Meet', 0.2, 0.5), w('today', 1.15, 1.4)],
+      },
+      { id: 'l2', text: 'Crawl any site', start: 1.8, end: 2.9, words: [w('Crawl', 1.8, 2.2), w('site', 2.55, 2.9)] },
+      { id: 'l3', text: 'any site at all', start: 3.3, end: 4.5, words: [w('any', 3.3, 3.5), w('all', 4.15, 4.5)] },
+    ],
+  });
+  writeJson(path.join(run, 'avatar', 'segments.json'), AvatarSegmentsSchema, {
+    run_id: 'r',
+    adapter: 'supplied',
+    segments: [{ seg: 'a01', line_ids: ['l2'], start: 2, end: 4.25, file: 'avatar/a01.webm' }],
+  });
+  writeJson(path.join(run, 'avatar', 'placement.json'), AvatarPlacementSchema, { segments: { a01: 'corner-br' } });
+  return run;
+};
+
+test('scenesTodo gives each todo scene the avatar boxes over its window, relative to its start', () => {
+  const todo = scenesTodo(avatarRun());
+  expect(todo.find((t) => t.scene_id === 'demo')).toEqual({
+    scene_id: 'demo',
+    reason: 'new',
+    avatar: [{ format: 'reel', seg: 'a01', start: 0.4, end: 2.65, box: { x: 587, y: 966, w: 428, h: 570 } }],
+  });
+  expect(todo.find((t) => t.scene_id === 'hook')).not.toHaveProperty('avatar');
+});
 
 test('a fresh run has every scene to write', () => {
   expect(scenesTodo(makeRun([]))).toEqual([

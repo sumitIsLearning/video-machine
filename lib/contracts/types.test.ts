@@ -2,6 +2,9 @@ import { expect, test } from 'bun:test';
 import {
   AssetRefSchema,
   AssetsSchema,
+  AVATAR_PRESETS,
+  AvatarPlacementSchema,
+  AvatarSegmentsSchema,
   BriefSchema,
   CaptureLogSchema,
   type CheckResult,
@@ -197,11 +200,38 @@ test('every asset records where it came from', () => {
   expect(AssetRefSchema.safeParse({ ...asset, origin: 'ai' }).success).toBe(false);
 });
 
-test('brief takes an optional avatar with a known source', () => {
-  expect(BriefSchema.parse({ ...brief, avatar: { source: 'supplied', portrait: 'input/me.png' } }).avatar?.source).toBe(
-    'supplied',
+test('brief avatar is a supplied clip or an adapter with a portrait', () => {
+  expect(BriefSchema.parse({ ...brief, avatar: { source: 'supplied', clip: 'input/me.mp4' } }).avatar).toEqual({
+    source: 'supplied',
+    clip: 'input/me.mp4',
+  });
+  const adapter = { source: 'adapter' as const, adapter: 'heygen', portrait: 'input/me.png' };
+  expect(BriefSchema.parse({ ...brief, avatar: adapter }).avatar).toEqual(adapter);
+  expect(BriefSchema.safeParse({ ...brief, avatar: { source: 'supplied', portrait: 'input/me.png' } }).success).toBe(
+    false,
   );
+  expect(BriefSchema.safeParse({ ...brief, avatar: { source: 'adapter', adapter: 'heygen' } }).success).toBe(false);
   expect(BriefSchema.safeParse({ ...brief, avatar: { source: 'magic' } }).success).toBe(false);
+});
+
+const seg = { seg: 'a01', line_ids: ['l2', 'l3'], start: 1.2, end: 4.5, file: 'avatar/a01.webm' };
+
+test('avatar segments name each segment once, with an end after its start', () => {
+  const ok = AvatarSegmentsSchema.parse({ run_id: 'r', adapter: 'supplied', segments: [seg] });
+  expect(ok.segments[0]?.file).toBe('avatar/a01.webm');
+  const twice = { run_id: 'r', adapter: 'supplied', segments: [seg, { ...seg, start: 5, end: 6 }] };
+  expect(AvatarSegmentsSchema.safeParse(twice).success).toBe(false);
+  const backwards = { run_id: 'r', adapter: 'supplied', segments: [{ ...seg, end: 1 }] };
+  expect(AvatarSegmentsSchema.safeParse(backwards).success).toBe(false);
+  expect(
+    AvatarSegmentsSchema.safeParse({ run_id: 'r', adapter: 'supplied', segments: [{ ...seg, seg: 'x' }] }).success,
+  ).toBe(false);
+});
+
+test('avatar placement maps each segment to a known preset', () => {
+  expect(AvatarPlacementSchema.parse({ segments: { a01: 'corner-br', a02: 'full' } }).segments.a02).toBe('full');
+  expect(AvatarPlacementSchema.safeParse({ segments: { a01: 'middle' } }).success).toBe(false);
+  expect(AVATAR_PRESETS).toEqual(['corner-br', 'corner-bl', 'bottom', 'full']);
 });
 
 const step = (i: number, extra: object = {}) => ({
@@ -320,7 +350,7 @@ test.each([
   ['sources file', { sources: [{ kind: 'file', path_or_url: '../x.png' }] }],
   ['voice.path', { voice: { source: 'supplied', path: abs } }],
   ['music.path', { music: { source: 'supplied', path: '/music.wav' } }],
-  ['avatar.portrait', { avatar: { source: 'supplied', portrait: abs } }],
+  ['avatar.clip', { avatar: { source: 'supplied', clip: abs } }],
   ['brand.logo', { brand: { logo: abs } }],
   ['brand.fonts[].path', { brand: { fonts: [{ family: 'Inter', path: '..\\Inter.ttf', license: 'OFL' }] } }],
 ])('a brief refuses a non-run path in %s', (_field, extra) => {
@@ -333,7 +363,7 @@ test('a brief with a run path in every creator-file field is valid', () => {
     sources: [{ kind: 'nav_video', path_or_url: 'input/nav.mp4' }],
     voice: { source: 'supplied', path: 'input/vo.wav' },
     music: { source: 'supplied', path: 'input/m.wav' },
-    avatar: { source: 'supplied', portrait: 'input/me.png' },
+    avatar: { source: 'supplied', clip: 'input/me.mp4' },
     brand: { logo: 'input/logo.svg', fonts: [{ family: 'Inter', path: 'input/Inter.ttf', license: 'OFL' }] },
   };
   expect(BriefSchema.safeParse(good).success).toBe(true);

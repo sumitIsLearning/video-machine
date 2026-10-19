@@ -42,3 +42,12 @@ test('checkContractsValid annotates a run file that cannot be read instead of th
   expect(r.status).toBe('fail');
   expect(r.annotations[0]?.problem.startsWith('script.json: ')).toBe(true);
 });
+
+test('checkContractsValid names an avatar placement that uses an unknown preset', () => {
+  const d = run();
+  mkdirSync(path.join(d, 'avatar'));
+  writeFileSync(path.join(d, 'avatar', 'placement.json'), '{"segments":{"a01":"middle"}}');
+  const r = checkContractsValid(d);
+  expect(r.status).toBe('fail');
+  expect(JSON.stringify(r.annotations)).toContain('avatar/placement.json');
+});

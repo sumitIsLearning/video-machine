@@ -16,6 +16,8 @@ const SNAPSHOT_FILES = [
   'assets.json',
   'capture/steps.json',
   'data/timing.json',
+  'avatar/segments.json',
+  'avatar/placement.json',
   'test_results.json',
   'report.md',
   'look/look.json',
@@ -122,7 +124,7 @@ function addSceneNotes(runDir: string, scenes: string[], text: string): void {
 function clear(runDir: string, route: Feedback['route']): string[] {
   const stale = [...OUTPUT_PATHS];
   if (route === 'plan' || route === 'words') stale.push('audio/mix.wav');
-  if (route === 'words') stale.push('audio/vo.wav', 'data/timing.json');
+  if (route === 'words') stale.push('audio/vo.wav', 'data/timing.json', 'avatar');
   const removed: string[] = [];
   for (const rel of stale) {
     if (!existsSync(path.join(runDir, rel))) continue;

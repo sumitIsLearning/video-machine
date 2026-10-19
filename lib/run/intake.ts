@@ -103,7 +103,7 @@ export function briefPaths(b: Brief): string[] {
     ...b.sources.flatMap((s) => (s.kind === 'nav_video' || s.kind === 'file' ? [s.path_or_url] : [])),
     b.voice?.source === 'supplied' ? b.voice.path : undefined,
     b.music?.source === 'supplied' ? b.music.path : undefined,
-    b.avatar?.portrait,
+    b.avatar?.source === 'supplied' ? b.avatar.clip : b.avatar?.portrait,
     b.brand?.logo,
     ...(b.brand?.fonts ?? []).map((f) => f.path),
   ];

@@ -1,11 +1,20 @@
 # Handoff
 
-## Now (2026-10-17): Phase 7 merged into master `4db4a03`; next Phase 8 plan
+## Now (2026-10-19): Phase 8 on branch `phase-8` complete, reviewed, awaiting merge OK
 
-- Plan: `docs/superpowers/plans/phase-7-revise-sound-deliver.md` (12 tasks; U1, U2, R1–R14).
-  Ledger: `.superpowers/sdd/phase-7-revise-sound-deliver/progress.md`.
-- All 12 tasks committed (T12 `5d7b61a`); whole-branch review APPROVE; fix round `837eed8`; `bun tests/phase7.ts` 7/7 PASS.
-- Next: write the Phase 8 plan. Branch `phase-7` kept (delete not yet asked); not pushed.
+- Plan: `docs/superpowers/plans/phase-8-avatar.md` (T1–T10 + deferred T11 local adapter; U1–U4, R1–R10).
+  Ledger: `.superpowers/sdd/phase-8-avatar/progress.md`. Plan `75a1df9`, blueprint pre-step `7bf6f7d`.
+- T1 `291529e` … T10 `2466487`; phase-review fixes `6fffd6e` (Opus review → fix brief `briefs/fix-phase.md` →
+  spec PASS → Opus re-review APPROVE). phase8.ts 7 PASS + 1 SKIP (HeyGen live, needs key + paid OK).
+- Next: ask the user to merge `phase-8` into master (not yet asked → asked 2026-10-19).
+- R14 (creator 2026-10-19): run-level `spend.json`; gates pass when spent+estimate ≤ budget or estimate ≤ approved.
+- Deferred: HeyGen Idempotency-Key reused with a new `audio_asset_id` body on re-run — check HeyGen rules (fails
+  safe: 4xx, not double billing). 🔵 tests/phase8.ts:150 `procs.delete` not in finally (harmless).
+- phase1 check 6 now passes; check 4 still fails (root CLAUDE.md strict-validate, deferred).
+- R12/R13 (T10): test-only `callWithEnv` for the key; check 5 expects HyperFrames `text_occluded` build refusal.
+- T11 waits on the creator's GPU test on the reference laptop (procedure in the plan's Task 11).
+- HeyGen v1/v2 API is removed 2026-10-31; the plan targets v3.
+- Phase 7 merged `4db4a03`. Branch `phase-7` kept (delete not yet asked); not pushed.
 - Check 7 (video-testing listing) skips on macOS: default path is `C:/Work-data/video-testing`; set `VM_VIDEO_TESTING`.
 - Tooling note for user: check.sh shows the first 60 lint lines, and biome infos (6 pre-existing) can hide the real
   error; builders misread it in T6 and T10. Possible fix: `--diagnostic-level=warn` in package.json lint (asked, not done).

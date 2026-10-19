@@ -6,10 +6,20 @@ import path from 'node:path';
 /** An environment: variable name to value. */
 export type Env = Record<string, string | undefined>;
 /** Settings every module gets from `loadConfig`. */
-export type Config = { pluginRoot: string; vmHome: string; venvDir: string; bun: string; toolEnv: Env };
+export type Config = {
+  pluginRoot: string;
+  vmHome: string;
+  venvDir: string;
+  bun: string;
+  toolEnv: Env;
+  heygenApiKey?: string;
+};
 
 /** The HyperFrames version every `npx hyperframes` call is pinned to. */
 export const HYPERFRAMES_VERSION = '0.8.143';
+
+/** HeyGen list price per minute of avatar video, in USD. The docs don't publish a rate, so this is our estimate. */
+export const HEYGEN_USD_PER_MIN = 1;
 
 /** Root of the plugin (the repo root). */
 export const PLUGIN_ROOT = path.resolve(import.meta.dir, '../..');
@@ -61,6 +71,8 @@ const venvPython = (venvDir: string) =>
 export const loadConfig = (env: Env = process.env): Config => {
   const vmHome = path.resolve(env.VM_HOME ?? path.join(homedir(), '.video-machine'));
   const venvDir = path.join(vmHome, 'venv');
+  // Read here, not by the avatar code, so the key stays out of every child process (toToolEnv strips it).
+  const heygenApiKey = env.HEYGEN_API_KEY || undefined;
   return {
     pluginRoot: PLUGIN_ROOT,
     vmHome,
@@ -69,5 +81,6 @@ export const loadConfig = (env: Env = process.env): Config => {
     bun: path.join(PLUGIN_ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'bun.exe' : 'bun'),
     // Set after toToolEnv so the parent's own Python settings never redirect ours; nothing lands in the plugin root.
     toolEnv: force(toToolEnv(env), { UV_PROJECT_ENVIRONMENT: venvDir, HYPERFRAMES_PYTHON: venvPython(venvDir) }),
+    ...(heygenApiKey === undefined ? {} : { heygenApiKey }),
   };
 };

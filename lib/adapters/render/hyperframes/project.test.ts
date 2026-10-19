@@ -2,7 +2,17 @@ import { afterEach, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { AssetsSchema, BriefSchema, type Plan, PlanSchema, TimingSchema } from '../../../contracts/types';
+import {
+  AssetsSchema,
+  AvatarPlacementSchema,
+  type AvatarPreset,
+  AvatarSegmentsSchema,
+  BriefSchema,
+  type Plan,
+  PlanSchema,
+  ScriptSchema,
+  TimingSchema,
+} from '../../../contracts/types';
 import { InputError, UnsupportedError } from '../../../core/errors';
 import { writeJson } from '../../../core/json';
 import { assembleProject } from './project';
@@ -146,6 +156,60 @@ test('a scene composition wraps its fragment unchanged', async () => {
   expect(html.startsWith('<template><div id="scene-hook" data-composition-id="hook" data-width="1080"')).toBe(true);
   expect(html).toContain('data-height="1920" data-duration="1.6"');
   expect(html).toContain(HOOK);
+});
+
+const withAvatar = (dir: string, placement: Record<string, AvatarPreset> = { a01: 'corner-br' }) => {
+  mkdirSync(path.join(dir, 'avatar'), { recursive: true });
+  writeFileSync(path.join(dir, 'avatar', 'a01.webm'), 'webm');
+  writeJson(path.join(dir, 'avatar', 'segments.json'), AvatarSegmentsSchema, {
+    run_id: 'r',
+    adapter: 'supplied',
+    segments: [{ seg: 'a01', line_ids: ['l2'], start: 2, end: 4.25, file: 'avatar/a01.webm' }],
+  });
+  writeJson(path.join(dir, 'avatar', 'placement.json'), AvatarPlacementSchema, { segments: placement });
+  return dir;
+};
+
+test('the root page lays each avatar segment over the scenes and the build carries its webm', async () => {
+  const out = await assembleProject(withAvatar(run()), 'reel');
+  const html = readFileSync(path.join(out, 'index.html'), 'utf8');
+  expect(html).toContain(
+    '<video id="avatar-a01" class="clip" src="avatar/a01.webm" muted playsinline data-start="2" data-duration="2.25" data-track-index="3" style="position:absolute;left:587px;top:966px;width:428px;height:570px;object-fit:contain;object-position:right bottom;z-index:10"></video>',
+  );
+  expect(html.indexOf('id="avatar-a01"')).toBeGreaterThan(html.indexOf('id="host-demo"'));
+  expect(readFileSync(path.join(out, 'avatar', 'a01.webm'), 'utf8')).toBe('webm');
+});
+
+test('a run without avatar/ has no video layer; a missing webm or placement throws InputError', async () => {
+  const plain = await assembleProject(run(), 'reel');
+  expect(readFileSync(path.join(plain, 'index.html'), 'utf8')).not.toContain('<video');
+  const noWebm = withAvatar(run());
+  rmSync(path.join(noWebm, 'avatar', 'a01.webm'));
+  await expect(assembleProject(noWebm, 'reel')).rejects.toThrow(InputError);
+  const noPlacement = withAvatar(run());
+  rmSync(path.join(noPlacement, 'avatar', 'placement.json'));
+  await expect(assembleProject(noPlacement, 'reel')).rejects.toThrow(InputError);
+});
+
+test('an avatar brief with an avatar line and no avatar/ refuses to build', async () => {
+  const d = run();
+  writeJson(path.join(d, 'brief.json'), BriefSchema, {
+    run_id: 'r',
+    concept: 'c',
+    goals: [],
+    duration_target_s: [5, 6],
+    timing_source: 'voiceover',
+    avatar: { source: 'adapter', adapter: 'heygen', portrait: 'input/me.png' },
+  });
+  writeJson(path.join(d, 'script.json'), ScriptSchema, {
+    run_id: 'r',
+    version: 1,
+    lines: [
+      { id: 'l1', text: 'Meet Firecrawl today', delivery: 'voiceover' },
+      { id: 'l2', text: 'Crawl any site', delivery: 'avatar' },
+    ],
+  });
+  await expect(assembleProject(d, 'reel')).rejects.toThrow('make the avatar first (M11)');
 });
 
 test('vm.js inlines the timing data and scenes.json lists each scene window', async () => {

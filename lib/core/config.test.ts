@@ -21,6 +21,12 @@ test('VM_HOME overrides vmHome', () => {
   expect(loadConfig({ VM_HOME: 'some/vm-home' }).vmHome).toBe(path.resolve('some/vm-home'));
 });
 
+test('HEYGEN_API_KEY is read into heygenApiKey and never reaches toolEnv', () => {
+  const config = loadConfig({ HEYGEN_API_KEY: 'k' });
+  expect(config.heygenApiKey).toBe('k');
+  expect(config.toolEnv).not.toHaveProperty('HEYGEN_API_KEY');
+});
+
 test('bun is the pinned bun inside the plugin', () => {
   expect(loadConfig({}).bun.startsWith(path.join(PLUGIN_ROOT, 'node_modules', '.bin', 'bun'))).toBe(true);
 });

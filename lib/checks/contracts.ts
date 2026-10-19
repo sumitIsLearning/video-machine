@@ -3,6 +3,8 @@ import path from 'node:path';
 import type { z } from 'zod';
 import {
   AssetsSchema,
+  AvatarPlacementSchema,
+  AvatarSegmentsSchema,
   BriefSchema,
   CaptureLogSchema,
   type CheckResult,
@@ -22,6 +24,8 @@ const CONTRACT_FILES: [string, z.ZodType][] = [
   ['plan.json', PlanSchema],
   ['assets.json', AssetsSchema],
   ['data/timing.json', TimingSchema],
+  ['avatar/segments.json', AvatarSegmentsSchema],
+  ['avatar/placement.json', AvatarPlacementSchema],
   ['capture/steps.json', StepsSchema],
   ['capture/log.json', CaptureLogSchema],
   ['look/look.json', LookSchema],
