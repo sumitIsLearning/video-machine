@@ -1,16 +1,16 @@
 # Handoff
 
-## Now (2026-10-18): Phase 8 on branch `phase-8`, T1–T10 committed (builder tasks done)
+## Now (2026-10-19): Phase 8 on branch `phase-8` complete, reviewed, awaiting merge OK
 
 - Plan: `docs/superpowers/plans/phase-8-avatar.md` (T1–T10 + deferred T11 local adapter; U1–U4, R1–R10).
   Ledger: `.superpowers/sdd/phase-8-avatar/progress.md`. Plan `75a1df9`, blueprint pre-step `7bf6f7d`.
-- Plan OK'd ("continue" 2026-10-18). T1 `291529e`, T2 `99d5f8a`, T3 `a9b42fc`, T4 `644c883`, T5 `b87b1b8`, T6 `1975185`, T7 `5273d05`, T8 `96b6f79`, T9 `9423697`, T10 `2466487`.
-- Next: phase end. `bun tests/phase8.ts` passed 7/8 + 8 SKIP (no HeyGen key) in T10; show the user the output, then
-  dispatch `code-reviewer` with `model: opus` over the branch (briefs task-1..10 + ledger rulings R1–R13), one fix
-  brief (include R11 env read, which fails `tests/phase1.ts` check 6, and T10's 🔵 SIGTERM + check-4 blocking), one
-  re-review, then ask before merging.
-- Follow-up (R11): `lib/avatar/make.ts` reads `HEYGEN_API_KEY` from `process.env`; move it into `loadConfig`.
-  It makes `tests/phase1.ts` check 6 FAIL ("lib/avatar/make.ts reads the environment"); check 4 also fails as before.
+- T1 `291529e` … T10 `2466487`; phase-review fixes `6fffd6e` (Opus review → fix brief `briefs/fix-phase.md` →
+  spec PASS → Opus re-review APPROVE). phase8.ts 7 PASS + 1 SKIP (HeyGen live, needs key + paid OK).
+- Next: ask the user to merge `phase-8` into master (not yet asked → asked 2026-10-19).
+- R14 (creator 2026-10-19): run-level `spend.json`; gates pass when spent+estimate ≤ budget or estimate ≤ approved.
+- Deferred: HeyGen Idempotency-Key reused with a new `audio_asset_id` body on re-run — check HeyGen rules (fails
+  safe: 4xx, not double billing). 🔵 tests/phase8.ts:150 `procs.delete` not in finally (harmless).
+- phase1 check 6 now passes; check 4 still fails (root CLAUDE.md strict-validate, deferred).
 - R12/R13 (T10): test-only `callWithEnv` for the key; check 5 expects HyperFrames `text_occluded` build refusal.
 - T11 waits on the creator's GPU test on the reference laptop (procedure in the plan's Task 11).
 - HeyGen v1/v2 API is removed 2026-10-31; the plan targets v3.
