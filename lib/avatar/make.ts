@@ -6,14 +6,16 @@ import { suppliedAvatar } from '../adapters/avatar/supplied';
 import { removeBackground } from '../adapters/render/hyperframes/matte';
 import {
   type AvatarAdapter,
+  AvatarPlacementSchema,
   type AvatarSegments,
   AvatarSegmentsSchema,
   type Brief,
   BriefSchema,
+  PlanSchema,
   ScriptSchema,
   TimingSchema,
 } from '../contracts/types';
-import { type AvatarSpan, avatarSegments } from '../core/avatar';
+import { type AvatarSpan, avatarSegments, stackSpans } from '../core/avatar';
 import { costGate, recordSpend, spentOf } from '../core/cost';
 import { type Deps, defaultDeps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
@@ -41,9 +43,10 @@ const adapterOf = (runDir: string, avatar: NonNullable<Brief['avatar']>, deps: D
 /**
  * Make avatar/ for a voiceover run: cut each avatar segment from the voiceover, make its clip, matte it, and write
  * segments.json. The cost gate runs before anything is cut or sent. avatar.tmp is built first and renamed into place
- * only when every segment is done, so a failure leaves the previous avatar/ alone. Throws InputError (no avatar in the
- * brief, no voice yet, no avatar lines, over budget, a bad clip path), UnsupportedError (text_only or music runs,
- * unknown adapter, no HeyGen key), or the adapter's and the tools' own errors.
+ * only when every segment is done, so a failure leaves the previous avatar/ alone. A `stack` layout takes spans from
+ * the scene windows, transcodes instead of matting, and writes placement.json (all `stack`); it needs plan.json.
+ * Throws InputError (no avatar in the brief, no voice yet, no avatar lines, over budget, a bad clip path), UnsupportedError
+ * (text_only or music runs, unknown adapter, no HeyGen key), or the adapter's and the tools' own errors.
  */
 export const makeAvatar = async (
   runDir: string,
@@ -57,7 +60,14 @@ export const makeAvatar = async (
   const timingFile = path.join(runDir, 'data', 'timing.json');
   if (!existsSync(audio) || !existsSync(timingFile)) throw new InputError('voice and align first');
   const script = readJson(path.join(runDir, 'script.json'), ScriptSchema);
-  const spans = avatarSegments(script, readJson(timingFile, TimingSchema));
+  const timing = readJson(timingFile, TimingSchema);
+  const stack = brief.layout?.kind === 'stack';
+  let spans: AvatarSpan[];
+  if (stack) {
+    const planFile = path.join(runDir, 'plan.json');
+    if (!existsSync(planFile)) throw new InputError('storyboard first (M8)');
+    spans = stackSpans(readJson(planFile, PlanSchema), script, timing);
+  } else spans = avatarSegments(script, timing);
   if (spans.length === 0) throw new InputError('no script line has delivery "avatar"');
 
   const deps = io.deps ?? defaultDeps();
@@ -111,7 +121,29 @@ export const makeAvatar = async (
       recordSpend(runDir, [
         { what: `avatar ${span.seg} (${adapter.name})`, usd: adapter.costEstimate(span.end - span.start) },
       ]);
-      await matte(deps, raw, webm);
+      if (stack)
+        await deps.sh(
+          [
+            'ffmpeg',
+            '-v',
+            'error',
+            '-y',
+            '-i',
+            raw,
+            '-an',
+            '-c:v',
+            'libvpx-vp9',
+            '-b:v',
+            '0',
+            '-crf',
+            '32',
+            '-row-mt',
+            '1',
+            webm,
+          ],
+          { env: deps.config.toolEnv },
+        );
+      else await matte(deps, raw, webm);
       rmSync(wav, { force: true });
       rmSync(raw, { force: true });
       segments.push({
@@ -127,6 +159,10 @@ export const makeAvatar = async (
       adapter: adapter.name,
       segments,
     });
+    if (stack)
+      writeJson(path.join(tmp, 'placement.json'), AvatarPlacementSchema, {
+        segments: Object.fromEntries(segments.map((s) => [s.seg, 'stack' as const])),
+      });
     rmSync(avatarDir, { recursive: true, force: true });
     renameSync(tmp, avatarDir);
     return { adapter: adapter.name, usd: total_usd, segments };

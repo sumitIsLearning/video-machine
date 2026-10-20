@@ -4,8 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   type AvatarAdapter,
+  AvatarPlacementSchema,
   AvatarSegmentsSchema,
   BriefSchema,
+  PlanSchema,
   ScriptSchema,
   SpendLogSchema,
   TimingSchema,
@@ -14,6 +16,7 @@ import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
+import { sceneTimes } from '../core/scene-times';
 import type { Sh } from '../core/sh';
 import { makeAvatar } from './make';
 
@@ -104,6 +107,94 @@ test('makeAvatar refuses an over-budget adapter before making anything', async (
   expect(existsSync(path.join(dir, 'avatar'))).toBe(false);
   const ok = await makeAvatar(dir, { deps: fakeDeps([]), adapter: fakeAdapter(1, made), approved_usd: 2.65 });
   expect(ok.usd).toBe(2.65);
+});
+
+const STACK = { layout: { kind: 'stack' } };
+/** Scene s1 is voiceover (l1); scene s2 is the avatar span (l2, l3). */
+const planOf = (dir: string) => {
+  const scene = (id: string, lines: string[]) => ({
+    scene_id: id,
+    lines,
+    cut_in: { anchor: 'Line', rule: 'pause_before' as const },
+    intent: 'x',
+    beats: [],
+    layout: { reel: 'x' },
+    transition_out: 'cut' as const,
+    asset_ids: [],
+    input_hash: 'h',
+  });
+  writeJson(path.join(dir, 'plan.json'), PlanSchema, {
+    run_id: 'r',
+    version: 1,
+    look_id: 'a',
+    visuals_plan: { scenes: [scene('s1', ['l1']), scene('s2', ['l2', 'l3'])] },
+    asset_ids: [],
+    formats: ['reel'],
+  });
+};
+const fakeMatte =
+  (outs: string[]) =>
+  async (_deps: Deps, _input: string, output: string): Promise<string> => {
+    outs.push(output);
+    return output;
+  };
+
+test('makeAvatar stack cuts the scene window, transcodes to webm and writes placement.json', async () => {
+  const dir = run(STACK);
+  planOf(dir);
+  const calls: string[][] = [];
+  const mattes: string[] = [];
+  await makeAvatar(dir, { deps: fakeDeps(calls), adapter: fakeAdapter(0, []), matte: fakeMatte(mattes) });
+  const times = sceneTimes(
+    readJson(path.join(dir, 'plan.json'), PlanSchema),
+    readJson(path.join(dir, 'data', 'timing.json'), TimingSchema),
+  );
+  const s2 = times[1];
+  if (!s2) throw new Error('scene s2 missing');
+  const cut = calls.find((c) => c[0] === 'ffmpeg' && c.includes('-ss')) ?? [];
+  expect(cut.slice(cut.indexOf('-ss'), cut.indexOf('-ss') + 4)).toEqual([
+    '-ss',
+    s2.start.toFixed(3),
+    '-to',
+    (s2.start + s2.duration).toFixed(3),
+  ]);
+  expect(calls.some((c) => c.includes('remove-background'))).toBe(false);
+  expect(mattes).toEqual([]);
+  const transcodes = calls.filter((c) => c.includes('libvpx-vp9'));
+  expect(transcodes).toHaveLength(1);
+  expect(transcodes[0]).toContain('-an');
+  expect(transcodes[0]?.at(-1)).toBe(path.join(dir, 'avatar.tmp', 'a01.webm'));
+  expect(readJson(path.join(dir, 'avatar', 'placement.json'), AvatarPlacementSchema).segments).toEqual({
+    a01: 'stack',
+  });
+});
+
+test('makeAvatar stack needs plan.json before it cuts anything', async () => {
+  const dir = run(STACK);
+  const calls: string[][] = [];
+  const err = await makeAvatar(dir, { deps: fakeDeps(calls), adapter: fakeAdapter(0, []) }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(InputError);
+  expect((err as Error).message).toMatch(/storyboard first \(M8\)/);
+  expect(calls).toEqual([]);
+});
+
+test('makeAvatar stack refuses an over-budget adapter before cutting anything', async () => {
+  const dir = run(STACK);
+  planOf(dir);
+  const calls: string[][] = [];
+  const made: string[] = [];
+  const err = await makeAvatar(dir, { deps: fakeDeps(calls), adapter: fakeAdapter(1, made) }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(InputError);
+  expect(calls).toEqual([]);
+  expect(made).toEqual([]);
+});
+
+test('makeAvatar overlay mattes each segment and writes no placement.json', async () => {
+  const dir = run({ layout: { kind: 'overlay' } });
+  const mattes: string[] = [];
+  await makeAvatar(dir, { deps: fakeDeps([]), adapter: fakeAdapter(0, []), matte: fakeMatte(mattes) });
+  expect(mattes).toEqual([path.join(dir, 'avatar.tmp', 'a01.webm')]);
+  expect(existsSync(path.join(dir, 'avatar', 'placement.json'))).toBe(false);
 });
 
 test('makeAvatar refuses when the run has already spent enough to break the budget', async () => {
