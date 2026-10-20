@@ -1,14 +1,16 @@
 # Handoff
 
-## Now (2026-10-20): Phase 8 merged to master `82a849d`; `phase-7` deleted; `.env` git-ignored `e5d4ecf`
+## Now (2026-10-20): Phase 9 Reel layouts planned on branch `phase-9`, not started
 
-- Plan: `docs/superpowers/plans/phase-8-avatar.md` (T1–T10 + deferred T11 local adapter; U1–U4, R1–R10).
-  Ledger: `.superpowers/sdd/phase-8-avatar/progress.md`. Plan `75a1df9`, blueprint pre-step `7bf6f7d`.
-- T1 `291529e` … T10 `2466487`; phase-review fixes `6fffd6e` (Opus review → fix brief `briefs/fix-phase.md` →
-  spec PASS → Opus re-review APPROVE). phase8.ts 7 PASS + 1 SKIP (HeyGen live, needs key + paid OK).
-- Open (user direction 2026-10-20): paid services use the end user's own keys. Plugin `userConfig` (sensitive →
-  secure store) reaches only MCP servers/hooks, not Bash-run CLIs (skills run `bun lib/*/cli.ts` via Bash). Using it
-  means a plugin MCP server for paid steps; user to decide. Until then: workspace `.env`. Branch `phase-8` kept.
+- Plan: `docs/superpowers/plans/phase-9-reel-layouts.md` (T1–T7 builders, T8 proof reel with the creator; R1–R8).
+  Ledger: `.superpowers/sdd/phase-9-reel-layouts/progress.md`. Blueprint pre-step committed with the plan.
+- New process (orchestrator.md "Visual first"): mock each phase in the project map artifact
+  https://claude.ai/artifact/AP255iyusDtvB7fgY2iggp (source: session scratchpad `video-machine-map.html`; re-read
+  the artifact before editing), get comments, then plan; show real frames at phase end.
+- Next: user OK on the plan → T1. T4 needs the VP9 `object-fit:cover` snapshot probe first.
+- Open for T8: proof-reel concept, and presenter from the creator's own clip or HeyGen (paid, ask).
+- Phase 8 merged `82a849d`; `phase-8` branch kept (delete not asked). Docs commit `7345321` went to master directly.
+- Paid services use the end user's own keys; plugin `userConfig` only reaches MCP servers/hooks (see Phase 11).
 - R14 (creator 2026-10-19): run-level `spend.json`; gates pass when spent+estimate ≤ budget or estimate ≤ approved.
 - Deferred: HeyGen Idempotency-Key reused with a new `audio_asset_id` body on re-run — check HeyGen rules (fails
   safe: 4xx, not double billing). 🔵 tests/phase8.ts:150 `procs.delete` not in finally (harmless).
