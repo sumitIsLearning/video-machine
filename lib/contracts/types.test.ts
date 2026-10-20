@@ -13,8 +13,10 @@ import {
   DOCTOR_TOOLS,
   DoctorSchema,
   DURATION_DEFAULTS,
+  FORMATS,
   failingTools,
   frameOf,
+  LookSchema,
   NavFramesSchema,
   PageCaptureSchema,
   PlanSchema,
@@ -31,7 +33,7 @@ test('frameOf gives the reel frame as vertical 1080x1920 with its safe area', ()
     w: 1080,
     h: 1920,
     aspect: 'vertical',
-    safe: { top: 0.14, bottom: 0.2, left: 0.06, right: 0.06 },
+    safe: { top: 0.14, bottom: 0.35, left: 0.06, right: 0.06 },
   });
 });
 
@@ -214,6 +216,22 @@ test('brief avatar is a supplied clip or an adapter with a portrait', () => {
   expect(BriefSchema.safeParse({ ...brief, avatar: { source: 'magic' } }).success).toBe(false);
 });
 
+test('brief layout stack splits 55/45 by default and needs an avatar', () => {
+  const withAvatar = { ...brief, avatar: { source: 'supplied' as const, clip: 'input/me.mp4' } };
+  expect(BriefSchema.parse({ ...withAvatar, layout: { kind: 'stack' } }).layout).toEqual({
+    kind: 'stack',
+    split: 0.55,
+  });
+  expect(BriefSchema.safeParse({ ...withAvatar, layout: { kind: 'stack', split: 0.45 } }).success).toBe(false);
+  expect(BriefSchema.safeParse({ ...withAvatar, layout: { kind: 'stack', split: 0.8 } }).success).toBe(false);
+  for (const kind of ['stack', 'overlay']) {
+    const result = BriefSchema.safeParse({ ...brief, layout: { kind } });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toContain(`layout "${kind}" needs brief.avatar`);
+  }
+  expect(BriefSchema.parse(brief).layout).toBeUndefined();
+});
+
 const seg = { seg: 'a01', line_ids: ['l2', 'l3'], start: 1.2, end: 4.5, file: 'avatar/a01.webm' };
 
 test('avatar segments name each segment once, with an end after its start', () => {
@@ -231,7 +249,28 @@ test('avatar segments name each segment once, with an end after its start', () =
 test('avatar placement maps each segment to a known preset', () => {
   expect(AvatarPlacementSchema.parse({ segments: { a01: 'corner-br', a02: 'full' } }).segments.a02).toBe('full');
   expect(AvatarPlacementSchema.safeParse({ segments: { a01: 'middle' } }).success).toBe(false);
-  expect(AVATAR_PRESETS).toEqual(['corner-br', 'corner-bl', 'bottom', 'full']);
+  expect(AVATAR_PRESETS).toEqual(['corner-br', 'corner-bl', 'bottom', 'full', 'stack']);
+  expect(FORMATS.reel.safe.bottom).toBe(0.35);
+});
+
+test('look seam takes a hex color and an optional label', () => {
+  const look = {
+    id: 'a',
+    based_on: [],
+    idea: 'i',
+    palette: [{ name: 'ink', hex: '#111111', role: 'bg' }],
+    type: [{ role: 'display', family: 'Inter', weights: [700], license: 'OFL' }],
+    motion: { character: 'snappy', easings: ['power3.out'], typical_beat_s: [0.4, 0.8], camera: 'static' },
+    motifs: [{ id: 'cursor', meaning: 'action' }],
+    post: {},
+    layout_rules: { landscape: '', vertical: '', square: '' },
+  };
+  expect(LookSchema.parse({ ...look, seam: { color: '#2e8b57', label: 'SALES TIPS' } }).seam).toEqual({
+    color: '#2e8b57',
+    label: 'SALES TIPS',
+  });
+  expect(LookSchema.parse({ ...look, seam: { color: '#2e8b57' } }).seam).toEqual({ color: '#2e8b57' });
+  expect(LookSchema.safeParse({ ...look, seam: { color: 'green' } }).success).toBe(false);
 });
 
 const step = (i: number, extra: object = {}) => ({

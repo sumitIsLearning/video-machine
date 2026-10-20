@@ -174,7 +174,7 @@ test('the root page lays each avatar segment over the scenes and the build carri
   const out = await assembleProject(withAvatar(run()), 'reel');
   const html = readFileSync(path.join(out, 'index.html'), 'utf8');
   expect(html).toContain(
-    '<video id="avatar-a01" class="clip" src="avatar/a01.webm" muted playsinline data-start="2" data-duration="2.25" data-track-index="3" style="position:absolute;left:587px;top:966px;width:428px;height:570px;object-fit:contain;object-position:right bottom;z-index:10"></video>',
+    '<video id="avatar-a01" class="clip" src="avatar/a01.webm" muted playsinline data-start="2" data-duration="2.25" data-track-index="3" style="position:absolute;left:684px;top:807px;width:331px;height:441px;object-fit:contain;object-position:right bottom;z-index:10"></video>',
   );
   expect(html.indexOf('id="avatar-a01"')).toBeGreaterThan(html.indexOf('id="host-demo"'));
   expect(readFileSync(path.join(out, 'avatar', 'a01.webm'), 'utf8')).toBe('webm');

@@ -42,10 +42,10 @@ test('avatarSegments groups consecutive avatar lines and times them from timing.
 });
 
 test('presetBox places each preset inside the safe area', () => {
-  expect(presetBox('corner-br', 'reel')).toEqual({ x: 587, y: 966, w: 428, h: 570, fit: 'right bottom' });
-  expect(presetBox('corner-bl', 'reel')).toEqual({ x: 65, y: 966, w: 428, h: 570, fit: 'left bottom' });
-  expect(presetBox('bottom', 'reel')).toEqual({ x: 65, y: 966, w: 950, h: 570, fit: 'center bottom' });
-  expect(presetBox('full', 'reel')).toEqual({ x: 65, y: 269, w: 950, h: 1267, fit: 'center bottom' });
+  expect(presetBox('corner-br', 'reel')).toEqual({ x: 684, y: 807, w: 331, h: 441, fit: 'right bottom' });
+  expect(presetBox('corner-bl', 'reel')).toEqual({ x: 65, y: 807, w: 331, h: 441, fit: 'left bottom' });
+  expect(presetBox('bottom', 'reel')).toEqual({ x: 65, y: 807, w: 950, h: 441, fit: 'center bottom' });
+  expect(presetBox('full', 'reel')).toEqual({ x: 65, y: 269, w: 950, h: 979, fit: 'center bottom' });
   expect(presetBox('corner-br', 'landscape_1080p')).toEqual({ x: 1496, y: 589, w: 328, h: 437, fit: 'right bottom' });
 });
 
@@ -61,8 +61,8 @@ const segments = AvatarSegmentsSchema.parse({
 test('avatarBoxes joins each segment with its preset box and refuses a gap or an unknown segment', () => {
   const placement = AvatarPlacementSchema.parse({ segments: { a01: 'corner-br', a02: 'full' } });
   expect(avatarBoxes(segments, placement, 'reel')).toEqual([
-    { seg: 'a01', start: 1.35, end: 4, x: 587, y: 966, w: 428, h: 570, fit: 'right bottom' },
-    { seg: 'a02', start: 5.25, end: 6.5, x: 65, y: 269, w: 950, h: 1267, fit: 'center bottom' },
+    { seg: 'a01', start: 1.35, end: 4, x: 684, y: 807, w: 331, h: 441, fit: 'right bottom' },
+    { seg: 'a02', start: 5.25, end: 6.5, x: 65, y: 269, w: 950, h: 979, fit: 'center bottom' },
   ]);
   expect(() => avatarBoxes(segments, { segments: { a01: 'full' } }, 'reel')).toThrow(/a02/);
   expect(() => avatarBoxes(segments, { segments: { a01: 'full', a02: 'full', a09: 'full' } }, 'reel')).toThrow(/a09/);

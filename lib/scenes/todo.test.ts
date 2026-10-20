@@ -99,7 +99,7 @@ test('scenesTodo gives each todo scene the avatar boxes over its window, relativ
   expect(todo.find((t) => t.scene_id === 'demo')).toEqual({
     scene_id: 'demo',
     reason: 'new',
-    avatar: [{ format: 'reel', seg: 'a01', start: 0.4, end: 2.65, box: { x: 587, y: 966, w: 428, h: 570 } }],
+    avatar: [{ format: 'reel', seg: 'a01', start: 0.4, end: 2.65, box: { x: 684, y: 807, w: 331, h: 441 } }],
   });
   expect(todo.find((t) => t.scene_id === 'hook')).not.toHaveProperty('avatar');
 });

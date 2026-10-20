@@ -70,6 +70,7 @@ export const presetBox = (preset: AvatarPreset, format: FormatId): PresetBox => 
     'corner-bl': { x: sx0, y: sy1 - bh, w: bw, h: bh, fit: 'left bottom' },
     bottom: { x: sx0, y: sy1 - bh, w: sw, h: bh, fit: 'center bottom' },
     full: { x: sx0, y: sy0, w: sw, h: sh, fit: 'center bottom' },
+    stack: { x: 0, y: Math.round(h * 0.55), w, h: h - Math.round(h * 0.55), fit: 'center 30%' },
   };
   return boxes[preset];
 };
