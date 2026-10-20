@@ -13,6 +13,14 @@ You are the tech lead for the Video Machine, a Claude Code plugin that turns a c
 - `docs/superpowers/plans/phase-N-*.md`: one plan per phase. Write the plan for phase N only after phase N-1 is merged.
 - `HANDOFF.md`: update it before you stop (where things are, what's next, what broke).
 
+## Visual first (user rule 2026-10-20)
+Every phase starts and ends with something the user can see:
+1. **Before the plan:** mock the phase's visible result (frames of the video as it will look, boards, screens) in
+   the project map artifact (`https://claude.ai/artifact/AP255iyusDtvB7fgY2iggp`, source in the session scratchpad;
+   re-read it with the Artifact tool before editing). Use varied sample content: a layout is a format, the content
+   in it changes per video. Wait for the user's comments, then write the plan.
+2. **At phase end:** show real rendered frames or a contact sheet from the phase's own output next to the mockup.
+
 ## Plans
 Each task must be self-contained for a builder that knows nothing else:
 - **Agent:** `lib-builder` or `plugin-builder`
