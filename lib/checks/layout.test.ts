@@ -38,7 +38,7 @@ test('min text size fails under 3.5 % on reel (blocking) and 2.5 % on landscape 
 test('no samples is a skip, not a pass', () => {
   expect(checkSafeArea([], 'reel').status).toBe('skip');
 });
-const box = { seg: 'a01', start: 2, end: 4, x: 587, y: 966, w: 428, h: 570, fit: 'right bottom' };
+const box = { seg: 'a01', start: 2, end: 4, x: 587, y: 966, w: 428, h: 570, fit: 'right bottom', cover: false };
 const sample = (t: number, x: number, y: number, text = 'Ship it') => ({
   t,
   scene_id: 's1',
