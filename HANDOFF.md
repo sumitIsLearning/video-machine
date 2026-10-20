@@ -1,12 +1,14 @@
 # Handoff
 
-## Now (2026-10-19): Phase 8 on branch `phase-8` complete, reviewed, awaiting merge OK
+## Now (2026-10-20): Phase 8 merged to master `82a849d`; `phase-7` deleted; `.env` git-ignored `e5d4ecf`
 
 - Plan: `docs/superpowers/plans/phase-8-avatar.md` (T1–T10 + deferred T11 local adapter; U1–U4, R1–R10).
   Ledger: `.superpowers/sdd/phase-8-avatar/progress.md`. Plan `75a1df9`, blueprint pre-step `7bf6f7d`.
 - T1 `291529e` … T10 `2466487`; phase-review fixes `6fffd6e` (Opus review → fix brief `briefs/fix-phase.md` →
   spec PASS → Opus re-review APPROVE). phase8.ts 7 PASS + 1 SKIP (HeyGen live, needs key + paid OK).
-- Next: ask the user to merge `phase-8` into master (not yet asked → asked 2026-10-19).
+- Open (user direction 2026-10-20): paid services use the end user's own keys. Plugin `userConfig` (sensitive →
+  secure store) reaches only MCP servers/hooks, not Bash-run CLIs (skills run `bun lib/*/cli.ts` via Bash). Using it
+  means a plugin MCP server for paid steps; user to decide. Until then: workspace `.env`. Branch `phase-8` kept.
 - R14 (creator 2026-10-19): run-level `spend.json`; gates pass when spent+estimate ≤ budget or estimate ≤ approved.
 - Deferred: HeyGen Idempotency-Key reused with a new `audio_asset_id` body on re-run — check HeyGen rules (fails
   safe: 4xx, not double billing). 🔵 tests/phase8.ts:150 `procs.delete` not in finally (harmless).
