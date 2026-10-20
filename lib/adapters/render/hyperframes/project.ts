@@ -1,6 +1,15 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { BriefSchema, FORMATS, type FormatId, PlanSchema, ScriptSchema, TimingSchema } from '../../../contracts/types';
+import {
+  BriefSchema,
+  FORMATS,
+  type FormatId,
+  type Look,
+  LookSchema,
+  PlanSchema,
+  ScriptSchema,
+  TimingSchema,
+} from '../../../contracts/types';
 import { type AvatarBox, avatarBoxesOf } from '../../../core/avatar';
 import { InputError, UnsupportedError } from '../../../core/errors';
 import { readJson } from '../../../core/json';
@@ -48,8 +57,31 @@ const readFragments = (runDir: string, ids: string[]): Map<string, string> => {
   return found;
 };
 
+// Escapes the characters that would break out of a text node or a double-quoted attribute.
+const esc = (s: string): string =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// The seam bar and label chip over each covering (stack) video, drawn above it. Nothing without look.seam.
+const seamLines = (format: FormatId, times: SceneTime[], avatars: AvatarBox[], look: Look): string => {
+  const seam = look.seam;
+  if (!seam) return '';
+  const display = look.type.find((t) => t.role === 'display');
+  const family = display ? `'${esc(display.family)}', system-ui, sans-serif` : 'system-ui, sans-serif';
+  const base = times.length + 1 + avatars.length;
+  return avatars
+    .filter((a) => a.cover)
+    .map((a, k) => {
+      const duration = round3(a.end - a.start);
+      const bar = `\n<div id="seam-${a.seg}" class="clip" data-start="${a.start}" data-duration="${duration}" data-track-index="${base + 2 * k}" style="position:absolute;left:0px;top:${a.y - 3}px;width:${a.w}px;height:6px;background:${seam.color};z-index:11"></div>`;
+      if (!seam.label) return bar;
+      const chip = `\n<div id="seam-label-${a.seg}" class="clip" data-start="${a.start}" data-duration="${duration}" data-track-index="${base + 2 * k + 1}" style="position:absolute;left:50%;top:${a.y}px;transform:translate(-50%,-50%);padding:8px 24px;border-radius:999px;background:${seam.color};color:#fff;font-family:${family};font-weight:700;font-size:${minTextPx(format)}px;letter-spacing:0.08em;white-space:nowrap;z-index:12">${esc(seam.label)}</div>`;
+      return bar + chip;
+    })
+    .join('');
+};
+
 // The root page: vendored scripts, the frame variables, one host per scene, the avatar layer and the voiceover audio.
-const rootHtml = (format: FormatId, times: SceneTime[], total: number, avatars: AvatarBox[]): string => {
+const rootHtml = (format: FormatId, times: SceneTime[], total: number, avatars: AvatarBox[], look?: Look): string => {
   const { w, h, safe } = FORMATS[format];
   const hosts = times
     .map(
@@ -60,7 +92,7 @@ const rootHtml = (format: FormatId, times: SceneTime[], total: number, avatars: 
   const avatarLines = avatars
     .map(
       (a, k) =>
-        `\n<video id="avatar-${a.seg}" class="clip" src="avatar/${a.seg}.webm" muted playsinline data-start="${a.start}" data-duration="${round3(a.end - a.start)}" data-track-index="${times.length + 1 + k}" style="position:absolute;left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px;object-fit:contain;object-position:${a.fit};z-index:10"></video>`,
+        `\n<video id="avatar-${a.seg}" class="clip" src="avatar/${a.seg}.webm" muted playsinline data-start="${a.start}" data-duration="${round3(a.end - a.start)}" data-track-index="${times.length + 1 + k}" style="position:absolute;left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px;object-fit:${a.cover ? 'cover' : 'contain'};object-position:${a.fit};z-index:10"></video>`,
     )
     .join('');
   return `<!doctype html>
@@ -77,7 +109,7 @@ html, body { margin: 0; background: #000; }
 <body>
 <div id="root" data-composition-id="root" data-start="0" data-width="${w}" data-height="${h}" data-duration="${total}">
 <audio id="vo" src="vo.wav" data-start="0" data-duration="${total}" data-track-index="0"></audio>
-${hosts}${avatarLines}
+${hosts}${avatarLines}${look ? seamLines(format, times, avatars, look) : ''}
 </div>
 <script>window.__timelines = window.__timelines || {}; window.__timelines.root = gsap.timeline({ paused: true });</script>
 </body>
@@ -117,6 +149,8 @@ export async function assembleProject(runDir: string, format: FormatId): Promise
     times.map((t) => t.scene_id),
   );
 
+  const lookFile = path.join(runDir, 'look', 'look.json');
+  const look = existsSync(lookFile) ? readJson(lookFile, LookSchema) : undefined;
   const avatars = avatarBoxesOf(runDir, format);
   for (const a of avatars) {
     const webm = path.join(runDir, 'avatar', `${a.seg}.webm`);
@@ -132,7 +166,7 @@ export async function assembleProject(runDir: string, format: FormatId): Promise
 
   try {
     rmSync(tmp, { recursive: true, force: true });
-    writeComposition(runDir, buildRel, rootHtml(format, times, total, avatars), assetIds);
+    writeComposition(runDir, buildRel, rootHtml(format, times, total, avatars, look), assetIds);
     mkdirSync(path.join(tmp, 'compositions'), { recursive: true });
     for (const t of times) {
       writeFileSync(

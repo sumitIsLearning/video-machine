@@ -8,11 +8,13 @@ import {
   type AvatarPreset,
   AvatarSegmentsSchema,
   BriefSchema,
+  LookSchema,
   type Plan,
   PlanSchema,
   ScriptSchema,
   TimingSchema,
 } from '../../../contracts/types';
+import { presetBox } from '../../../core/avatar';
 import { InputError, UnsupportedError } from '../../../core/errors';
 import { writeJson } from '../../../core/json';
 import { assembleProject } from './project';
@@ -189,6 +191,61 @@ test('a run without avatar/ has no video layer; a missing webm or placement thro
   const noPlacement = withAvatar(run());
   rmSync(path.join(noPlacement, 'avatar', 'placement.json'));
   await expect(assembleProject(noPlacement, 'reel')).rejects.toThrow(InputError);
+});
+
+// A minimal valid look in run/look/look.json, with the seam when one is given.
+const withLook = (dir: string, seam?: { color: string; label?: string }) => {
+  writeJson(path.join(dir, 'look', 'look.json'), LookSchema, {
+    id: 'look',
+    based_on: [],
+    idea: 'i',
+    palette: [{ name: 'ink', hex: '#000000', role: 'bg' }],
+    type: [{ role: 'display', family: 'Inter', weights: [700], license: 'OFL' }],
+    motion: { character: 'c', easings: [], typical_beat_s: [1, 2], camera: 'static' },
+    motifs: [],
+    post: {},
+    layout_rules: { landscape: 'l', vertical: 'v', square: 's' },
+    ...(seam ? { seam } : {}),
+  });
+  return dir;
+};
+
+test('a stack box covers its band; an overlay box keeps contain', async () => {
+  const out = await assembleProject(withAvatar(run(), { a01: 'stack' }), 'reel');
+  const html = readFileSync(path.join(out, 'index.html'), 'utf8');
+  expect(html).toContain('object-fit:cover;object-position:center 30%;z-index:10');
+  expect(html).not.toContain('object-fit:contain;object-position:center 30%');
+});
+
+test('a stack segment with look.seam gets a seam bar and a label chip above its video', async () => {
+  const seam = { color: '#2e8b57', label: 'SALES TIPS' };
+  const out = await assembleProject(withLook(withAvatar(run(), { a01: 'stack' }), seam), 'reel');
+  const html = readFileSync(path.join(out, 'index.html'), 'utf8');
+  const y = presetBox('stack', 'reel').y;
+  expect(html).toContain(
+    `id="seam-a01" class="clip" data-start="2" data-duration="2.25" data-track-index="4" style="position:absolute;left:0px;top:${y - 3}px;width:1080px;height:6px;background:#2e8b57;z-index:11"`,
+  );
+  expect(html).toContain(`id="seam-label-a01"`);
+  expect(html).toContain(`font-family:'Inter', system-ui, sans-serif`);
+  expect(html).toContain('>SALES TIPS</div>');
+  const videoAt = html.indexOf('id="avatar-a01"');
+  expect(html.indexOf('id="seam-a01"')).toBeGreaterThan(videoAt);
+  expect(html.indexOf('id="seam-label-a01"')).toBeGreaterThan(videoAt);
+});
+
+test('no seam without look.seam, and none for a corner box even with a seam', async () => {
+  const noSeam = await assembleProject(withLook(withAvatar(run(), { a01: 'stack' })), 'reel');
+  expect(readFileSync(path.join(noSeam, 'index.html'), 'utf8')).not.toContain('seam-');
+  const corner = await assembleProject(withLook(withAvatar(run()), { color: '#2e8b57' }), 'reel');
+  expect(readFileSync(path.join(corner, 'index.html'), 'utf8')).not.toContain('seam-');
+});
+
+test('a seam label is escaped', async () => {
+  const out = await assembleProject(
+    withLook(withAvatar(run(), { a01: 'stack' }), { color: '#2e8b57', label: 'A&B<' }),
+    'reel',
+  );
+  expect(readFileSync(path.join(out, 'index.html'), 'utf8')).toContain('>A&amp;B&lt;</div>');
 });
 
 test('an avatar brief with an avatar line and no avatar/ refuses to build', async () => {

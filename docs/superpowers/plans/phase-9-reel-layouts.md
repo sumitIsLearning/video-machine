@@ -105,6 +105,8 @@ Placement written into `avatar.tmp/` before the rename. Needs `plan.json` for `s
 ### Task 4: Build layer: cover and seam
 **Orchestrator pre-step:** probe a non-alpha VP9 webm in a root `<video class="clip">` with `object-fit:cover` in
 `hyperframes snapshot` (centre pixel of a 1080×864 band from a 16:9 red/blue clip). Record the result here.
+**Probe result (2026-10-20, HF 0.8.143, `runs/spike-p9-cover/`):** cover works. Band top=1056, 1080×864, 16:9
+red|blue VP9 (no alpha): y=1076 and y=1900 filled (no letterbox), x=10 red, x=1070 blue, y=1000 (above band) black.
 **Agent:** lib-builder
 **Read first:** `lib/adapters/render/hyperframes/project.ts:52-80` (`rootHtml`), `:98-125`;
 `project.test.ts:172-200`.
