@@ -1,13 +1,13 @@
 # Handoff
 
-## Now (2026-10-20): Phase 9 Reel layouts planned on branch `phase-9`, not started
+## Now (2026-10-20): Phase 9 Reel layouts in progress on branch `phase-9` (T1–T2 done)
 
 - Plan: `docs/superpowers/plans/phase-9-reel-layouts.md` (T1–T7 builders, T8 proof reel with the creator; R1–R8).
   Ledger: `.superpowers/sdd/phase-9-reel-layouts/progress.md`. Blueprint pre-step committed with the plan.
 - New process (orchestrator.md "Visual first"): mock each phase in the project map artifact
   https://claude.ai/artifact/AP255iyusDtvB7fgY2iggp (source: session scratchpad `video-machine-map.html`; re-read
   the artifact before editing), get comments, then plan; show real frames at phase end.
-- Next: user OK on the plan → T1. T4 needs the VP9 `object-fit:cover` snapshot probe first.
+- Next: T3 (see ledger). T4 needs the VP9 `object-fit:cover` snapshot probe first.
 - Open for T8: proof-reel concept, and presenter from the creator's own clip or HeyGen (paid, ask).
 - Phase 8 merged `82a849d`; `phase-8` branch kept (delete not asked). Docs commit `7345321` went to master directly.
 - Paid services use the end user's own keys; plugin `userConfig` only reaches MCP servers/hooks (see Phase 11).
