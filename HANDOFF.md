@@ -16,7 +16,7 @@
 - R12/R13 (T10): test-only `callWithEnv` for the key; check 5 expects HyperFrames `text_occluded` build refusal.
 - T11 waits on the creator's GPU test on the reference laptop (procedure in the plan's Task 11).
 - HeyGen v1/v2 API is removed 2026-10-31; the plan targets v3.
-- Phase 7 merged `4db4a03`. Branch `phase-7` kept (delete not yet asked); not pushed.
+- Phase 7 merged `4db4a03`; branch deleted 2026-10-20. Nothing pushed yet.
 - Check 7 (video-testing listing) skips on macOS: default path is `C:/Work-data/video-testing`; set `VM_VIDEO_TESTING`.
 - Tooling note for user: check.sh shows the first 60 lint lines, and biome infos (6 pre-existing) can hide the real
   error; builders misread it in T6 and T10. Possible fix: `--diagnostic-level=warn` in package.json lint (asked, not done).
