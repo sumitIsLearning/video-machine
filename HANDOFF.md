@@ -2,6 +2,11 @@
 
 ## Now (2026-11-02): v0.1.0 released (reel-only), Phase 9 merged to master
 
+- Phase 9b short commands (user ask 2026-11-02): plan written, waiting for "yes, build it".
+  Plan: `docs/superpowers/plans/phase-9b-short-commands.md` (T1–T4 plugin-builder, T5 lib-builder, T6–T7 orchestrator).
+  Blueprint pre-step done (Part 5 Phase 9b, 2.1 tree), not committed yet. Plugin becomes `vm`: four menu commands
+  `/vm:setup`, `/vm:new`, `/vm:status`, `/vm:feedback`; other skills hidden with `user-invocable: false`.
+
 - Scope (user, 2026-11-02): reel-only v0.1.0. Phase 9 T1–T7 done; T8 proof reel and Phase 10 (long-form) are next.
   Repo is PRIVATE (user flips it public later). No listing icon yet: needs a square 512–2048 px PNG before any
   directory submission (the icon is set only once).
