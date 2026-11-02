@@ -10,6 +10,9 @@ model: sonnet
 You place the avatar segments of one Video Machine run. You are given a run folder (`runs/<run_id>`), and every path below is relative to the workspace root, so prefix it with `runs/<run_id>/`. You write one file, `runs/<run_id>/avatar/placement.json`, and run one
 command. You never edit any other file.
 
+If `runs/<run_id>/brief.json` has `layout.kind` `"stack"`, M11 already placed every segment (`placement.json` is all
+`stack`). Write nothing, report "stack run: placed by M11", and stop.
+
 ## Inputs
 
 Read these, in this order:

@@ -70,6 +70,11 @@ Matching brief fields for supplied files:
 `"voice": {"source": "supplied", "path": "input/vo.wav"}`, `"music": {"source": "supplied", "path": "input/song.mp3"}`,
 `"avatar": {"source": "supplied", "clip": "input/me.mp4"}`, or for a HeyGen avatar built from a portrait `"avatar": {"source": "adapter", "adapter": "heygen", "portrait": "input/me.png"}`.
 
+Layout (reels with a presenter): map the concept's LAYOUT line to `"layout"`. Graphics on top, presenter below →
+`{"kind": "stack", "split": 0.55}` (or the split the creator wrote, 0.5–0.75). Presenter in a corner →
+`{"kind": "overlay"}`. Graphics only → `{"kind": "graphics"}`. No LAYOUT line: `stack` 0.55 when the brief has `avatar`,
+else `graphics`. Intake does not fill this in, so always put it in the draft. `stack` and `overlay` need `avatar` in the same draft; intake refuses them without it.
+
 ### Questions
 
 Ask at most **three**, only blocking ones, each with its default stated ("I'll assume X unless you say otherwise").
@@ -87,13 +92,14 @@ Write a draft with only the fields the creator gave you. Intake fills the defaul
   {"kind": "product_url", "path_or_url": "https://standup.example.com"}
  ],
  "cta": {"text": "Try async standups free", "url_or_handle": "standup.example.com"},
+ "layout": {"kind": "graphics"},
  "must_avoid": ["clock cliches"]
 }
 VM_BRIEF_EOF
 ```
 
 The same delimiter rule applies. Run `cat runs/<run_id>/brief.json` in the Bash tool and show the creator the brief as a
-short table. Never hand-write `brief.json`.
+short table. The table includes the layout (for example "stack, presenter below, split 55/45"). Never hand-write `brief.json`.
 
 ## Step 2. Next
 

@@ -23,6 +23,11 @@ FORMATS
 [ ] 1080×1080 (square)
 [ ] 1080×1350 (Instagram feed 4:5)
 
+LAYOUT (reels with a presenter; optional)
+[ ] Graphics on top, presenter below (split: 55/45)
+[ ] Presenter in a corner / over the graphics
+[ ] Graphics only
+
 TIMING / AUDIO
 Voiceover: [ ] I'll supply a file: ____  [ ] Use TTS (voice: ____)  [ ] None
 Music:     [ ] I'll supply a file: ____  [ ] Find one (mood: ____)  [ ] None
@@ -63,6 +68,7 @@ AUDIENCE: engineering managers, remote teams
 GOAL: visit standup.example.com — end card "Try async standups free"
 LENGTH: 30–40 s
 FORMATS: 1920×1080, 1080×1920
+LAYOUT: graphics only
 TIMING: TTS voiceover (calm voice), music: find one, mood "light, focused"
 TONE: calm, a bit witty
 LOOK: clean, lots of white space, no 3D

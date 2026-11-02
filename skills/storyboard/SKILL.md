@@ -19,10 +19,19 @@ fit `duration_target_s` at about 2.5 words per second. Each line has `id`, `text
 reads it, for example "5.5" as "five point five"), `on_screen`, `section`. Every line with a number gets `cite`: the
 http(s) URLs from `research.md` that back it. Never invent a URL.
 
+- The first line is a hook: a question or a promise, spoken in the first 3 s. Its `on_screen` text repeats the hook.
+- Keep `on_screen` text short: 5–10 words.
+- The last line is the call to action (CTA).
+- In a `stack` run, give each line `"delivery": "avatar"` (the presenter speaks it) or `"voiceover"`. Mark the lines of a
+  full-graphics scene `voiceover`, so the presenter band hides there. Plan each scene with one delivery only (a scene
+  mixing both is refused).
+- A line without `delivery` counts as `voiceover`. In a `stack` run, set `"delivery": "avatar"` explicitly on every line
+  the presenter speaks.
+
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/script/cli.ts" write runs/<run_id> <<'VM_SCRIPT_EOF'
 {"lines": [
- {"id": "l1", "text": "Standups eat two hours a week.", "cite": ["https://example.com/study"]}
+ {"id": "l1", "text": "Standups eat two hours a week.", "delivery": "avatar", "cite": ["https://example.com/study"]}
 ]}
 VM_SCRIPT_EOF
 ```
@@ -137,6 +146,13 @@ It returns `{page, missing_boards}`. Render any scene in `missing_boards` before
 Give the creator the page `out/storyboard.html` to open. Apply their notes: a note about one scene's look or
 wording goes into that scene (`intent`, `beats`, or `overrides` for a specific visual instruction). Then `storyboard
 write` the whole plan again. It returns `changed` (scene ids) and deletes their old boards; re-render exactly those, then run `page`. Stop when the creator approves.
+
+In a `stack` run, tell the creator the layout and the split first. The boards show the presenter band as a grey
+"presenter" block. To change the layout, re-run intake with the full draft: copy every field of the current `brief.json`
+except `run_id`, change only `layout`, and send it to `lib/run/cli.ts brief` (see make-video Step 1). Intake rebuilds the
+whole brief from the draft, so a draft with only `layout` drops sources, avatar, cta, brand and budget. Then re-render
+the look boards and the scene boards. If avatar clips were already made, re-make them with `lib/avatar/cli.ts make`
+after the change; for HeyGen this is a paid call that needs a fresh cost approval (ask first). Never hand-edit `brief.json`.
 
 ## 7. Rules
 
