@@ -1,13 +1,20 @@
 # Handoff
 
-## Now (2026-10-20): Phase 9 Reel layouts in progress on branch `phase-9` (T1–T4 done)
+## Now (2026-11-02): SHIP DAY — reel-only v0.1.0 (user ruling); branch `phase-9` (T1–T7 done)
 
+- Scope (user, 2026-11-02): finish Phase 9 T5–T7, lean Phase 11 (README, LICENSE MIT, manifest), merge to master,
+  push, tag v0.1.0. Phase 10 (long-form) and T8 proof reel are post-ship. Repo stays PRIVATE; no icon yet (needs a
+  square 512–2048 px PNG before any directory submission). No /clear stops today.
+- T5 ca8ca45, T6 27ef037, T7 8d8329e done; `tests/phase9.ts` 9/9 on real tools. T7 caught a lib bug (seam label chip
+  sampled as text → `layout.safe_area` blocking on stack+label); fixed with `data-vm-chrome`.
+- Ship files committed: LICENSE (MIT), README.md, .claude-plugin/plugin.json (license/repo/keywords). `claude plugin
+  validate .` passes (icon warning only). Remote master is an ancestor of local master (fast-forward push).
+- Then: whole-branch Opus review (running) → one fix round → ask before merge → push master → tag v0.1.0.
 - Plan: `docs/superpowers/plans/phase-9-reel-layouts.md` (T1–T7 builders, T8 proof reel with the creator; R1–R8).
   Ledger: `.superpowers/sdd/phase-9-reel-layouts/progress.md`. Blueprint pre-step committed with the plan.
 - New process (orchestrator.md "Visual first"): mock each phase in the project map artifact
   https://claude.ai/artifact/AP255iyusDtvB7fgY2iggp (source: session scratchpad `video-machine-map.html`; re-read
   the artifact before editing), get comments, then plan; show real frames at phase end.
-- Next: T5 presenter band on boards (see ledger). Cover probe passed (spike `runs/spike-p9-cover/`).
 - Open for T8: proof-reel concept, and presenter from the creator's own clip or HeyGen (paid, ask).
 - Phase 8 merged `82a849d`; `phase-8` branch kept (delete not asked). Docs commit `7345321` went to master directly.
 - Paid services use the end user's own keys; plugin `userConfig` only reaches MCP servers/hooks (see Phase 11).
