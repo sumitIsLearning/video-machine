@@ -74,7 +74,7 @@ const seamLines = (format: FormatId, times: SceneTime[], avatars: AvatarBox[], l
       const duration = round3(a.end - a.start);
       const bar = `\n<div id="seam-${a.seg}" class="clip" data-start="${a.start}" data-duration="${duration}" data-track-index="${base + 2 * k}" style="position:absolute;left:0px;top:${a.y - 3}px;width:${a.w}px;height:6px;background:${seam.color};z-index:11"></div>`;
       if (!seam.label) return bar;
-      const chip = `\n<div id="seam-label-${a.seg}" class="clip" data-start="${a.start}" data-duration="${duration}" data-track-index="${base + 2 * k + 1}" style="position:absolute;left:50%;top:${a.y}px;transform:translate(-50%,-50%);padding:8px 24px;border-radius:999px;background:${seam.color};color:#fff;font-family:${family};font-weight:700;font-size:${minTextPx(format)}px;letter-spacing:0.08em;white-space:nowrap;z-index:12">${esc(seam.label)}</div>`;
+      const chip = `\n<div id="seam-label-${a.seg}" class="clip" data-vm-chrome data-start="${a.start}" data-duration="${duration}" data-track-index="${base + 2 * k + 1}" style="position:absolute;left:50%;top:${a.y}px;transform:translate(-50%,-50%);padding:8px 24px;border-radius:999px;background:${seam.color};color:#fff;font-family:${family};font-weight:700;font-size:${minTextPx(format)}px;letter-spacing:0.08em;white-space:nowrap;z-index:12">${esc(seam.label)}</div>`;
       return bar + chip;
     })
     .join('');

@@ -225,7 +225,7 @@ test('a stack segment with look.seam gets a seam bar and a label chip above its 
   expect(html).toContain(
     `id="seam-a01" class="clip" data-start="2" data-duration="2.25" data-track-index="4" style="position:absolute;left:0px;top:${y - 3}px;width:1080px;height:6px;background:#2e8b57;z-index:11"`,
   );
-  expect(html).toContain(`id="seam-label-a01"`);
+  expect(html).toContain(`id="seam-label-a01" class="clip" data-vm-chrome`);
   expect(html).toContain(`font-family:'Inter', system-ui, sans-serif`);
   expect(html).toContain('>SALES TIPS</div>');
   const videoAt = html.indexOf('id="avatar-a01"');
