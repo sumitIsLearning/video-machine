@@ -54,7 +54,9 @@ scene already does.
 - When the entry has `avatar`, no text (captions included) may sit inside an entry's `box` (`{x, y, w, h}`, pixels of
   its `format`) during that entry's `start` to `end` (seconds from the scene start). `layout.safe_area` fails it.
 - In a `stack` run the presenter band is the entry's `avatar.box`, at the bottom of the frame. Put every graphic (not
-  only text) above `box.y`. The band is opaque, so nothing under it shows. An entry without `avatar` (a voiceover
+  only text) above `box.y`. The band is opaque, so nothing under it shows. When the look has a seam label
+  (`look.seam.label`), keep all text at least `var(--vm-min-text) * 1.5` above `box.y`: the seam label chip is centred
+  on the band's top edge and covers about half that strip. An entry without `avatar` (a voiceover
   scene) uses the full frame.
 - Every text box has a fixed width and height. Size each one with `s.fit(el)` after it is in the DOM.
 - No text smaller than `var(--vm-min-text)`.
