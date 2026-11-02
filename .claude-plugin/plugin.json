@@ -2,5 +2,11 @@
   "name": "video-machine",
   "version": "0.1.0",
   "description": "Turns a concept and any source material into a motion-graphics video (reels first).",
-  "author": { "name": "Sumit Chakraborty" }
+  "author": {
+    "name": "Sumit Chakraborty"
+  },
+  "homepage": "https://github.com/sumitIsLearning/video-machine",
+  "repository": "https://github.com/sumitIsLearning/video-machine",
+  "license": "MIT",
+  "keywords": ["video", "reels", "motion-graphics", "hyperframes", "shorts"]
 }

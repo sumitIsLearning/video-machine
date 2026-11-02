@@ -71,7 +71,7 @@ test('times prints the first format frame and each scene with its asset source',
   const result = await main(['times', run]);
   expect(result).toMatchObject({
     format: 'reel',
-    frame: { w: 1080, h: 1920, safe_px: { top: 269, right: 65, bottom: 384, left: 65 }, min_text_px: 68 },
+    frame: { w: 1080, h: 1920, safe_px: { top: 269, right: 65, bottom: 672, left: 65 }, min_text_px: 68 },
     scenes: [{ scene_id: 'demo', assets: [{ asset_id: 'a1', src: 'assets/a1.png' }] }],
   });
 });

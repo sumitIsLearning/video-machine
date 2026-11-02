@@ -65,6 +65,39 @@ const allBoards = async (d: string) => {
     for (const b of ['hook', 'product', 'ending'] as const) await writeBoard(deps, d, dir, b, HTML, [], 1);
 };
 
+const ROOT_HTML = '<!doctype html><html><body><div id="root"></div></body></html>';
+const BAND_TOP = 'top:1056px';
+const stackRun = () => {
+  const d = run();
+  writeJson(path.join(d, 'brief.json'), BriefSchema, {
+    run_id: 'r',
+    concept: 'c',
+    goals: [],
+    duration_target_s: [15, 30],
+    timing_source: 'voiceover',
+    avatar: { source: 'supplied', clip: 'input/me.mp4' },
+    layout: { kind: 'stack', split: 0.55 },
+  });
+  writeLook(d, 'A', { look: LOOK_A, md: '# Ember' });
+  return d;
+};
+
+test('look boards of a stack brief get the presenter band', async () => {
+  const d = stackRun();
+  await writeBoard(deps, d, 'A', 'hook', ROOT_HTML, [], 1);
+  const page = readFileSync(path.join(d, 'directions', 'A', 'boards', 'hook', 'index.html'), 'utf8');
+  expect(page).toContain('data-vm-band');
+  expect(page).toContain(BAND_TOP);
+});
+
+test('look boards of a brief without a layout get no presenter band', async () => {
+  const d = run();
+  writeLook(d, 'A', { look: LOOK_A, md: '# Ember' });
+  await writeBoard(deps, d, 'A', 'hook', ROOT_HTML, [], 1);
+  const page = readFileSync(path.join(d, 'directions', 'A', 'boards', 'hook', 'index.html'), 'utf8');
+  expect(page).not.toContain('data-vm-band');
+});
+
 test('writeLook writes look.json and LOOK.md for a direction', () => {
   const d = run();
   expect(writeLook(d, 'A', { look: LOOK_A, md: '# Ember' })).toEqual({

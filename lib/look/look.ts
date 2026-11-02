@@ -12,6 +12,7 @@ import {
   type Look,
   LookSchema,
 } from '../contracts/types';
+import { presetBox } from '../core/avatar';
 import type { Deps } from '../core/deps';
 import { InputError } from '../core/errors';
 import { readJson, writeJson } from '../core/json';
@@ -54,6 +55,9 @@ export async function writeBoard(
 ): Promise<{ png: string; warnings: string[] }> {
   const base = `directions/${dir}`;
   if (!existsSync(path.join(runDir, base, 'look.json'))) throw new InputError(`write look ${dir} first`);
+  const brief = readJson(path.join(runDir, 'brief.json'), BriefSchema);
+  const box = brief.layout?.kind === 'stack' ? presetBox('stack', 'reel', brief.layout.split) : undefined;
+  const band = box && { x: box.x, y: box.y, w: box.w, h: box.h };
   return renderBoard(
     deps,
     runDir,
@@ -63,6 +67,7 @@ export async function writeBoard(
     at,
     `board ${dir}/${board}`,
     `${base}/boards/${board}.png`,
+    band,
   );
 }
 

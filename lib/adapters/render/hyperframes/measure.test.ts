@@ -188,3 +188,31 @@ test.skipIf((await browserChannel()) === null)(
   },
   60_000,
 );
+
+test.skipIf((await browserChannel()) === null)(
+  'measureText skips plugin chrome such as the seam label chip',
+  async () => {
+    const build = tempRoot();
+    writeFileSync(
+      path.join(build, 'index.html'),
+      `<!doctype html><html><body style="margin:0">
+<div id="root" data-composition-id="root" data-width="640" data-height="360">
+  <div data-composition-id="intro" style="position:absolute;inset:0">
+    <div data-vm-chrome style="font-size:20px">Chip</div>
+    <div style="font-size:20px">Plain</div>
+  </div>
+</div>
+</body></html>`,
+    );
+    const runtime = path.join(build, 'runtime-stub.js');
+    writeFileSync(
+      runtime,
+      'window.__player = { seek() {} };\nwindow.__playerReady = true;\nwindow.__renderReady = true;',
+    );
+
+    const samples = await measureText(build, runtime, [0.5]);
+    expect(samples.some((s) => s.text === 'Plain')).toBe(true);
+    expect(samples.some((s) => s.text === 'Chip')).toBe(false);
+  },
+  60_000,
+);

@@ -21,7 +21,7 @@ storyboards from real frames, renders with HyperFrames, checks the result, and d
 handoff). The creator reviews at four gates.
 
 **v1 builds the reel first** (Instagram Reels / YouTube Shorts, 1080×1920, 15–30 s). Nothing in the contracts is tied to
-one format or length: long-form 16:9 with chapters is its own later phase (Phase 9) on the same pipeline.
+one format or length: long-form 16:9 with chapters is its own later phase (Phase 10) on the same pipeline.
 
 ## 1.2 Problem
 Making a product video means researching, scripting, screen-recording clean footage, designing motion graphics, voicing, timing,
@@ -76,7 +76,7 @@ and Claude installs everything. The first user is the project owner, making reel
 7. I watch a draft and give plain-language notes; only the affected scenes change.
 8. I get an MP4 ready to post, an SRT, and optionally an After Effects package.
 9. I can add an avatar that delivers some lines, layered over the motion graphics.
-10. (Phase 9) I can ask for a long 16:9 video with chapters from the same kind of inputs.
+10. (Phase 10) I can ask for a long 16:9 video with chapters from the same kind of inputs.
 
 ## 1.6 Scope decisions (locked)
 | Decision | Resolution |
@@ -94,7 +94,7 @@ and Claude installs everything. The first user is the project owner, making reel
 | Alignment | Existing **ctc-onnx** forced aligner (M10). `hyperframes transcribe` (Parakeet engine) only when there's no script. |
 | Avatar | Optional, built last (Phase 8). Local audio-driven (SadTalker / Wav2Lip / MuseTalk), HeyGen (paid), or a supplied clip. Background removed with `hyperframes remove-background`. |
 | Language (user ruling 2026-10-09) | **English only in v1.** Another language (e.g. Hindi) later needs three things: Whisper through a prebuilt whisper.cpp `whisper-cli` + `HYPERFRAMES_WHISPER_PATH` (Parakeet covers European languages only), a multilingual aligner model (wav2vec2-base-960h is English-only), and a Kokoro voice for that language. |
-| Formats v1 (user ruling 2026-10-10) | **Reel built first**, end to end. Contracts stay format- and length-agnostic (`formats`, `duration_target_s` without a cap, optional `sections` for chapters). Long-form 16:9 is Phase 9, from the same pipeline (layout via per-format CSS variables). |
+| Formats v1 (user ruling 2026-10-10) | **Reel built first**, end to end. Contracts stay format- and length-agnostic (`formats`, `duration_target_s` without a cap, optional `sections` for chapters). Long-form 16:9 is Phase 10, from the same pipeline (layout via per-format CSS variables). |
 | After Effects | Handoff only (layers or flattened scenes + `build_comp.jsx` with word markers). No editable keyframes. |
 | Telemetry | `HYPERFRAMES_NO_TELEMETRY=1`; never run `hyperframes feedback` unless the creator asks. *(User ruling 2026-10-09: off inside Video Machine; the machine-wide HyperFrames setting is left alone for now.)* |
 | Resolution | 1080p formats. 4K only as an opt-in, never the default. |
@@ -102,7 +102,7 @@ and Claude installs everything. The first user is the project owner, making reel
 | pdoom engine (retired, user ruling 2026-10-10) | `render/pdoom`, `engine/`, the pdoom fixture scenes and `tests/baseline/` are deleted; HyperFrames is the only renderer. Only the aligner's Python (`engine/analysis/` → `lib/adapters/align/ctc-onnx/analysis/`) is kept. Superseded rule, for the record: applied only to `render/pdoom`: engine edits limited to the frame-size change and harness plumbing; software Canvas2D by default (`--disable-accelerated-2d-canvas`) because GPU Canvas2D isn't bit-stable. |
 | Tooling (ruling 2026-10-06, kept) | `bun test`, `tsc --noEmit`, Biome (lint + format), ruff via uv. The vendored aligner scripts (`lib/adapters/align/ctc-onnx/analysis/`) and `tests/fixture/` are excluded from lint and format. |
 | Build team (ruling 2026-10-09, replaces 2026-10-06) | Orchestrator + `lib-builder`, `plugin-builder` + `spec-reviewer` + `code-reviewer`. A `visual-reviewer` joins in Phase 4. The old `skill-builder` / `look-builder` / `engine-builder` split assumed pdoom plates. |
-| Phase numbering (2026-10-09; 2026-10-10 adds Phase 9 Long-form, Polish becomes 10) | Phases 1–10 in Part 5 replace the old spec phases 1–5. The old "Phase 0 finish" items (canvas default, tooling) move into Phase 1. |
+| Phase numbering (2026-10-09; 2026-10-10 adds Phase 9 Long-form, Polish becomes 10; 2026-10-20 inserts Phase 9 Reel layouts, Long-form 10, Polish 11) | Phases 1–10 in Part 5 replace the old spec phases 1–5. The old "Phase 0 finish" items (canvas default, tooling) move into Phase 1. |
 | Out of scope | Web UI, server, database, accounts, template catalog, auto-posting, 4K by default, vlog/raw-footage editing (future), paid AI media generation (future). |
 
 ## 1.7 Success metrics
@@ -215,7 +215,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 |---|---|
 | HyperFrames freezes silently when a scene uses the clock or randomness | `motion.no_dead_spans` is blocking; `hyperframes check` runs before every render |
 | Non-determinism | Every snapshot, check and render uses `--no-browser-gpu` (software, same pixels on every machine); `render.deterministic`: render sampled frames twice, compare hashes |
-| Text under Instagram UI | `layout.safe_area` against `FORMATS.reel.safe` (top 14 %, bottom 20 %, sides 6 %) |
+| Text under Instagram UI | `layout.safe_area` against `FORMATS.reel.safe` (top 14 %, bottom 35 %, sides 6 %; Meta Reels ads safe zone, `docs/research/reel-layouts-hooks-genres.md`, user OK 2026-10-20) |
 | Reference footage leaking into output | `assets.no_reference_only` blocking (nav-video assets render only after M3 flips one to `render` as a replay fallback) |
 | Unlicensed media | Every asset records `origin` + `license`; `assets.licensed` blocks `unknown` |
 | Wrong facts on screen | Facts and numbers in the script carry `cite` URLs from `research.md`; `script.facts_cited` blocking |
@@ -260,7 +260,7 @@ one JSON result line to stdout. Interfaces live in `contracts/types.ts`.
 | loudness | LUFS / dBTP | `−14 ±1` / `≤ −1` |
 | loudnorm target | dBTP | `−1.5` (margin for AAC; the check stays `≤ −1`) |
 | music bed | dB, duck | `−12`; sidechain threshold 0.05, ratio 8, attack 20 ms, release 300 ms |
-| avatar presets | box in the safe area | `corner-br`, `corner-bl` (h = 45 % of safe height, 3:4), `bottom` (full safe width), `full` (whole safe area); Phase 8 plan R5 |
+| avatar presets | box in the safe area | `corner-br`, `corner-bl` (h = 45 % of safe height, 3:4), `bottom` (full safe width), `full` (whole safe area); Phase 8 plan R5. `stack` (Phase 9): full-width presenter band under the graphics, from `brief.layout.split` (default 0.55 of frame height) to the bottom edge, real background kept, cropped to fill |
 | HeyGen rate | USD/min | `1` (estimate) |
 | SRT cue | characters | `42` |
 
@@ -409,12 +409,22 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - `hyperframes remove-background` → transparent `.webm`; placement per scene.
 - User rulings 2026-10-17: the local adapter is picked by a GPU test the creator runs on the reference laptop, after the rest of the phase; a supplied avatar is one clip synced to `vo.wav`; the `avatar-director` picks a named preset per segment, the build lays the `.webm` on top, and `layout.safe_area` keeps text out of it; HeyGen is tested with mocked HTTP plus an optional live call.
 
-### Phase 9 — Long-form (16:9 with chapters)
+### Phase 9 — Reel layouts (user ruling 2026-10-20; mocked in the project map artifact first)
+- The creator chooses the layout: an optional LAYOUT line in the concept, confirmed at G2 on real boards. Default with
+  a presenter: `stack` (graphics on top, presenter below, split 0.55); without one: graphics only.
+- `stack`: presenter clip keeps its background (no `remove-background`), cropped to fill a full-width bottom band; a
+  scene whose lines are `voiceover` hides the band and uses the full frame (the voice keeps playing); the look may add a
+  seam line and label. Text stays out of the band and the 35 % bottom reserve.
+- Script rules from the research: a hook in the first 3 s, short on-screen text, CTA in the last beat.
+- Acceptance: fixture checks in `tests/phase9.ts`, then one real reel from a real concept in `stack` with one
+  full-graphic scene; its contact sheet goes on the project map next to the mock.
+
+### Phase 10 — Long-form (16:9 with chapters)
 - `landscape_1080p` end to end; `Plan.sections` / `Script.lines[].section` as chapters; chapter cards; long-form duration
   defaults; scene writing and checks that scale to multi-minute timelines (render time and memory measured first).
 - Acceptance: a 2–3 min 16:9 video with chapters from a concept alone, every blocking check passing.
 
-### Phase 10 — Polish
+### Phase 11 — Polish
 - README, install guide, marketplace publish, licence check, end-to-end run on a second machine.
 - Deferred from Phase 7 (user ruling 2026-10-17): AE layer passes, `brief.applied`, `intent.judge`, `look.judge`, MP4 deliverables without burned captions.
 

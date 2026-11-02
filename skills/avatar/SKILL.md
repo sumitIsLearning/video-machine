@@ -22,8 +22,13 @@ Every command prints one JSON line. Read its `ok` field, never the exit code. An
   If the command says the clip does not cover the voiceover, tell the creator and ask for a clip that does.
 - **HeyGen key.** HeyGen needs `HEYGEN_API_KEY` in the workspace `.env`. If the message says it is missing, tell the
   creator to add it there and stop the avatar part. Never ask the creator to paste the key into the chat.
+- **Stack runs.** In a `stack` run (`brief.layout.kind` is `"stack"`), the supplied clip keeps its background (no
+  background removal). `make` needs `plan.json`, so the storyboard (M8) comes first.
 
 ## 2. Place the segments
+
+In a `stack` run (`brief.layout.kind == "stack"`), `make` already wrote `avatar/placement.json`. Skip the avatar
+director and go to step 3.
 
 Dispatch `video-machine:avatar-director` with the Agent tool (`subagent_type: "video-machine:avatar-director"`), giving
 it the run folder `runs/<run_id>`. Wait for it to finish.

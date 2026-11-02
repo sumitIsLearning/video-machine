@@ -157,21 +157,27 @@ export async function measureText(buildDir: string, runtimeFile: string, times: 
             .map((n) => n.textContent ?? '')
             .join('')
             .trim();
-        return Array.from(document.body.querySelectorAll<HTMLElement>('*'))
-          .filter((el) => ownText(el) !== '' && el.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
-          .map((el) => ({ el, text: ownText(el), rect: el.getBoundingClientRect() }))
-          .filter(({ rect }) => rect.width > 0 && rect.height > 0)
-          .map(({ el, text, rect }) => ({
-            text: text.slice(0, 60),
-            box: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
-            font_px:
-              Math.round(parseFloat(getComputedStyle(el).fontSize) * (rect.height / el.offsetHeight || 1) * 10) / 10,
-            caption: el.closest('[data-vm-caption]') !== null,
-            scene_id:
-              el
-                .closest('[data-composition-id]:not([data-composition-id="root"])')
-                ?.getAttribute('data-composition-id') ?? undefined,
-          }));
+        return (
+          Array.from(document.body.querySelectorAll<HTMLElement>('*'))
+            .filter(
+              (el) => ownText(el) !== '' && el.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+            )
+            .map((el) => ({ el, text: ownText(el), rect: el.getBoundingClientRect() }))
+            .filter(({ rect }) => rect.width > 0 && rect.height > 0)
+            // Plugin chrome (seam label) is not scene text, so it is never sampled.
+            .filter(({ el }) => el.closest('[data-vm-chrome]') === null)
+            .map(({ el, text, rect }) => ({
+              text: text.slice(0, 60),
+              box: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
+              font_px:
+                Math.round(parseFloat(getComputedStyle(el).fontSize) * (rect.height / el.offsetHeight || 1) * 10) / 10,
+              caption: el.closest('[data-vm-caption]') !== null,
+              scene_id:
+                el
+                  .closest('[data-composition-id]:not([data-composition-id="root"])')
+                  ?.getAttribute('data-composition-id') ?? undefined,
+            }))
+        );
       });
       for (const sample of found) samples.push({ t, ...sample });
     }

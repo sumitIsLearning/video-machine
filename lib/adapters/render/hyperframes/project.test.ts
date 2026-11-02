@@ -8,11 +8,13 @@ import {
   type AvatarPreset,
   AvatarSegmentsSchema,
   BriefSchema,
+  LookSchema,
   type Plan,
   PlanSchema,
   ScriptSchema,
   TimingSchema,
 } from '../../../contracts/types';
+import { presetBox } from '../../../core/avatar';
 import { InputError, UnsupportedError } from '../../../core/errors';
 import { writeJson } from '../../../core/json';
 import { assembleProject } from './project';
@@ -174,7 +176,7 @@ test('the root page lays each avatar segment over the scenes and the build carri
   const out = await assembleProject(withAvatar(run()), 'reel');
   const html = readFileSync(path.join(out, 'index.html'), 'utf8');
   expect(html).toContain(
-    '<video id="avatar-a01" class="clip" src="avatar/a01.webm" muted playsinline data-start="2" data-duration="2.25" data-track-index="3" style="position:absolute;left:587px;top:966px;width:428px;height:570px;object-fit:contain;object-position:right bottom;z-index:10"></video>',
+    '<video id="avatar-a01" class="clip" src="avatar/a01.webm" muted playsinline data-start="2" data-duration="2.25" data-track-index="3" style="position:absolute;left:684px;top:807px;width:331px;height:441px;object-fit:contain;object-position:right bottom;z-index:10"></video>',
   );
   expect(html.indexOf('id="avatar-a01"')).toBeGreaterThan(html.indexOf('id="host-demo"'));
   expect(readFileSync(path.join(out, 'avatar', 'a01.webm'), 'utf8')).toBe('webm');
@@ -189,6 +191,61 @@ test('a run without avatar/ has no video layer; a missing webm or placement thro
   const noPlacement = withAvatar(run());
   rmSync(path.join(noPlacement, 'avatar', 'placement.json'));
   await expect(assembleProject(noPlacement, 'reel')).rejects.toThrow(InputError);
+});
+
+// A minimal valid look in run/look/look.json, with the seam when one is given.
+const withLook = (dir: string, seam?: { color: string; label?: string }) => {
+  writeJson(path.join(dir, 'look', 'look.json'), LookSchema, {
+    id: 'look',
+    based_on: [],
+    idea: 'i',
+    palette: [{ name: 'ink', hex: '#000000', role: 'bg' }],
+    type: [{ role: 'display', family: 'Inter', weights: [700], license: 'OFL' }],
+    motion: { character: 'c', easings: [], typical_beat_s: [1, 2], camera: 'static' },
+    motifs: [],
+    post: {},
+    layout_rules: { landscape: 'l', vertical: 'v', square: 's' },
+    ...(seam ? { seam } : {}),
+  });
+  return dir;
+};
+
+test('a stack box covers its band; an overlay box keeps contain', async () => {
+  const out = await assembleProject(withAvatar(run(), { a01: 'stack' }), 'reel');
+  const html = readFileSync(path.join(out, 'index.html'), 'utf8');
+  expect(html).toContain('object-fit:cover;object-position:center 30%;z-index:10');
+  expect(html).not.toContain('object-fit:contain;object-position:center 30%');
+});
+
+test('a stack segment with look.seam gets a seam bar and a label chip above its video', async () => {
+  const seam = { color: '#2e8b57', label: 'SALES TIPS' };
+  const out = await assembleProject(withLook(withAvatar(run(), { a01: 'stack' }), seam), 'reel');
+  const html = readFileSync(path.join(out, 'index.html'), 'utf8');
+  const y = presetBox('stack', 'reel').y;
+  expect(html).toContain(
+    `id="seam-a01" class="clip" data-start="2" data-duration="2.25" data-track-index="4" style="position:absolute;left:0px;top:${y - 3}px;width:1080px;height:6px;background:#2e8b57;z-index:11"`,
+  );
+  expect(html).toContain(`id="seam-label-a01" class="clip" data-vm-chrome`);
+  expect(html).toContain(`font-family:'Inter', system-ui, sans-serif`);
+  expect(html).toContain('>SALES TIPS</div>');
+  const videoAt = html.indexOf('id="avatar-a01"');
+  expect(html.indexOf('id="seam-a01"')).toBeGreaterThan(videoAt);
+  expect(html.indexOf('id="seam-label-a01"')).toBeGreaterThan(videoAt);
+});
+
+test('no seam without look.seam, and none for a corner box even with a seam', async () => {
+  const noSeam = await assembleProject(withLook(withAvatar(run(), { a01: 'stack' })), 'reel');
+  expect(readFileSync(path.join(noSeam, 'index.html'), 'utf8')).not.toContain('seam-');
+  const corner = await assembleProject(withLook(withAvatar(run()), { color: '#2e8b57' }), 'reel');
+  expect(readFileSync(path.join(corner, 'index.html'), 'utf8')).not.toContain('seam-');
+});
+
+test('a seam label is escaped', async () => {
+  const out = await assembleProject(
+    withLook(withAvatar(run(), { a01: 'stack' }), { color: '#2e8b57', label: 'A&B<' }),
+    'reel',
+  );
+  expect(readFileSync(path.join(out, 'index.html'), 'utf8')).toContain('>A&amp;B&lt;</div>');
 });
 
 test('an avatar brief with an avatar line and no avatar/ refuses to build', async () => {
@@ -210,6 +267,43 @@ test('an avatar brief with an avatar line and no avatar/ refuses to build', asyn
     ],
   });
   await expect(assembleProject(d, 'reel')).rejects.toThrow('make the avatar first (M11)');
+});
+
+const stackRun = (segment: { start: number; end: number }) => {
+  const d = run();
+  writeJson(path.join(d, 'brief.json'), BriefSchema, {
+    run_id: 'r',
+    concept: 'c',
+    goals: [],
+    duration_target_s: [5, 6],
+    timing_source: 'voiceover',
+    avatar: { source: 'supplied', clip: 'input/me.mp4' },
+    layout: { kind: 'stack' },
+  });
+  writeJson(path.join(d, 'script.json'), ScriptSchema, {
+    run_id: 'r',
+    version: 1,
+    lines: [
+      { id: 'l1', text: 'Meet Firecrawl today', delivery: 'voiceover' },
+      { id: 'l2', text: 'Crawl any site', delivery: 'avatar' },
+      { id: 'l3', text: 'any site at all', delivery: 'avatar' },
+    ],
+  });
+  withAvatar(d, { a01: 'stack' });
+  writeJson(path.join(d, 'avatar', 'segments.json'), AvatarSegmentsSchema, {
+    run_id: 'r',
+    adapter: 'supplied',
+    segments: [{ seg: 'a01', line_ids: ['l2', 'l3'], file: 'avatar/a01.webm', ...segment }],
+  });
+  return d;
+};
+
+test('a stack avatar made for another plan refuses to build', async () => {
+  const stale = stackRun({ start: 2, end: 4.25 });
+  await expect(assembleProject(stale, 'reel')).rejects.toThrow(
+    'the plan changed since the avatar was made: make the avatar again (M11)',
+  );
+  await expect(assembleProject(stackRun({ start: 1.6, end: 5.5 }), 'reel')).resolves.toContain('reel');
 });
 
 test('vm.js inlines the timing data and scenes.json lists each scene window', async () => {

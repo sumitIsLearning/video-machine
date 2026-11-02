@@ -17,7 +17,7 @@ type Safe = { top: number; bottom: number; left: number; right: number };
 /** Fixed table; adding a format = one line here (and one in FormatIdSchema). */
 export const FORMATS: Record<FormatId, { w: number; h: number; fps: number; safe: Safe }> = {
   landscape_1080p: { w: 1920, h: 1080, fps: 30, safe: { top: 0.05, bottom: 0.05, left: 0.05, right: 0.05 } },
-  reel: { w: 1080, h: 1920, fps: 30, safe: { top: 0.14, bottom: 0.2, left: 0.06, right: 0.06 } },
+  reel: { w: 1080, h: 1920, fps: 30, safe: { top: 0.14, bottom: 0.35, left: 0.06, right: 0.06 } },
   square: { w: 1080, h: 1080, fps: 30, safe: { top: 0.06, bottom: 0.06, left: 0.06, right: 0.06 } },
   portrait_feed: { w: 1080, h: 1350, fps: 30, safe: { top: 0.06, bottom: 0.08, left: 0.06, right: 0.06 } },
 };
@@ -31,7 +31,7 @@ export const frameOf = (f: FormatId): Frame => {
 };
 
 /** Intake fills `duration_target_s` from the first format when the creator gives none (BLUEPRINT 2.7). */
-// ponytail: reel only; long-form defaults come with Phase 9.
+// ponytail: reel only; long-form defaults come with Phase 10.
 export const DURATION_DEFAULTS: Partial<Record<FormatId, [number, number]>> = { reel: [15, 30] };
 
 const formatRecord = <T extends z.ZodType>(v: T) => z.partialRecord(FormatIdSchema, v);
@@ -84,57 +84,76 @@ export const SourceSchema = z.discriminatedUnion('kind', [
 ]);
 export type Source = z.infer<typeof SourceSchema>;
 
-export const BriefSchema = z.strictObject({
-  run_id: z.string().min(1),
-  concept: z.string().min(1),
-  goals: z.array(z.string()),
-  audience: z.string().optional(),
-  tone: z.string().optional(),
-  duration_target_s: z.tuple([z.number().positive(), z.number().positive()]).refine(([a, b]) => a <= b, 'min > max'),
-  timing_source: z.enum(['voiceover', 'music', 'text_only']),
-  voice: z
-    .discriminatedUnion('source', [
-      z.strictObject({ source: z.literal('supplied'), path: RunPathSchema }),
-      z.strictObject({ source: z.literal('tts'), adapter: z.string(), voice_id: z.string() }),
-    ])
-    .optional(),
-  music: z
-    .discriminatedUnion('source', [
-      z.strictObject({ source: z.literal('supplied'), path: RunPathSchema }),
-      z.strictObject({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
-    ])
-    .optional(),
-  formats: z.array(FormatIdSchema).min(1).default(['reel']),
-  deliverables: z.array(DeliverableSchema).default([]),
-  sources: z.array(SourceSchema).default([]),
-  avatar: z
-    .discriminatedUnion('source', [
-      z.strictObject({ source: z.literal('supplied'), clip: RunPathSchema }),
-      z.strictObject({ source: z.literal('adapter'), adapter: z.string().min(1), portrait: RunPathSchema }),
-    ])
-    .optional(),
-  look_hint: z.string().optional(),
-  brand: z
-    .strictObject({
-      logo: RunPathSchema.optional(),
-      colors: z
-        .array(
-          z.strictObject({
-            hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-            role: z.enum(['bg', 'fg', 'accent', 'muted']).optional(),
-          }),
-        )
-        .optional(),
-      fonts: z
-        .array(z.strictObject({ family: z.string(), path: RunPathSchema.optional(), license: z.string().min(1) }))
-        .optional(),
-    })
-    .optional(),
-  cta: z.strictObject({ text: z.string(), url_or_handle: z.string().optional() }).optional(),
-  must_include: z.array(z.string()).optional(),
-  must_avoid: z.array(z.string()).optional(),
-  budget_usd: z.number().min(0).default(0),
-});
+export const BriefSchema = z
+  .strictObject({
+    run_id: z.string().min(1),
+    concept: z.string().min(1),
+    goals: z.array(z.string()),
+    audience: z.string().optional(),
+    tone: z.string().optional(),
+    duration_target_s: z.tuple([z.number().positive(), z.number().positive()]).refine(([a, b]) => a <= b, 'min > max'),
+    timing_source: z.enum(['voiceover', 'music', 'text_only']),
+    voice: z
+      .discriminatedUnion('source', [
+        z.strictObject({ source: z.literal('supplied'), path: RunPathSchema }),
+        z.strictObject({ source: z.literal('tts'), adapter: z.string(), voice_id: z.string() }),
+      ])
+      .optional(),
+    music: z
+      .discriminatedUnion('source', [
+        z.strictObject({ source: z.literal('supplied'), path: RunPathSchema }),
+        z.strictObject({ source: z.literal('adapter'), adapter: z.string(), query: z.string() }),
+      ])
+      .optional(),
+    formats: z.array(FormatIdSchema).min(1).default(['reel']),
+    deliverables: z.array(DeliverableSchema).default([]),
+    sources: z.array(SourceSchema).default([]),
+    avatar: z
+      .discriminatedUnion('source', [
+        z.strictObject({ source: z.literal('supplied'), clip: RunPathSchema }),
+        z.strictObject({ source: z.literal('adapter'), adapter: z.string().min(1), portrait: RunPathSchema }),
+      ])
+      .optional(),
+    layout: z
+      .strictObject({
+        kind: z.enum(['graphics', 'overlay', 'stack']),
+        split: z.number().min(0.5).max(0.75).default(0.55),
+      })
+      .optional(),
+    look_hint: z.string().optional(),
+    brand: z
+      .strictObject({
+        logo: RunPathSchema.optional(),
+        colors: z
+          .array(
+            z.strictObject({
+              hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+              role: z.enum(['bg', 'fg', 'accent', 'muted']).optional(),
+            }),
+          )
+          .optional(),
+        fonts: z
+          .array(z.strictObject({ family: z.string(), path: RunPathSchema.optional(), license: z.string().min(1) }))
+          .optional(),
+      })
+      .optional(),
+    cta: z.strictObject({ text: z.string(), url_or_handle: z.string().optional() }).optional(),
+    must_include: z.array(z.string()).optional(),
+    must_avoid: z.array(z.string()).optional(),
+    budget_usd: z.number().min(0).default(0),
+  })
+  .superRefine((b, ctx) => {
+    if (b.layout && b.layout.kind !== 'graphics' && !b.avatar) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['layout', 'kind'],
+        message: `layout "${b.layout.kind}" needs brief.avatar`,
+      });
+    }
+    if (b.layout?.kind === 'stack' && b.formats.some((f) => f !== 'reel')) {
+      ctx.addIssue({ code: 'custom', path: ['layout', 'kind'], message: 'layout "stack" is reel only' });
+    }
+  });
 export type Brief = z.infer<typeof BriefSchema>;
 
 /** The default voice when the timing source is a voiceover (BLUEPRINT 2.7): Kokoro through HyperFrames. */
@@ -204,6 +223,12 @@ export const LookSchema = z.strictObject({
   motifs: z.array(z.strictObject({ id: z.string(), meaning: z.string(), code: z.string().optional() })),
   post: z.record(z.string(), z.number()),
   layout_rules: z.strictObject({ landscape: z.string(), vertical: z.string(), square: z.string() }),
+  seam: z
+    .strictObject({
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      label: z.string().min(1).max(24).optional(),
+    })
+    .optional(),
 });
 export type Look = z.infer<typeof LookSchema>;
 
@@ -236,7 +261,7 @@ export const PlanSchema = z
     run_id: z.string(),
     version: z.number().int().min(1),
     look_id: z.string(),
-    // Long-form (Phase 9) fills sections; reels leave them out.
+    // Long-form (Phase 10) fills sections; reels leave them out.
     sections: z
       .array(z.strictObject({ id: z.string().regex(/^[a-z][a-z0-9_-]*$/), title: z.string().min(1) }))
       .min(1)
@@ -270,7 +295,7 @@ export const PlanSchema = z
   });
 export type Plan = z.infer<typeof PlanSchema>;
 
-export const AVATAR_PRESETS = ['corner-br', 'corner-bl', 'bottom', 'full'] as const;
+export const AVATAR_PRESETS = ['corner-br', 'corner-bl', 'bottom', 'full', 'stack'] as const;
 export const AvatarPresetSchema = z.enum(AVATAR_PRESETS);
 export type AvatarPreset = z.infer<typeof AvatarPresetSchema>;
 

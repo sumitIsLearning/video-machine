@@ -164,3 +164,70 @@ test('snapshot refuses an empty list of times', async () => {
   await expect(snapshotComposition(deps, '/x/comp', [])).rejects.toThrow('snapshot needs at least one time');
   expect(calls).toEqual([]);
 });
+
+const BAND = { x: 0, y: 1056, w: 1080, h: 864 };
+const BAND_DIV =
+  '<div data-vm-band style="position:absolute;left:0px;top:1056px;width:1080px;height:864px;background:#9aa1b0;display:flex;align-items:center;justify-content:center;font:40px sans-serif;color:#ffffff">presenter</div>';
+const ROOT_HTML = '<html><body><div id="root"><p>a</p></div></body></html>';
+const passingBoardDeps = () =>
+  fakeDeps((cmd) => {
+    if (cmd.includes('lint')) return { code: 0, stdout: '{"findings":[]}' };
+    const out = cmd[cmd.indexOf('-o') + 1] ?? '';
+    mkdirSync(out, { recursive: true });
+    writeFileSync(path.join(out, 'frame-00-at-1s.png'), 'png');
+    return { code: 0, stdout: '' };
+  });
+
+test('renderBoard with a band puts the presenter band right before the root close tag', async () => {
+  const d = run();
+  const { deps } = passingBoardDeps();
+  await renderBoard(deps, d, 'boards/hook', ROOT_HTML, [], 1, 'board hook', 'boards/hook.png', BAND);
+  expect(readFileSync(path.join(d, 'boards', 'hook', 'index.html'), 'utf8')).toBe(
+    `<html><body><div id="root"><p>a</p>${BAND_DIV}</div></body></html>`,
+  );
+});
+
+test('renderBoard without a band writes no presenter band', async () => {
+  const d = run();
+  const { deps } = passingBoardDeps();
+  await renderBoard(deps, d, 'boards/hook', ROOT_HTML, [], 1, 'board hook', 'boards/hook.png');
+  expect(readFileSync(path.join(d, 'boards', 'hook', 'index.html'), 'utf8')).toBe(ROOT_HTML);
+});
+
+test('renderBoard with a band refuses html without id="root"', async () => {
+  const d = run();
+  const { deps, calls } = passingBoardDeps();
+  await expect(
+    renderBoard(
+      deps,
+      d,
+      'boards/hook',
+      '<html><body><p>a</p></body></html>',
+      [],
+      1,
+      'board hook',
+      'boards/hook.png',
+      BAND,
+    ),
+  ).rejects.toThrow('board hook has no <div id="root">; the presenter band needs it');
+  expect(calls).toEqual([]);
+});
+
+test('renderBoard with a band refuses html whose root has no closing </div>', async () => {
+  const d = run();
+  const { deps, calls } = passingBoardDeps();
+  await expect(
+    renderBoard(
+      deps,
+      d,
+      'boards/hook',
+      '<html><body><div id="root"><p>a</p></body></html>',
+      [],
+      1,
+      'board hook',
+      'boards/hook.png',
+      BAND,
+    ),
+  ).rejects.toThrow('board hook has no <div id="root">; the presenter band needs it');
+  expect(calls).toEqual([]);
+});
