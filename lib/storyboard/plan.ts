@@ -12,6 +12,7 @@ import {
   type Script,
   ScriptSchema,
 } from '../contracts/types';
+import { presetBox } from '../core/avatar';
 import type { Deps } from '../core/deps';
 import { InputError } from '../core/errors';
 import { estimate, type LineEstimate } from '../core/estimate';
@@ -157,6 +158,13 @@ export async function writeSceneBoard(
   const plan = readJson(path.join(runDir, 'plan.json'), PlanSchema);
   const scene = plan.visuals_plan.scenes.find((s) => s.scene_id === sceneId);
   if (!scene) throw new InputError(`plan.json has no scene "${sceneId}"`);
+  // The presenter band shows only where the whole scene is the presenter, so a voiceover line keeps the scene plain.
+  const brief = readJson(path.join(runDir, 'brief.json'), BriefSchema);
+  const script = readJson(path.join(runDir, 'script.json'), ScriptSchema);
+  const avatarIds = new Set(script.lines.filter((l) => l.delivery === 'avatar').map((l) => l.id));
+  const allAvatar = scene.lines.length > 0 && scene.lines.every((id) => avatarIds.has(id));
+  const box = brief.layout?.kind === 'stack' && allAvatar ? presetBox('stack', 'reel', brief.layout.split) : undefined;
+  const band = box && { x: box.x, y: box.y, w: box.w, h: box.h };
   return renderBoard(
     deps,
     runDir,
@@ -166,5 +174,6 @@ export async function writeSceneBoard(
     at,
     `board ${sceneId}`,
     `boards/${sceneId}.png`,
+    band,
   );
 }

@@ -223,3 +223,57 @@ test("a scene board copies that scene's assets and renders boards/<scene_id>.png
   expect(readFileSync(path.join(d, 'boards', 'demo.png'), 'utf8')).toBe('frame');
   await expect(writeSceneBoard(deps, d, 'nope', '<html></html>', 1)).rejects.toThrow('plan.json has no scene "nope"');
 });
+
+const BAND_ROOT_HTML = '<html><body><div id="root"></div></body></html>';
+/** A run whose brief is a stack layout with a supplied avatar, and whose lines have the given deliveries. */
+const stackRun = (deliveries: ('avatar' | 'voiceover')[]) => {
+  const d = run();
+  writeJson(path.join(d, 'brief.json'), BriefSchema, {
+    run_id: 'r',
+    concept: 'c',
+    goals: [],
+    duration_target_s: [15, 30],
+    timing_source: 'voiceover',
+    avatar: { source: 'supplied', clip: 'input/me.mp4' },
+    layout: { kind: 'stack', split: 0.55 },
+  });
+  writeJson(path.join(d, 'script.json'), ScriptSchema, {
+    run_id: 'r',
+    version: 1,
+    lines: [
+      { id: 'l1', text: 'Paste a URL.', delivery: deliveries[0] },
+      { id: 'l2', text: 'Get clean data.', delivery: deliveries[1] },
+      { id: 'l3', text: 'Try Firecrawl.', delivery: deliveries[2] },
+    ],
+  });
+  return d;
+};
+
+test('a scene board whose lines are all avatar gets the presenter band on a stack brief', async () => {
+  const d = stackRun(['avatar', 'avatar', 'avatar']);
+  writePlan(d, { scenes: [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])] });
+  await writeSceneBoard(deps, d, 'demo', BAND_ROOT_HTML, 1);
+  expect(readFileSync(path.join(d, 'boards', 'demo', 'index.html'), 'utf8')).toContain('data-vm-band');
+});
+
+test('a scene board with a voiceover line gets no presenter band', async () => {
+  const d = stackRun(['avatar', 'voiceover', 'avatar']);
+  writePlan(d, { scenes: [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])] });
+  await writeSceneBoard(deps, d, 'demo', BAND_ROOT_HTML, 1);
+  expect(readFileSync(path.join(d, 'boards', 'demo', 'index.html'), 'utf8')).not.toContain('data-vm-band');
+});
+
+test('a scene board of a brief without a stack layout gets no presenter band', async () => {
+  const d = run();
+  writeJson(path.join(d, 'script.json'), ScriptSchema, {
+    run_id: 'r',
+    version: 1,
+    lines: [
+      { id: 'l1', text: 'Paste a URL.', delivery: 'avatar' },
+      { id: 'l2', text: 'Get clean data.', delivery: 'avatar' },
+    ],
+  });
+  writePlan(d, { scenes: [scene('demo', ['l1', 'l2'])] });
+  await writeSceneBoard(deps, d, 'demo', BAND_ROOT_HTML, 1);
+  expect(readFileSync(path.join(d, 'boards', 'demo', 'index.html'), 'utf8')).not.toContain('data-vm-band');
+});

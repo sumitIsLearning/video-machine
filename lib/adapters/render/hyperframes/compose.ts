@@ -132,7 +132,8 @@ export async function snapshotComposition(deps: Deps, dir: string, at: number[])
 /**
  * Write a composition, lint it, snapshot it at `at` and copy the frame to `pngRel` in the run. The composition folder
  * stays on disk for Claude to fix. Any PNG already at `pngRel` is deleted first, so a failed render leaves none. Returns the png path and the lint warnings. Throws InputError (`label` names the
- * board) when lint reports errors or an asset cannot render; ToolError when HyperFrames fails.
+ * board) when lint reports errors, an asset cannot render, or a band is given and html has no `id="root"`;
+ * ToolError when HyperFrames fails. A `band` adds the grey presenter box as the root's last child.
  */
 export async function renderBoard(
   deps: Deps,
@@ -143,14 +144,30 @@ export async function renderBoard(
   at: number,
   label: string,
   pngRel: string,
+  band?: { x: number; y: number; w: number; h: number },
 ): Promise<{ png: string; warnings: string[] }> {
   // A failed render must not leave the previous PNG looking current.
   rmSync(path.join(runDir, pngRel), { force: true });
-  const comp = writeComposition(runDir, compRel, html, assetIds);
+  const page = band ? withPresenterBand(html, band, label) : html;
+  const comp = writeComposition(runDir, compRel, page, assetIds);
   const { errors, warnings } = await lintComposition(deps, comp.dir);
   if (errors.length) throw new InputError(`${label} has lint errors:\n- ${errors.join('\n- ')}`);
   // snapshotComposition throws when HyperFrames wrote no frame, so the first one exists.
   const frame = (await snapshotComposition(deps, comp.dir, [at]))[0] as string;
   copyFileSync(frame, path.join(runDir, pngRel));
   return { png: pngRel, warnings };
+}
+
+/**
+ * Insert the grey presenter box as the last child of the board root (the last `</div>`, as the root is the outermost
+ * div). Returns the html with the box added. Throws InputError (`label` names the board) when html has no
+ * `id="root"`, because the box would land outside the frame.
+ */
+function withPresenterBand(html: string, band: { x: number; y: number; w: number; h: number }, label: string): string {
+  if (!html.includes('id="root"')) throw new InputError(`${label} has no <div id="root">; the presenter band needs it`);
+  const { x, y, w, h } = band;
+  const box = `<div data-vm-band style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:#9aa1b0;display:flex;align-items:center;justify-content:center;font:40px sans-serif;color:#ffffff">presenter</div>`;
+  const close = html.lastIndexOf('</div>');
+  if (close < 0) throw new InputError(`${label} has no <div id="root">; the presenter band needs it`);
+  return html.slice(0, close) + box + html.slice(close);
 }
