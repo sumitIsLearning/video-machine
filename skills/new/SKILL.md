@@ -1,5 +1,5 @@
 ---
-name: make-video
+name: new
 description: "Use when the creator wants a motion-graphics video (reel first; long-form later) made from a concept, with optional navigation videos, product URL, files or links."
 ---
 

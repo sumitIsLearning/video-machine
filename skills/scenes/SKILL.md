@@ -60,4 +60,4 @@ Tell the creator, in a few lines:
 - the summary from `report.md` (the `report` path that `check` returns).
 
 Then ask whether the scenes look right. Wait for a yes. Do not render anything else or move on without it.
-If the creator gives feedback instead, run the `review` skill (`vm:review`) with it. Do not edit scenes here.
+If the creator gives feedback instead, run the `feedback` skill (`vm:feedback`) with it. Do not edit scenes here.

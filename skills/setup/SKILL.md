@@ -1,6 +1,6 @@
 ---
 name: setup
-description: "Use when the creator says set it up, install the Video Machine, or when make-video finds setup missing or broken: installs and verifies every tool the Video Machine needs."
+description: "Use when the creator says set it up, install the Video Machine, or when new (/vm:new) finds setup missing or broken: installs and verifies every tool the Video Machine needs."
 ---
 
 # Set up the Video Machine

@@ -1,5 +1,5 @@
 ---
-name: review
+name: feedback
 description: "Use when the creator gives feedback after G3 (scenes) or G4 (delivery): routes the feedback to the words, plan or scenes part and snapshots the run first"
 ---
 
@@ -15,7 +15,7 @@ Match the feedback to one row:
 
 | Feedback is about | Route | Then |
 |---|---|---|
-| the words said (wording, facts, order of lines) | `words` | edit `script.json` through `lib/script/cli.ts write`, then `lib/storyboard/cli.ts write` (storyboard skill, section 5), then run the make-video skill; `where` resumes from M9 |
+| the words said (wording, facts, order of lines) | `words` | edit `script.json` through `lib/script/cli.ts write`, then `lib/storyboard/cli.ts write` (storyboard skill, section 5), then run the new skill; `where` resumes from M9 |
 | what is shown or when (scene order, which scenes, a new look) | `plan` | for a new look, first rewrite the picked look with `lib/look/cli.ts write` (storyboard skill, section 2) so `look/look.json` changes; `lib/storyboard/cli.ts write` (storyboard skill, section 5); `changed` scenes are re-done; then the scenes skill |
 | one or more scenes (motion, speed, size, layout, a format's layout) | `scenes` with `--scenes` | the scenes skill |
 
