@@ -96,6 +96,14 @@ export function writePlan(runDir: string, input: unknown): PlanWritten {
   if (coverage.status === 'fail')
     throw new InputError(`${coverage.id} failed:\n- ${coverage.annotations.map((a) => a.problem).join('\n- ')}`);
 
+  if (brief.layout?.kind === 'stack') {
+    const delivery = new Map(script.lines.map((l) => [l.id, l.delivery]));
+    for (const s of scenes) {
+      const kinds = new Set(s.lines.map((id) => delivery.get(id) ?? 'voiceover'));
+      if (kinds.size > 1) throw new InputError(`scene ${s.scene_id} mixes avatar and voiceover lines`);
+    }
+  }
+
   const plain = scenes.map(({ input_hash: _ignored, ...scene }) => scene);
   const sceneAssets = plain.flatMap((s) => s.asset_ids);
   const planAssets = asset_ids ?? unique(sceneAssets);
@@ -160,11 +168,15 @@ export async function writeSceneBoard(
   if (!scene) throw new InputError(`plan.json has no scene "${sceneId}"`);
   // The presenter band shows only where the whole scene is the presenter, so a voiceover line keeps the scene plain.
   const brief = readJson(path.join(runDir, 'brief.json'), BriefSchema);
-  const script = readJson(path.join(runDir, 'script.json'), ScriptSchema);
-  const avatarIds = new Set(script.lines.filter((l) => l.delivery === 'avatar').map((l) => l.id));
-  const allAvatar = scene.lines.length > 0 && scene.lines.every((id) => avatarIds.has(id));
-  const box = brief.layout?.kind === 'stack' && allAvatar ? presetBox('stack', 'reel', brief.layout.split) : undefined;
-  const band = box && { x: box.x, y: box.y, w: box.w, h: box.h };
+  let band: { x: number; y: number; w: number; h: number } | undefined;
+  if (brief.layout?.kind === 'stack') {
+    const script = readJson(path.join(runDir, 'script.json'), ScriptSchema);
+    const avatarIds = new Set(script.lines.filter((l) => l.delivery === 'avatar').map((l) => l.id));
+    if (scene.lines.length > 0 && scene.lines.every((id) => avatarIds.has(id))) {
+      const box = presetBox('stack', 'reel', brief.layout.split);
+      band = { x: box.x, y: box.y, w: box.w, h: box.h };
+    }
+  }
   return renderBoard(
     deps,
     runDir,

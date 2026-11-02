@@ -12,6 +12,7 @@ import {
   SpendLogSchema,
   TimingSchema,
 } from '../contracts/types';
+import { presetBox } from '../core/avatar';
 import { loadConfig } from '../core/config';
 import type { Deps } from '../core/deps';
 import { InputError, UnsupportedError } from '../core/errors';
@@ -58,9 +59,11 @@ const run = (brief: Record<string, unknown> = {}) => {
 };
 
 /** ffmpeg and remove-background write their output; every command is recorded. */
-const fakeDeps = (calls: string[][]): Deps => {
+const fakeDeps = (calls: string[][], voDuration = 100): Deps => {
   const sh: Sh = async (cmd) => {
     calls.push(cmd);
+    if (cmd[0] === 'ffprobe')
+      return { code: 0, stdout: JSON.stringify({ streams: [], format: { duration: String(voDuration) } }), stderr: '' };
     const o = cmd.indexOf('-o');
     writeFileSync(o === -1 ? (cmd.at(-1) ?? '') : (cmd[o + 1] ?? ''), 'x');
     return { code: 0, stdout: '{"ok":true}\n', stderr: '' };
@@ -167,6 +170,48 @@ test('makeAvatar stack cuts the scene window, transcodes to webm and writes plac
   expect(readJson(path.join(dir, 'avatar', 'placement.json'), AvatarPlacementSchema).segments).toEqual({
     a01: 'stack',
   });
+  const box = presetBox('stack', 'reel', 0.55);
+  const vf = transcodes[0]?.[(transcodes[0]?.indexOf('-vf') ?? -1) + 1];
+  expect(vf).toBe(`scale=${box.w}:${box.h}:force_original_aspect_ratio=increase`);
+  expect(transcodes[0]?.join(' ')).toContain('-deadline good -cpu-used 4');
+});
+
+test('makeAvatar stack stops the clip at the voiceover and pads the video to the scene window', async () => {
+  const dir = run(STACK);
+  planOf(dir);
+  const calls: string[][] = [];
+  const ends: number[] = [];
+  const adapter: AvatarAdapter = {
+    ...fakeAdapter(0, []),
+    make: async (job, out) => {
+      ends.push(job.end);
+      writeFileSync(out, 'raw');
+      return out;
+    },
+  };
+  const res = await makeAvatar(dir, { deps: fakeDeps(calls, 4.5), adapter });
+  const times = sceneTimes(
+    readJson(path.join(dir, 'plan.json'), PlanSchema),
+    readJson(path.join(dir, 'data', 'timing.json'), TimingSchema),
+  );
+  const s2 = times[1];
+  if (!s2) throw new Error('scene s2 missing');
+  const spanEnd = s2.start + s2.duration;
+  expect(spanEnd).toBeGreaterThan(4.5);
+  expect(ends).toEqual([4.5]);
+  const cut = calls.find((c) => c[0] === 'ffmpeg' && c.includes('-ss')) ?? [];
+  expect(cut[cut.indexOf('-to') + 1]).toBe('4.500');
+  const vf = calls.find((c) => c.includes('libvpx-vp9'))?.join(' ') ?? '';
+  expect(vf).toContain(`tpad=stop_mode=clone:stop_duration=${(spanEnd - 4.5).toFixed(3)}`);
+  expect(res.segments[0]?.end).toBeCloseTo(spanEnd, 3);
+});
+
+test('makeAvatar stack adds no tpad to a span inside the voiceover', async () => {
+  const dir = run(STACK);
+  planOf(dir);
+  const calls: string[][] = [];
+  await makeAvatar(dir, { deps: fakeDeps(calls), adapter: fakeAdapter(0, []) });
+  expect(calls.find((c) => c.includes('libvpx-vp9'))?.join(' ')).not.toContain('tpad');
 });
 
 test('makeAvatar stack needs plan.json before it cuts anything', async () => {

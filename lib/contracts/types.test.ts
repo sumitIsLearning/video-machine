@@ -232,6 +232,15 @@ test('brief layout stack splits 55/45 by default and needs an avatar', () => {
   expect(BriefSchema.parse(brief).layout).toBeUndefined();
 });
 
+test('brief layout stack is reel only', () => {
+  const withAvatar = { ...brief, avatar: { source: 'supplied' as const, clip: 'input/me.mp4' } };
+  const layout = { kind: 'stack' as const };
+  expect(BriefSchema.safeParse({ ...withAvatar, layout, formats: ['reel'] }).success).toBe(true);
+  const result = BriefSchema.safeParse({ ...withAvatar, layout, formats: ['reel', 'square'] });
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('layout "stack" is reel only');
+});
+
 const seg = { seg: 'a01', line_ids: ['l2', 'l3'], start: 1.2, end: 4.5, file: 'avatar/a01.webm' };
 
 test('avatar segments name each segment once, with an end after its start', () => {

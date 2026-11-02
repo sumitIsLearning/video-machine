@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+  AvatarSegmentsSchema,
   BriefSchema,
   FORMATS,
   type FormatId,
@@ -10,7 +11,7 @@ import {
   ScriptSchema,
   TimingSchema,
 } from '../../../contracts/types';
-import { type AvatarBox, avatarBoxesOf } from '../../../core/avatar';
+import { type AvatarBox, avatarBoxesOf, stackSpans } from '../../../core/avatar';
 import { InputError, UnsupportedError } from '../../../core/errors';
 import { readJson } from '../../../core/json';
 import { type SceneTime, sceneTimes } from '../../../core/scene-times';
@@ -143,7 +144,20 @@ export async function assembleProject(runDir: string, format: FormatId): Promise
   }
 
   const plan = readJson(path.join(runDir, 'plan.json'), PlanSchema);
-  const times = sceneTimes(plan, readJson(path.join(runDir, 'data', 'timing.json'), TimingSchema));
+  const timing = readJson(path.join(runDir, 'data', 'timing.json'), TimingSchema);
+  const times = sceneTimes(plan, timing);
+  const segmentsFile = path.join(runDir, 'avatar', 'segments.json');
+  if (brief.layout?.kind === 'stack' && existsSync(segmentsFile)) {
+    const spans = stackSpans(plan, readJson(path.join(runDir, 'script.json'), ScriptSchema), timing);
+    const made = readJson(segmentsFile, AvatarSegmentsSchema).segments;
+    const same =
+      spans.length === made.length &&
+      spans.every((s, i) => {
+        const m = made[i];
+        return m && m.seg === s.seg && Math.abs(m.start - s.start) <= 0.01 && Math.abs(m.end - s.end) <= 0.01;
+      });
+    if (!same) throw new InputError('the plan changed since the avatar was made: make the avatar again (M11)');
+  }
   const fragments = readFragments(
     runDir,
     times.map((t) => t.scene_id),

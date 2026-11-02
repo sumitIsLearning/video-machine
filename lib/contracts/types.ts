@@ -150,6 +150,9 @@ export const BriefSchema = z
         message: `layout "${b.layout.kind}" needs brief.avatar`,
       });
     }
+    if (b.layout?.kind === 'stack' && b.formats.some((f) => f !== 'reel')) {
+      ctx.addIssue({ code: 'custom', path: ['layout', 'kind'], message: 'layout "stack" is reel only' });
+    }
   });
 export type Brief = z.infer<typeof BriefSchema>;
 

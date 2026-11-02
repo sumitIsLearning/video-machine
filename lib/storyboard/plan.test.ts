@@ -258,9 +258,17 @@ test('a scene board whose lines are all avatar gets the presenter band on a stac
 
 test('a scene board with a voiceover line gets no presenter band', async () => {
   const d = stackRun(['avatar', 'voiceover', 'avatar']);
-  writePlan(d, { scenes: [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])] });
+  writePlan(d, { scenes: [scene('hook', ['l1']), scene('demo', ['l2']), scene('end', ['l3'])] });
   await writeSceneBoard(deps, d, 'demo', BAND_ROOT_HTML, 1);
   expect(readFileSync(path.join(d, 'boards', 'demo', 'index.html'), 'utf8')).not.toContain('data-vm-band');
+});
+
+test('a stack plan with a scene that mixes avatar and voiceover lines is refused', () => {
+  const d = stackRun(['avatar', 'voiceover', 'avatar']);
+  expect(() => writePlan(d, { scenes: [scene('hook', ['l1']), scene('demo', ['l2', 'l3'])] })).toThrow(
+    'scene demo mixes avatar and voiceover lines',
+  );
+  expect(existsSync(path.join(d, 'plan.json'))).toBe(false);
 });
 
 test('a scene board of a brief without a stack layout gets no presenter band', async () => {

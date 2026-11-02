@@ -269,6 +269,43 @@ test('an avatar brief with an avatar line and no avatar/ refuses to build', asyn
   await expect(assembleProject(d, 'reel')).rejects.toThrow('make the avatar first (M11)');
 });
 
+const stackRun = (segment: { start: number; end: number }) => {
+  const d = run();
+  writeJson(path.join(d, 'brief.json'), BriefSchema, {
+    run_id: 'r',
+    concept: 'c',
+    goals: [],
+    duration_target_s: [5, 6],
+    timing_source: 'voiceover',
+    avatar: { source: 'supplied', clip: 'input/me.mp4' },
+    layout: { kind: 'stack' },
+  });
+  writeJson(path.join(d, 'script.json'), ScriptSchema, {
+    run_id: 'r',
+    version: 1,
+    lines: [
+      { id: 'l1', text: 'Meet Firecrawl today', delivery: 'voiceover' },
+      { id: 'l2', text: 'Crawl any site', delivery: 'avatar' },
+      { id: 'l3', text: 'any site at all', delivery: 'avatar' },
+    ],
+  });
+  withAvatar(d, { a01: 'stack' });
+  writeJson(path.join(d, 'avatar', 'segments.json'), AvatarSegmentsSchema, {
+    run_id: 'r',
+    adapter: 'supplied',
+    segments: [{ seg: 'a01', line_ids: ['l2', 'l3'], file: 'avatar/a01.webm', ...segment }],
+  });
+  return d;
+};
+
+test('a stack avatar made for another plan refuses to build', async () => {
+  const stale = stackRun({ start: 2, end: 4.25 });
+  await expect(assembleProject(stale, 'reel')).rejects.toThrow(
+    'the plan changed since the avatar was made: make the avatar again (M11)',
+  );
+  await expect(assembleProject(stackRun({ start: 1.6, end: 5.5 }), 'reel')).resolves.toContain('reel');
+});
+
 test('vm.js inlines the timing data and scenes.json lists each scene window', async () => {
   const out = await assembleProject(run(), 'reel');
   const vm = readFileSync(path.join(out, 'vendor', 'vm.js'), 'utf8');
