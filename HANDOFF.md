@@ -1,15 +1,16 @@
 # Handoff
 
-## Now (2026-11-02): SHIP DAY — reel-only v0.1.0 (user ruling); branch `phase-9` (T1–T7 done)
+## Now (2026-11-02): v0.1.0 released (reel-only), Phase 9 merged to master
 
-- Scope (user, 2026-11-02): finish Phase 9 T5–T7, lean Phase 11 (README, LICENSE MIT, manifest), merge to master,
-  push, tag v0.1.0. Phase 10 (long-form) and T8 proof reel are post-ship. Repo stays PRIVATE; no icon yet (needs a
-  square 512–2048 px PNG before any directory submission). No /clear stops today.
-- T5 ca8ca45, T6 27ef037, T7 8d8329e done; `tests/phase9.ts` 9/9 on real tools. T7 caught a lib bug (seam label chip
-  sampled as text → `layout.safe_area` blocking on stack+label); fixed with `data-vm-chrome`.
-- Ship files committed: LICENSE (MIT), README.md, .claude-plugin/plugin.json (license/repo/keywords). `claude plugin
-  validate .` passes (icon warning only). Remote master is an ancestor of local master (fast-forward push).
-- Then: whole-branch Opus review (running) → one fix round → ask before merge → push master → tag v0.1.0.
+- Scope (user, 2026-11-02): reel-only v0.1.0. Phase 9 T1–T7 done; T8 proof reel and Phase 10 (long-form) are next.
+  Repo is PRIVATE (user flips it public later). No listing icon yet: needs a square 512–2048 px PNG before any
+  directory submission (the icon is set only once).
+- Acceptance: tests/phase9.ts 9/9, tests/phase8.ts 7/8 (check 8 live HeyGen needs `VM_HEYGEN_PORTRAIT`; the
+  workspace has the key + approve vars set, so it runs and fails instead of skipping). check.sh 863 pass, lint OK.
+- Whole-branch Opus review fixed (214d33e): last stack span clamped to the voiceover + webm padded; assemble refuses
+  a stack avatar made for an older plan; `stack` is reel only; mixed scenes refused at storyboard write.
+- Deferred 🔵: seam chip contrast unchecked (white on `look.seam.color`); `esc` doesn't escape `'` in font family.
+- Next: T8 proof reel with the creator (concept + presenter clip, or HeyGen: paid, ask), then plan Phase 10.
 - Plan: `docs/superpowers/plans/phase-9-reel-layouts.md` (T1–T7 builders, T8 proof reel with the creator; R1–R8).
   Ledger: `.superpowers/sdd/phase-9-reel-layouts/progress.md`. Blueprint pre-step committed with the plan.
 - New process (orchestrator.md "Visual first"): mock each phase in the project map artifact

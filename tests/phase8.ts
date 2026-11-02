@@ -16,6 +16,7 @@ import {
   TestResultsSchema,
   TimingSchema,
 } from '../lib/contracts/types';
+import { presetBox } from '../lib/core/avatar';
 import { type Env, loadConfig, PLUGIN_ROOT } from '../lib/core/config';
 import { readJson, writeJson } from '../lib/core/json';
 import { sh } from '../lib/core/sh';
@@ -25,8 +26,10 @@ const MIN = 60_000;
 const SKIP = 'SKIP: ';
 const SCENE_IDS = ['hook', 'demo', 'proof', 'close'];
 const SAFE_POS = 'left: var(--vm-safe-left); top: var(--vm-safe-top);';
-const IN_BOX_POS = 'left: 50%; top: 62%;';
-const BOX_CENTRE = { x: 801, y: 1251 };
+const CORNER = presetBox('corner-br', 'reel');
+const IN_BOX_POS = `left: ${CORNER.x}px; top: ${CORNER.y + 40}px;`;
+const BOX_CENTRE = { x: Math.round(CORNER.x + CORNER.w / 2), y: Math.round(CORNER.y + CORNER.h / 2) };
+const BEAT_WORDS: Record<string, string> = { hook: 'data', demo: 'reads', proof: 'today', close: 'free' };
 let ENV: Env = {};
 let bun = '';
 let RUNS = '';
@@ -333,7 +336,7 @@ const planScenes = () => [
   sceneOf('close', ['l4'], { anchor: 'Start', rule: 'pause_before' }, [{ on: 'free', does: 'text fades in' }]),
 ];
 
-/** A scene fragment: a dark frame with the line's text at `pos` (CSS), faded in on its first word. */
+/** A scene fragment: a dark frame with the line's text at `pos` (CSS), faded in on its scene's beat word. */
 const fragment = (id: string, text: string, pos: string): string => `<style>
   .f-frame { position: absolute; inset: 0; overflow: hidden; background: #111111; }
   .f-text { position: absolute; ${pos} width: calc(var(--vm-w) * 0.4); color: #FDFBF9; font-family: Inter, sans-serif; font-weight: 700; font-size: calc(var(--vm-w) * 0.06); line-height: 1.05; }
@@ -344,7 +347,7 @@ const fragment = (id: string, text: string, pos: string): string => `<style>
   window.__timelines["${id}"] = tl;
   const s = VM.scene("${id}");
   s.fit(document.querySelector(".f-text"));
-  tl.fromTo(".f-text", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, s.at("${text.split(' ')[0]}"));
+  tl.fromTo(".f-text", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, s.at("${BEAT_WORDS[id]}"));
 </script>
 `;
 
