@@ -15,7 +15,7 @@ show the creator the `message`. The error class is only a hint at whose fix it i
 ## Step 0. Setup
 
 If bun is missing (`[ -f "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" ] || [ -f "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun.exe" ]`
-fails), or this returns `"ok":false`, follow `video-machine:setup` first:
+fails), or this returns `"ok":false`, follow `vm:setup` first:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/setup/cli.ts" doctor
@@ -111,13 +111,13 @@ short table. The table includes the layout (for example "stack, presenter below,
 
 | `next` | Do |
 |---|---|
-| `M5` | `video-machine:research` |
-| `M2`, `M3`, `M4` | `video-machine:capture` (the parts the brief does not need are already skipped) |
-| `M6`, `M7`, `M8` | `video-machine:storyboard` |
-| `M9`, `M10` | `video-machine:voice` |
-| `M11` | `video-machine:avatar` |
-| `M12`, `M13`, `M14` | `video-machine:scenes` |
-| `M16`, `M17` | `video-machine:deliver` |
+| `M5` | `vm:research` |
+| `M2`, `M3`, `M4` | `vm:capture` (the parts the brief does not need are already skipped) |
+| `M6`, `M7`, `M8` | `vm:storyboard` |
+| `M9`, `M10` | `vm:voice` |
+| `M11` | `vm:avatar` |
+| `M12`, `M13`, `M14` | `vm:scenes` |
+| `M16`, `M17` | `vm:deliver` |
 
 After each part, run `where` again and repeat until it says `done`. Between parts, tell the creator in one line what
 finished and what comes next; ask before each part that takes minutes or downloads anything.

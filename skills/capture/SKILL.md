@@ -70,7 +70,7 @@ takes a minute or more. May I?" Wait for a yes.
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/capture/cli.ts" replay runs/<run_id>
 ```
 
-If `replay` fails because there is no browser, follow `video-machine:setup` (`install capture_browser`; the creator's
+If `replay` fails because there is no browser, follow `vm:setup` (`install capture_browser`; the creator's
 yes covers the download once you have said its size), then replay again.
 
 It returns `{ok, log, ok_steps, failed: [{i, failed, fallback}]}`. Report each `failed` step by number and target with

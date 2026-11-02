@@ -4,7 +4,7 @@
   "owner": { "name": "Sumit Chakraborty" },
   "plugins": [
     {
-      "name": "video-machine",
+      "name": "vm",
       "source": "./",
       "description": "Concept + any source material to a motion-graphics video (reels first)."
     }

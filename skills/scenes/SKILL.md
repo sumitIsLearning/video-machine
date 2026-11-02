@@ -25,7 +25,7 @@ Only the `scene-writer` agent writes scene files. This skill never edits `scenes
 
 Run `todo`. It returns `{ok, todo: [{scene_id, reason: "new"|"feedback"|"changed", feedback?, avatar?}]}`, one entry per scene
 still to write (on a fresh run, every scene is `new`). If `todo` is empty, skip to step 2 (Build). Otherwise dispatch one
-`scene-writer` per entry only, in parallel, using the Agent tool with `subagent_type: "video-machine:scene-writer"`. Give
+`scene-writer` per entry only, in parallel, using the Agent tool with `subagent_type: "vm:scene-writer"`. Give
 each one the run folder and its `scene_id`. When the entry's `reason` is not `new`, tell the writer the scene file
 already exists and to edit it. When the entry has a `feedback`, pass that too. When the entry has `avatar`, pass it to the writer too. Wait for all of them. Then run `done` with
 the `scene_id`s whose writer finished. `build` refuses while any scene is still to write.
@@ -60,4 +60,4 @@ Tell the creator, in a few lines:
 - the summary from `report.md` (the `report` path that `check` returns).
 
 Then ask whether the scenes look right. Wait for a yes. Do not render anything else or move on without it.
-If the creator gives feedback instead, run the `review` skill (`video-machine:review`) with it. Do not edit scenes here.
+If the creator gives feedback instead, run the `review` skill (`vm:review`) with it. Do not edit scenes here.
