@@ -1,6 +1,7 @@
 ---
 name: storyboard
 description: "Use when a run needs its script, look or storyboard (M6–M8): writes the cited script (gate G1), two look directions with three boards each, and the storyboard plan with one board per scene (gate G2)."
+user-invocable: false
 ---
 
 # Storyboard (M6–M8)

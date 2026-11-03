@@ -1,6 +1,7 @@
 ---
 name: deliver
 description: "Use when a run needs its audio mixed and its deliverables exported (M16–M17), then the creator's final check (G4)"
+user-invocable: false
 ---
 
 # Deliver (M16–M17)

@@ -1,6 +1,7 @@
 ---
 name: scenes
 description: "Use when a run needs its scenes written, rendered and checked (M12–M14)"
+user-invocable: false
 ---
 
 # Scenes (M12–M14)

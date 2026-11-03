@@ -1,6 +1,7 @@
 ---
 name: feedback
-description: "Use when the creator gives feedback after G3 (scenes) or G4 (delivery): routes the feedback to the words, plan or scenes part and snapshots the run first"
+description: "Use when the creator gives feedback on a video waiting at any gate (G1 script, G2 storyboard, G3 scenes, G4 delivery) or types /vm:feedback: at G1 or G2 hands the notes to storyboard; at G3 or G4 routes the feedback to the words, plan or scenes part and snapshots the run first"
+argument-hint: "<what to change>"
 ---
 
 # Review feedback (after G3 or G4)

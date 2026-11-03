@@ -1,6 +1,7 @@
 ---
 name: capture
 description: "Use when a run has a navigation video or a product URL (M2-M4): reads the video into steps, replays them in a real browser for clean shots and clips, and builds the assets panel (M4) for every run, including a concept-only one."
+user-invocable: false
 ---
 
 # Capture (M2, M3, M4)

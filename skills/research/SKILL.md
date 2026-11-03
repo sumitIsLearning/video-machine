@@ -1,6 +1,7 @@
 ---
 name: research
 description: "Use when a run needs research (M5): finds facts about the concept on the web with sources, captures public pages for brand and screenshots, and finds free-licence media."
+user-invocable: false
 ---
 
 # Research (M5)

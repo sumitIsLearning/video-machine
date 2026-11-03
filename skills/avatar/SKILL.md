@@ -1,6 +1,7 @@
 ---
 name: avatar
 description: "Use when a run needs its avatar (M11): makes the talking-head segments, places them in each format's safe area, and reports which preset each segment got."
+user-invocable: false
 ---
 
 # Avatar (M11)

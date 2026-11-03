@@ -1,6 +1,7 @@
 ---
 name: new
-description: "Use when the creator wants a motion-graphics video (reel first; long-form later) made from a concept, with optional navigation videos, product URL, files or links."
+description: "Use when the creator says make a video about …, wants a motion-graphics video (reel first; long-form later) made from a concept, or types /vm:new; takes optional navigation videos, product URL, files or links."
+argument-hint: "<idea or concept>"
 ---
 
 # Make a video
