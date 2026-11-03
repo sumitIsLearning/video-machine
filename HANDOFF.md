@@ -2,12 +2,14 @@
 
 ## Now (2026-11-02): v0.1.0 released (reel-only), Phase 9 merged to master
 
-- Phase 9b short commands (user ask 2026-11-02): user OK, building on branch `phase-9b`. T1–T4 done (T4 499024c); next T5 (lib-builder: tests follow new names + tests/phase9b.ts).
-  README stale names (install line, /video-machine:status, make-video/review rows) are fixed in T6.
-  Ledger: `.superpowers/sdd/phase-9b-short-commands/progress.md` (R7: one Sonnet review over T1–T4).
-  Plan: `docs/superpowers/plans/phase-9b-short-commands.md` (T1–T4 plugin-builder, T5 lib-builder, T6–T7 orchestrator).
-  Blueprint pre-step done (Part 5 Phase 9b, 2.1 tree), not committed yet. Plugin becomes `vm`: four menu commands
-  `/vm:setup`, `/vm:new`, `/vm:status`, `/vm:feedback`; other skills hidden with `user-invocable: false`.
+- Phase 9b short commands (user ask 2026-11-02) on branch `phase-9b`: T1–T6 done (T5 4c50594, T6 README). Next: T7
+  proof with the creator, then the whole-branch Opus review, then ask before merging.
+  `tests/phase9b.ts` 5/5; check.sh 863 pass, lint OK. Plugin is now `vm`: menu `/vm:setup`, `/vm:new`, `/vm:status`,
+  `/vm:feedback`; the other 7 skills are hidden (`user-invocable: false`) but the model still calls them.
+  **Creator: reinstall as `vm`.** `/plugin uninstall video-machine@video-machine`, then
+  `/plugin install vm@video-machine`, then re-run `/vm:setup`.
+  T7: in a fresh session type `/vm`, see exactly the four commands with hints; run `/vm:status`; screenshot.
+  Ledger: `.superpowers/sdd/phase-9b-short-commands/progress.md`. Plan: `docs/superpowers/plans/phase-9b-short-commands.md`.
 
 - Scope (user, 2026-11-02): reel-only v0.1.0. Phase 9 T1–T7 done; T8 proof reel and Phase 10 (long-form) are next.
   Repo is PRIVATE (user flips it public later). No listing icon yet: needs a square 512–2048 px PNG before any
