@@ -1,6 +1,6 @@
 // Phase 2 acceptance test (real tools; takes several minutes: the model download, the venv, a Chrome render, Phase 0).
 //   node_modules/.bin/bun tests/phase2.ts
-// 1. unit tests pass                  2. lint is clean              3. the plugin loads make-video, setup, status
+// 1. unit tests pass                  2. lint is clean              3. the plugin loads new, setup, status
 // 4. snapshot of the plugin root      5. setup install (fresh VM_HOME)  6. setup doctor   7. setup smoke
 // 8. Phase 0 passes on the fresh VM_HOME   9. intake end to end   10. bad inputs fail cleanly
 // 11. nothing was written under the plugin root
@@ -147,14 +147,14 @@ try {
     return 'tsc, Biome and ruff report nothing';
   });
 
-  await check('3. the plugin loads make-video, setup and status', async () => {
-    const r = await sh(['claude', '--plugin-dir', '.', 'plugin', 'details', 'video-machine'], {
+  await check('3. the plugin loads new, setup and status', async () => {
+    const r = await sh(['claude', '--plugin-dir', '.', 'plugin', 'details', 'vm'], {
       cwd: WS,
       timeoutMs: MIN,
     });
     const m = /^\s*Skills \((\d+)\)[ \t]+(.*)$/m.exec(r.stdout);
     const skills = m?.[2]?.trim().split(/,\s*/) ?? [];
-    const missing = ['make-video', 'setup', 'status'].filter((s) => !skills.includes(s));
+    const missing = ['new', 'setup', 'status'].filter((s) => !skills.includes(s));
     if (missing.length || Number(m?.[1]) !== skills.length) throw new Error(`missing ${missing}\n${r.stdout}`);
 
     const v = await sh(['claude', 'plugin', 'validate', '.claude-plugin/plugin.json', '--strict', '--json'], {
