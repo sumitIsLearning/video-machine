@@ -2,7 +2,7 @@
 //   node_modules/.bin/bun tests/phase1.ts
 // 1. unit tests pass                        2. lint is clean (tsc, Biome, ruff)
 // 3. Phase 0 acceptance still passes        4. plugin and marketplace manifests pass strict validation
-// 5. claude --plugin-dir . loads make-video  6. lib/ keeps its boundaries (env, processes, retired folders gone)
+// 5. claude --plugin-dir . loads new  6. lib/ keeps its boundaries (env, processes, retired folders gone)
 // 7. the pinned HyperFrames version resolves (fills the npx cache, ~/.npm/_npx, on first run)
 // Check 6 scans TypeScript only on purpose: the vendored aligner Python under lib/adapters/align/ctc-onnx/analysis/
 // calls subprocess by design.
@@ -70,14 +70,14 @@ await check('4. plugin and marketplace manifests pass strict validation', async 
   return out.join('\n');
 });
 
-await check('5. claude --plugin-dir . loads the make-video skill', async () => {
-  const r = await sh(['claude', '--plugin-dir', '.', 'plugin', 'details', 'video-machine'], {
+await check('5. claude --plugin-dir . loads the new skill', async () => {
+  const r = await sh(['claude', '--plugin-dir', '.', 'plugin', 'details', 'vm'], {
     cwd: WS,
     timeoutMs: MIN,
   });
   const m = /^\s*Skills \((\d+)\)[ \t]+(.*)$/m.exec(r.stdout);
   const skills = m?.[2]?.trim().split(/,\s*/) ?? [];
-  if (!skills.includes('make-video') || Number(m?.[1]) !== skills.length) throw new Error(r.stdout);
+  if (!skills.includes('new') || Number(m?.[1]) !== skills.length) throw new Error(r.stdout);
   return `skills: ${skills.join(', ')}`;
 });
 

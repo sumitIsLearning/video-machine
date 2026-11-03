@@ -1,6 +1,7 @@
 ---
 name: capture
 description: "Use when a run has a navigation video or a product URL (M2-M4): reads the video into steps, replays them in a real browser for clean shots and clips, and builds the assets panel (M4) for every run, including a concept-only one."
+user-invocable: false
 ---
 
 # Capture (M2, M3, M4)
@@ -70,7 +71,7 @@ takes a minute or more. May I?" Wait for a yes.
 "${CLAUDE_PLUGIN_ROOT}/node_modules/.bin/bun" "${CLAUDE_PLUGIN_ROOT}/lib/capture/cli.ts" replay runs/<run_id>
 ```
 
-If `replay` fails because there is no browser, follow `video-machine:setup` (`install capture_browser`; the creator's
+If `replay` fails because there is no browser, follow `vm:setup` (`install capture_browser`; the creator's
 yes covers the download once you have said its size), then replay again.
 
 It returns `{ok, log, ok_steps, failed: [{i, failed, fallback}]}`. Report each `failed` step by number and target with

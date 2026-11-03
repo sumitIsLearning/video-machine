@@ -1,6 +1,7 @@
 ---
 name: research
 description: "Use when a run needs research (M5): finds facts about the concept on the web with sources, captures public pages for brand and screenshots, and finds free-licence media."
+user-invocable: false
 ---
 
 # Research (M5)
@@ -61,7 +62,7 @@ apostrophe inside it as `'\''`).
 It returns `{ok, page: {url, title, dir, screenshots, logos, fonts, palette}, record}`; paths are run-relative.
 `palette` is `[{hex, bg, text}]` (`bg` is the pixel count when the colour is used as background, `text` when used as text) and `fonts` is `[{family, path}]`. Note them for
 the look later. Fonts from a page are reference only: a font's licence is unknown, so never plan to ship one.
-If `page` fails because Chrome is missing, follow `video-machine:setup` (`install browser`).
+If `page` fails because Chrome is missing, follow `vm:setup` (`install browser`).
 
 ## 5. Find media
 

@@ -1,6 +1,7 @@
 ---
 name: deliver
 description: "Use when a run needs its audio mixed and its deliverables exported (M16–M17), then the creator's final check (G4)"
+user-invocable: false
 ---
 
 # Deliver (M16–M17)
@@ -35,5 +36,5 @@ of its `problems`. Then:
 List the `deliverables` paths and the `report` path from the `export` result, in a few lines. Then ask whether to
 finish. Wait for a yes.
 
-If the creator gives feedback instead, run the `review` skill (`video-machine:review`) with it. Do not edit `out/` or
+If the creator gives feedback instead, run the `feedback` skill (`vm:feedback`) with it. Do not edit `out/` or
 `build/` here.

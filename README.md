@@ -14,17 +14,17 @@ is planned.
 
 ## Install
 
-In Claude Code:
+In Terminal:
 
 ```
-/plugin marketplace add sumitIsLearning/video-machine
-/plugin install video-machine@video-machine
+claude plugin marketplace add sumitIsLearning/video-machine
+claude plugin install vm@video-machine
 ```
 
 The repository is private for now: you need read access to it on GitHub, and git on your machine signed in to an
 account that has it.
 
-Then open the folder you want your videos in and say **"set up the Video Machine"**. Setup tells you what it will
+Then open the folder you want your videos in and type `/vm:setup` (or say **"set up the Video Machine"**). Setup tells you what it will
 download (about 1 GB in total: Python venv, voice and alignment models, Chrome for rendering), asks once, then installs
 and checks everything.
 
@@ -39,16 +39,27 @@ and checks everything.
 Setup finds missing tools and shows these commands for your OS. Everything else (bun, Python packages, models,
 Chrome) is installed by setup inside the plugin and your workspace.
 
+## Commands
+
+Type `/vm` to see them:
+
+| Command | What it does |
+|---|---|
+| `/vm:setup` | install and check the tools |
+| `/vm:new <idea or concept>` | start a new video |
+| `/vm:status` | setup health and where each run stands |
+| `/vm:feedback <what to change>` | change the video at whatever gate it is waiting at |
+
 ## Make a video
 
-1. Copy `CONCEPT-TEMPLATE.md` from the plugin, fill in what you know (one line is enough), and paste it to Claude, or
-   just say **"make a video about …"**.
+1. Type `/vm:new <idea>` (or just say **"make a video about …"**). For more detail, copy `CONCEPT-TEMPLATE.md`
+   from the plugin, fill in what you know (one line is enough), and paste it to Claude.
 2. Answer at most three questions. Claude writes the brief and shows it as a table.
 3. Approve the script (G1), pick one of two looks, approve the storyboard boards (G2), check the scenes (G3) and the
-   final cut (G4). Give feedback in plain words at any gate.
+   final cut (G4). Give feedback in plain words, or with `/vm:feedback`, at any gate.
 4. Find the MP4, SRT and After Effects package in `runs/<run_id>/out/`.
 
-Ask **"how are my videos doing?"** (or `/video-machine:status`) at any time to see where each run stands.
+Ask **"how are my videos doing?"** (or `/vm:status`) at any time to see where each run stands.
 
 ### Layouts with a presenter
 
@@ -70,16 +81,21 @@ stops first to show the estimated price and ask. Never paste a key into the chat
 
 | Skill | Part |
 |---|---|
-| `make-video` | intake and the whole pipeline |
+| `new` | intake and the whole pipeline |
 | `setup` | install and check tools |
+| `status` | setup health and run progress |
+| `feedback` | route feedback to words, plan or scenes, at any gate |
+
+Internal steps (Claude calls these; they are not in the `/vm` menu):
+
+| Skill | Part |
+|---|---|
 | `research`, `capture` | web research, page captures, product replays |
 | `storyboard` | script (G1), looks, storyboard (G2) |
 | `voice` | voiceover and word timing |
 | `avatar` | presenter segments and placement |
 | `scenes` | scene writing, render and checks (G3) |
-| `review` | route feedback to words, plan or scenes |
 | `deliver` | audio mix, exports, final check (G4) |
-| `status` | setup health and run progress |
 
 ## Licence
 

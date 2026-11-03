@@ -1,6 +1,7 @@
 ---
 name: voice
 description: "Use when a run needs its voiceover (M9) or its word timing (M10): voices the script, aligns it, and reports the length."
+user-invocable: false
 ---
 
 # Voice (M9–M10)

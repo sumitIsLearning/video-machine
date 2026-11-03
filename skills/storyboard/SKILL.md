@@ -1,6 +1,7 @@
 ---
 name: storyboard
 description: "Use when a run needs its script, look or storyboard (M6–M8): writes the cited script (gate G1), two look directions with three boards each, and the storyboard plan with one board per scene (gate G2)."
+user-invocable: false
 ---
 
 # Storyboard (M6–M8)
@@ -149,7 +150,7 @@ write` the whole plan again. It returns `changed` (scene ids) and deletes their 
 
 In a `stack` run, tell the creator the layout and the split first. The boards show the presenter band as a grey
 "presenter" block. To change the layout, re-run intake with the full draft: copy every field of the current `brief.json`
-except `run_id`, change only `layout`, and send it to `lib/run/cli.ts brief` (see make-video Step 1). Intake rebuilds the
+except `run_id`, change only `layout`, and send it to `lib/run/cli.ts brief` (see the new skill, Step 1). Intake rebuilds the
 whole brief from the draft, so a draft with only `layout` drops sources, avatar, cta, brand and budget. Then re-render
 the look boards and the scene boards. If avatar clips were already made, re-make them with `lib/avatar/cli.ts make`
 after the change; for HeyGen this is a paid call that needs a fresh cost approval (ask first). Never hand-edit `brief.json`.

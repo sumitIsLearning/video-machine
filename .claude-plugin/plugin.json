@@ -1,5 +1,5 @@
 {
-  "name": "video-machine",
+  "name": "vm",
   "version": "0.1.0",
   "description": "Turns a concept and any source material into a motion-graphics video (reels first).",
   "author": {

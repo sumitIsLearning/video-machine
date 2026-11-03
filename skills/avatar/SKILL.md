@@ -1,6 +1,7 @@
 ---
 name: avatar
 description: "Use when a run needs its avatar (M11): makes the talking-head segments, places them in each format's safe area, and reports which preset each segment got."
+user-invocable: false
 ---
 
 # Avatar (M11)
@@ -30,7 +31,7 @@ Every command prints one JSON line. Read its `ok` field, never the exit code. An
 In a `stack` run (`brief.layout.kind == "stack"`), `make` already wrote `avatar/placement.json`. Skip the avatar
 director and go to step 3.
 
-Dispatch `video-machine:avatar-director` with the Agent tool (`subagent_type: "video-machine:avatar-director"`), giving
+Dispatch `vm:avatar-director` with the Agent tool (`subagent_type: "vm:avatar-director"`), giving
 it the run folder `runs/<run_id>`. Wait for it to finish.
 
 ## 3. Check the boxes

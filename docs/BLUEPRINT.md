@@ -310,14 +310,14 @@ video-machine/                      # repo = the plugin and its own marketplace
     plugin.json                     # plugin manifest
     marketplace.json                # makes the repo installable with /plugin marketplace add
   skills/                           # SHIPPED skills (the product's procedure)
-    make-video/SKILL.md             # M1–M17 procedure, < 150 lines, points to the others
+    new/SKILL.md                    # /vm:new: M1–M17 procedure, < 150 lines, points to the others
     setup/SKILL.md                  # M0
     research/SKILL.md               # M5 (web research, page captures, found media)
     capture/SKILL.md                # M2–M4
     storyboard/SKILL.md             # M7–M8
-    review/SKILL.md                 # M15 routing rules
+    feedback/SKILL.md               # /vm:feedback: M15 routing rules (any gate)
     avatar/SKILL.md                 # M11
-    status/SKILL.md                 # /video-machine:status (setup health + each run's next part)
+    status/SKILL.md                 # /vm:status (setup health + each run's next part)
   agents/                           # SHIPPED subagents
     scene-writer.md                 # M12
     avatar-director.md              # M11
@@ -418,6 +418,14 @@ acceptance test (`tests/phase<N>.ts`) passes and the user has seen the visible o
 - Script rules from the research: a hook in the first 3 s, short on-screen text, CTA in the last beat.
 - Acceptance: fixture checks in `tests/phase9.ts`, then one real reel from a real concept in `stack` with one
   full-graphic scene; its contact sheet goes on the project map next to the mock.
+
+### Phase 9b — Short commands (user ruling 2026-11-02)
+- Plugin name `vm` (marketplace stays `video-machine`): install is `/plugin install vm@video-machine`.
+- The slash menu shows four commands: `/vm:setup`, `/vm:new <idea>`, `/vm:status`, `/vm:feedback <notes>`. The other
+  skills are hidden from the menu (`user-invocable: false`) and still run inside a video.
+- `make-video` becomes `new`, `review` becomes `feedback`; `feedback` also takes notes at G1 and G2. Plain sentences
+  ("make a video about …") keep working.
+- Acceptance: `tests/phase9b.ts`, then the creator types `/vm` in a fresh session and sees exactly the four commands.
 
 ### Phase 10 — Long-form (16:9 with chapters)
 - `landscape_1080p` end to end; `Plan.sections` / `Script.lines[].section` as chapters; chapter cards; long-form duration
