@@ -14,11 +14,11 @@ is planned.
 
 ## Install
 
-In Claude Code:
+In Terminal:
 
 ```
-/plugin marketplace add sumitIsLearning/video-machine
-/plugin install vm@video-machine
+claude plugin marketplace add sumitIsLearning/video-machine
+claude plugin install vm@video-machine
 ```
 
 The repository is private for now: you need read access to it on GitHub, and git on your machine signed in to an
